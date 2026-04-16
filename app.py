@@ -1,7 +1,9 @@
+import pathlib
 import streamlit as st
 import logic
 from logic import is_settimana_prossima, trova_conflitti_allenamenti
-from sheets import leggi_foglio, reset_form
+from database import leggi_calendario, leggi_orario_fisso, reset_form, _leggi_secrets_toml
+# LEGACY: from sheets import leggi_foglio, reset_form
 
 import views.home                as page_home
 import views.calendario          as page_calendario
@@ -14,7 +16,9 @@ try:
     logic.EMAIL_MITTENTE = st.secrets["email"]["mittente"]
     logic.EMAIL_PASSWORD  = st.secrets["email"]["password"]
 except Exception:
-    pass
+    _s = _leggi_secrets_toml()
+    logic.EMAIL_MITTENTE = _s.get("email", {}).get("mittente", logic.EMAIL_MITTENTE)
+    logic.EMAIL_PASSWORD  = _s.get("email", {}).get("password", logic.EMAIL_PASSWORD)
 
 st.set_page_config(page_title="Gestione Società Sportiva", page_icon="🏀", layout="wide")
 
@@ -40,8 +44,9 @@ if not st.session_state.get("autenticato"):
             pwd_admin      = st.secrets["app"]["password"]
             pwd_allenatore = st.secrets["app"].get("password_allenatori", "oderzo-staff")
         except Exception:
-            pwd_admin      = "oderzo2026"
-            pwd_allenatore = "oderzo-staff"
+            _s = _leggi_secrets_toml().get("app", {})
+            pwd_admin      = _s.get("password", "oderzo2026")
+            pwd_allenatore = _s.get("password_allenatori", "oderzo-staff")
 
         if pwd == pwd_admin:
             st.session_state["autenticato"] = True
@@ -105,7 +110,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    df_cal = leggi_foglio("Calendario Definitivo")
+    df_cal = leggi_calendario()
     if not df_cal.empty and "Tipo" in df_cal.columns:
         conflitti_df = df_cal[df_cal["Tipo"].str.contains("CONFLITTO", na=False)]
         n_urgenti = sum(1 for _, r in conflitti_df.iterrows() if is_settimana_prossima(r.get("Data", "")))
@@ -115,8 +120,7 @@ with st.sidebar:
         elif n_totali > 0:
             st.warning(f"⚠️ {n_totali} conflitti partite da risolvere")
 
-    from sheets import leggi_foglio as _lf
-    df_of = _lf("Orario Fisso")
+    df_of = leggi_orario_fisso()
     n_conf_all = len(trova_conflitti_allenamenti(df_of))
     if n_conf_all > 0:
         st.error(f"🚨 {n_conf_all} conflitti tra allenamenti")

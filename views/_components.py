@@ -4,6 +4,27 @@ Componenti UI riutilizzabili condivisi tra le view.
 import streamlit as st
 from logic import trova_slot_liberi
 
+# ── Emoji e colori per flag allenamento ───────────────────────────────────────
+FLAG_EMOJIS = {
+    "normale":       "",
+    "importante":    "⭐",
+    "annullato":     "❌",
+    "da_confermare": "⚠️",
+}
+
+# ── Colori bordo per tipo palestra ────────────────────────────────────────────
+PALESTRA_TIPO_COLORS = {
+    "Principale": "#4CAF50",   # verde
+    "Secondaria": "#FF9800",   # arancione
+    "Esterna":    "#9E9E9E",   # grigio
+}
+
+
+def get_palestra_tipo_color(tipo: str) -> str:
+    """Ritorna il colore del bordo per il tipo di palestra."""
+    return PALESTRA_TIPO_COLORS.get(str(tipo), "#4CAF50")
+
+
 # ── Palette colori per squadra ────────────────────────────────────────────────
 _TEAM_PALETTE = [
     "#1565C0",  # blue
@@ -76,6 +97,43 @@ def render_sposta_allenamenti(conflitti, durata_totale, orario_fisso,
                     scelte[nome] = (scelta, slot[:5], opzioni)
 
     return ha_bloccanti, scelte
+
+
+def build_spostamento_dicts(data_partita, scelte):
+    """
+    Come build_spostamento_rows ma ritorna list[dict] per scrivi_eventi_batch.
+
+    Parameters
+    ----------
+    data_partita : str   es. "2026-04-12"
+    scelte       : dict  output di render_sposta_allenamenti
+
+    Returns
+    -------
+    list[dict]  — dicts pronti per scrivi_eventi_batch("calendario", ...)
+    """
+    rows = []
+    for nome, (scelta, slot_list, opzioni) in scelte.items():
+        if scelta in ("__nessuno__", "— Seleziona slot —"):
+            continue
+        try:
+            i = opzioni.index(scelta) - 1
+        except ValueError:
+            continue
+        if 0 <= i < len(slot_list):
+            s = slot_list[i]
+            rows.append({
+                "data":       data_partita,
+                "giorno":     s["giorno"],
+                "squadra":    nome,
+                "tipo":       "Allenamento spostato",
+                "avversario": "",
+                "ora_inizio": s["ora_inizio"],
+                "ora_fine":   s["ora_fine"],
+                "casa_fuori": "Casa",
+                "palestra":   s["palestra"],
+            })
+    return rows
 
 
 def build_spostamento_rows(data_partita, scelte):

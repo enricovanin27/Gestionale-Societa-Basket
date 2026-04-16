@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('test_email.py'\\).read\\(\\)\\); print\\('sintassi OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('sintassi OK'\\)\")",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(set PYTHONIOENCODING=utf-8)",
+      "Bash(streamlit run:*)",
+      "Bash(curl -s http://localhost:8502/)"
+    ]
+  }
+}

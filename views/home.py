@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from logic import parse_data, GIORNI_SETTIMANA, _norm
-from sheets import carica_tutti_i_dati
-from views._components import get_team_color
+from database import carica_tutti_i_dati_db, invalida_cache, leggi_orario_settimana
+# LEGACY: from sheets import carica_tutti_i_dati
+from views._components import get_team_color, FLAG_EMOJIS
 
 MESI_IT = [
     "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
@@ -39,100 +40,123 @@ def _tipo_label(tipo: str) -> tuple:
     return "📅", t.strip()
 
 
-def _render_oggi(orario_fisso: pd.DataFrame, df_cal: pd.DataFrame, oggi: date):
-    """Sezione 'Oggi': card colorate per allenamenti e partite del giorno."""
+def _render_oggi(
+    orario_fisso: pd.DataFrame,
+    df_cal: pd.DataFrame,
+    oggi: date,
+    orario_settimana: pd.DataFrame = None,
+    squadre_filter: set = None,
+):
+    """
+    Vista 'Oggi': tabella compatta Ora | Squadra | Tipo | Palestra | Allenatori.
+    squadre_filter: se non None, mostra solo le squadre nell'insieme (per vista allenatore).
+    """
     oggi_giorno = GIORNI_SETTIMANA[oggi.weekday()]
+    oggi_str    = oggi.strftime("%Y-%m-%d")
 
-    # Allenamenti fissi di oggi
-    allenamenti_oggi = pd.DataFrame()
+    # ── Costruisci override lookup per oggi ───────────────────────────
+    sett_today: dict = {}
+    if orario_settimana is not None and not orario_settimana.empty:
+        for _, srow in orario_settimana.iterrows():
+            if str(srow.get("data", "")) == oggi_str:
+                _sqn = _norm(str(srow.get("squadra", "")).strip())
+                sett_today[_sqn] = srow
+
+    rows: list = []
+    inclusi: set = set()
+
+    # ── Allenamenti fissi con overrides ───────────────────────────────
     if not orario_fisso.empty and "giorno" in orario_fisso.columns:
         mask = orario_fisso["giorno"].str.lower().str.strip() == oggi_giorno
-        allenamenti_oggi = orario_fisso[mask].copy()
-        if not allenamenti_oggi.empty:
-            try:
-                allenamenti_oggi = allenamenti_oggi.sort_values(
-                    "ora_inizio", key=lambda x: x.map(_ore_to_min)
-                )
-            except Exception:
-                pass
+        for _, ev in orario_fisso[mask].iterrows():
+            sqn  = _norm(str(ev.get("squadra", "")).strip())
+            ov   = sett_today.get(sqn)
+            if ov is not None:
+                inclusi.add(sqn)
+                if ov.get("annullato", False):
+                    continue  # saltato questa settimana
+                sq   = str(ov.get("squadra",  ev.get("squadra",  ""))).strip()
+                ora  = str(ov.get("ora_inizio","")).strip()[:5]
+                pal  = str(ov.get("palestra",  ev.get("palestra",""))).strip().capitalize()
+                all_ = str(ov.get("allenatori",ev.get("allenatori",""))).strip()
+                flag = FLAG_EMOJIS.get(str(ov.get("flag","normale")), "")
+            else:
+                sq   = str(ev.get("squadra",   "")).strip()
+                ora  = str(ev.get("ora_inizio", "")).strip()[:5]
+                pal  = str(ev.get("palestra",   "")).strip().capitalize()
+                all_ = str(ev.get("allenatori", "")).strip()
+                flag = ""
+            if squadre_filter and _norm(sq) not in squadre_filter:
+                continue
+            rows.append({
+                "Ora": ora, "Squadra": f"{flag} {sq}".strip() if flag else sq,
+                "Tipo": "🏀 Allenamento", "Palestra": pal, "Allenatori": all_,
+            })
 
-    # Partite di oggi dal calendario
-    partite_oggi = []
+    # ── Allenamenti extra di oggi (orario_settimana non fisso) ────────
+    if orario_settimana is not None and not orario_settimana.empty:
+        for _, srow in orario_settimana.iterrows():
+            if str(srow.get("data", "")) != oggi_str:
+                continue
+            sqn = _norm(str(srow.get("squadra", "")).strip())
+            if sqn in inclusi or srow.get("annullato", False):
+                continue
+            sq   = str(srow.get("squadra",   "")).strip()
+            ora  = str(srow.get("ora_inizio", "")).strip()[:5]
+            pal  = str(srow.get("palestra",   "")).strip().capitalize()
+            all_ = str(srow.get("allenatori", "")).strip()
+            flag = FLAG_EMOJIS.get(str(srow.get("flag", "normale")), "")
+            if squadre_filter and _norm(sq) not in squadre_filter:
+                continue
+            rows.append({
+                "Ora": ora, "Squadra": f"{flag} {sq}".strip() if flag else sq,
+                "Tipo": "🏀 Allenamento (extra)", "Palestra": pal, "Allenatori": all_,
+            })
+
+    # ── Partite di oggi ───────────────────────────────────────────────
     if not df_cal.empty:
-        for _, row in df_cal.iterrows():
-            if parse_data(row.get("Data", "")) == oggi:
-                partite_oggi.append(row)
+        for _, ev in df_cal.iterrows():
+            if parse_data(ev.get("Data", "")) != oggi:
+                continue
+            sq    = str(ev.get("Squadra",    "")).strip()
+            if squadre_filter and _norm(sq) not in squadre_filter:
+                continue
+            tipo  = str(ev.get("Tipo",       ""))
+            ora   = str(ev.get("Ora Inizio", "")).strip()[:5]
+            pal   = str(ev.get("Palestra",   "")).strip()
+            if "Casa" in tipo:
+                tipo_lbl = "🏠 Partita Casa"
+            elif "Fuori" in tipo:
+                tipo_lbl = "🚌 Partita Trasferta"
+            else:
+                tipo_lbl = "📅 Partita"
+            if "CONFLITTO" in tipo:
+                tipo_lbl = "⚠️ " + tipo_lbl
+            rows.append({
+                "Ora": ora, "Squadra": sq,
+                "Tipo": tipo_lbl, "Palestra": pal, "Allenatori": "",
+            })
 
-    n_total = len(allenamenti_oggi) + len(partite_oggi)
-
-    if n_total == 0:
+    if not rows:
         st.info("Nessun allenamento né partita programmata per oggi.")
         return
 
-    # Raggruppa in righe da 4 card
-    items = []
-    for _, ev in allenamenti_oggi.iterrows():
-        items.append(("fisso", ev))
-    for row in partite_oggi:
-        items.append(("partita", row))
+    # Ordina per orario crescente
+    rows.sort(key=lambda r: _ore_to_min(r["Ora"]) if r["Ora"] else 9999)
 
-    per_row = 4
-    for i in range(0, len(items), per_row):
-        batch = items[i:i + per_row]
-        cols = st.columns(len(batch))
-        for col, (kind, ev) in zip(cols, batch):
-            with col:
-                if kind == "fisso":
-                    team       = str(ev.get("squadra",    "")).strip()
-                    ora_i      = str(ev.get("ora_inizio", "")).strip()
-                    ora_f      = str(ev.get("ora_fine",   "")).strip()
-                    pal        = str(ev.get("palestra",   "")).strip().capitalize()
-                    allenatori = str(ev.get("allenatori", "")).strip()
-                    color = get_team_color(team)
-                    st.markdown(
-                        f"""<div style="background:{color};border-radius:12px;
-                                    padding:14px 16px;
-                                    box-shadow:0 3px 10px rgba(0,0,0,0.2)">
-                          <div style="color:white;font-weight:800;font-size:1.05em">
-                            🏀 {team}
-                          </div>
-                          <div style="color:rgba(255,255,255,0.92);font-size:0.9em;margin-top:5px">
-                            ⏰ {ora_i} → {ora_f}
-                          </div>
-                          <div style="color:rgba(255,255,255,0.78);font-size:0.85em">
-                            🏟️ {pal}
-                          </div>
-                          {"<div style='color:rgba(255,255,255,0.65);font-size:0.8em'>👤 " + allenatori + "</div>" if allenatori else ""}
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    tipo    = str(ev.get("Tipo",      ""))
-                    squadra = str(ev.get("Squadra",   ""))
-                    ora     = str(ev.get("Ora Inizio",""))
-                    pal     = str(ev.get("Palestra",  ""))
-                    is_casa = "Casa" in tipo
-                    bg      = "#0D3B6E" if is_casa else "#4A235A"
-                    icon    = "🏠" if is_casa else "🚌"
-                    lbl     = "In Casa" if is_casa else "Trasferta"
-                    border  = "#FF4444" if "CONFLITTO" in tipo else "rgba(255,255,255,0.2)"
-                    st.markdown(
-                        f"""<div style="background:{bg};border-radius:12px;
-                                    padding:14px 16px;border-left:4px solid {border};
-                                    box-shadow:0 3px 10px rgba(0,0,0,0.2)">
-                          <div style="color:white;font-weight:800;font-size:1.05em">
-                            {icon} Partita {lbl}
-                          </div>
-                          <div style="color:rgba(255,255,255,0.92);font-size:0.9em;margin-top:5px">
-                            🏀 {squadra}
-                          </div>
-                          <div style="color:rgba(255,255,255,0.82);font-size:0.88em">
-                            ⏰ {ora}
-                          </div>
-                          {"<div style='color:rgba(255,255,255,0.7);font-size:0.83em'>🏟️ " + pal + "</div>" if pal else ""}
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
+    df_oggi = pd.DataFrame(rows)[["Ora", "Squadra", "Tipo", "Palestra", "Allenatori"]]
+    st.dataframe(
+        df_oggi,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Ora":        st.column_config.TextColumn("⏰ Ora",      width="small"),
+            "Squadra":    st.column_config.TextColumn("🏀 Squadra",  width="medium"),
+            "Tipo":       st.column_config.TextColumn("📋 Tipo",     width="medium"),
+            "Palestra":   st.column_config.TextColumn("🏟️ Palestra", width="medium"),
+            "Allenatori": st.column_config.TextColumn("👤 Allenatori", width="large"),
+        },
+    )
 
 
 def render():
@@ -150,16 +174,21 @@ def render():
         unsafe_allow_html=True,
     )
 
-    if st.button("🔄 Aggiorna", key="home_refresh", help="Ricarica i dati da Google Sheets"):
-        carica_tutti_i_dati.clear()
+    if st.button("🔄 Aggiorna", key="home_refresh", help="Ricarica i dati da Supabase"):
+        invalida_cache()
         st.rerun()
 
     st.markdown("---")
 
     # ── Carica tutti i dati ───────────────────────────────────────
-    dati        = carica_tutti_i_dati()
-    df_cal      = dati.get("Calendario Definitivo", pd.DataFrame())
+    dati         = carica_tutti_i_dati_db()
+    df_cal       = dati.get("Calendario Definitivo", pd.DataFrame())
     orario_fisso = dati.get("Orario Fisso", pd.DataFrame())
+    # Override settimana corrente (per allenamenti modificati/extra/annullati)
+    orario_settimana_oggi = leggi_orario_settimana(
+        data_inizio=oggi.strftime("%Y-%m-%d"),
+        data_fine=oggi.strftime("%Y-%m-%d"),
+    )
 
     # ── Contatori stagione ────────────────────────────────────────
     n_casa = n_fuori = n_spostati = n_conflitti = 0
@@ -187,7 +216,7 @@ def render():
 
     # ── Sezione OGGI ──────────────────────────────────────────────
     st.markdown("### 📍 Oggi")
-    _render_oggi(orario_fisso, df_cal, oggi)
+    _render_oggi(orario_fisso, df_cal, oggi, orario_settimana_oggi)
 
     st.markdown("---")
 

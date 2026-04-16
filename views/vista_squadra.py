@@ -7,7 +7,8 @@ import streamlit as st
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 from logic import GIORNI_SETTIMANA, parse_data
-from sheets import carica_tutti_i_dati, leggi_foglio
+from database import carica_tutti_i_dati_db, invalida_cache
+# LEGACY: from sheets import carica_tutti_i_dati, leggi_foglio
 from views._components import get_team_color
 
 
@@ -44,8 +45,7 @@ def render():
     squadra = st.session_state.get("squadra_pubblica", "")
 
     if st.button("🔄 Aggiorna", key="vs_refresh"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
     color = get_team_color(squadra)
@@ -63,7 +63,7 @@ def render():
         unsafe_allow_html=True,
     )
 
-    dati         = carica_tutti_i_dati()
+    dati         = carica_tutti_i_dati_db()
     orario_fisso = dati.get("Orario Fisso",          __import__("pandas").DataFrame())
     calendario   = dati.get("Calendario Definitivo", __import__("pandas").DataFrame())
     oggi         = datetime.today().date()

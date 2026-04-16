@@ -5,10 +5,15 @@ from logic import (
     trova_squadre_senza_allenamento, trova_date_alternative,
     trova_slot_liberi,
     c_e_conflitto,
+    trova_conflitti_allenatore_slot,
     notifica_nuova_partita, notifica_allenamento_spostato, notifica_conflitto,
 )
-from sheets import carica_tutti_i_dati, scrivi_riga, scrivi_righe_batch, leggi_foglio, reset_form
-from views._components import render_sposta_allenamenti, build_spostamento_rows
+from database import (
+    carica_tutti_i_dati_db, invalida_cache,
+    scrivi_evento, scrivi_eventi_batch, reset_form,
+)
+# LEGACY: from sheets import carica_tutti_i_dati, scrivi_riga, scrivi_righe_batch, leggi_foglio, reset_form
+from views._components import render_sposta_allenamenti, build_spostamento_dicts
 
 
 def _render_allenamenti_settimana(partita, orario_fisso, df_squadre, df_allenatori, df_palestre):
@@ -105,11 +110,17 @@ def _render_allenamenti_settimana(partita, orario_fisso, df_squadre, df_allenato
                         slot_idx = opzioni.index(scelta) - 1
                         if 0 <= slot_idx < len(slots):
                             s = slots[slot_idx]
-                            if scrivi_riga("Calendario Definitivo", [
-                                data_ev.strftime("%Y-%m-%d"), giorno_ev, squadra_ev,
-                                "Allenamento spostato", "",
-                                s["ora_inizio"], s["ora_fine"], "Casa", s["palestra"],
-                            ]):
+                            if scrivi_evento("calendario", {
+                                "data":       data_ev.strftime("%Y-%m-%d"),
+                                "giorno":     giorno_ev,
+                                "squadra":    squadra_ev,
+                                "tipo":       "Allenamento spostato",
+                                "avversario": "",
+                                "ora_inizio": s["ora_inizio"],
+                                "ora_fine":   s["ora_fine"],
+                                "casa_fuori": "Casa",
+                                "palestra":   s["palestra"],
+                            }):
                                 notifica_allenamento_spostato(
                                     squadra_ev, s["giorno"], s["ora_inizio"],
                                     s["palestra"], df_allenatori,
@@ -119,8 +130,7 @@ def _render_allenamenti_settimana(partita, orario_fisso, df_squadre, df_allenato
                                     f"{s['giorno'].capitalize()} {s['ora_inizio']} "
                                     f"@ {s['palestra']}"
                                 )
-                                carica_tutti_i_dati.clear()
-                                leggi_foglio.clear()
+                                invalida_cache()
 
     if trovati == 0:
         st.info("Nessun allenamento fisso trovato per questa palestra nella settimana selezionata.")
@@ -131,7 +141,7 @@ def render(as_tab: bool = False, dati: dict = None):
         st.header("📅 Inserisci Partita")
     form_key = st.session_state.get("form_key", 0)
     if dati is None:
-        dati = carica_tutti_i_dati()
+        dati = carica_tutti_i_dati_db()
     df_squadre = dati["Squadre"]
     df_allenatori = dati["Allenatori"]
     df_palestre = dati["Palestre"]
@@ -199,7 +209,13 @@ def render(as_tab: bool = False, dati: dict = None):
             pass
 
     ora_partita_str = ora_partita.strftime("%H:%M")
-    ora_inizio_slot, ora_fine_slot = calcola_slot(ora_partita_str, minuti_risc, durata)
+    e_trasferta = casa_fuori == "🚌 Fuori Casa"
+    if not e_trasferta:
+        ora_inizio_slot, ora_fine_slot = calcola_slot(ora_partita_str, minuti_risc, durata)
+    else:
+        # Trasferta: nessuno slot palestra, usa solo l'orario della partita
+        ora_inizio_slot = ora_partita_str
+        ora_fine_slot   = ora_partita_str
     durata_totale = minuti_risc + durata
     giorno = GIORNI_SETTIMANA[data.weekday()]
 
@@ -209,6 +225,10 @@ def render(as_tab: bool = False, dati: dict = None):
         luogo_display = luogo if luogo else "—"
         avversario_display = avversario if avversario else "—"
         tipo_label = "🏠 Casa" if casa_fuori == "🏠 Casa" else "🚌 Fuori Casa"
+        slot_line = (
+            f"&emsp;⏱️ &nbsp;Slot palestra: <strong style=\"color:#fff\">{ora_inizio_slot} → {ora_fine_slot}</strong>"
+            if not e_trasferta else ""
+        )
         st.markdown(
             f"""
             <div style="background:linear-gradient(135deg,#1a3a5c,#0d2137);
@@ -222,7 +242,7 @@ def render(as_tab: bool = False, dati: dict = None):
                 📅 &nbsp;<strong style="color:#fff">{giorno.capitalize()}</strong>
                 &nbsp;{data.strftime("%d/%m/%Y")}
                 &emsp;🕐 &nbsp;Partita: <strong style="color:#fff">{ora_partita_str}</strong>
-                &emsp;⏱️ &nbsp;Slot: <strong style="color:#fff">{ora_inizio_slot} → {ora_fine_slot}</strong><br>
+                {slot_line}<br>
                 📍 &nbsp;{luogo_display}
               </div>
             </div>
@@ -248,6 +268,14 @@ def render(as_tab: bool = False, dati: dict = None):
             return
         with st.spinner("Analisi in corso..."):
             calendario = dati["Calendario Definitivo"]
+
+            # ── Controllo allenatori in due posti ──────────────────────
+            conflitti_all = trova_conflitti_allenatore_slot(
+                squadra, giorno, ora_inizio_slot, ora_fine_slot,
+                orario_fisso, df_allenatori,
+            )
+            st.session_state["conflitti_allenatori"] = conflitti_all
+
             if casa_fuori == "🚌 Fuori Casa":
                 suggerimenti = trova_squadre_senza_allenamento(squadra, giorno, ora_inizio_slot, ora_fine_slot, orario_fisso, df_squadre)
                 st.session_state.update({"fuori_casa": True, "suggerimenti_fuori": suggerimenti})
@@ -278,6 +306,16 @@ def render(as_tab: bool = False, dati: dict = None):
                 "df_allenatori": df_allenatori, "df_palestre": df_palestre
             })
 
+    # ── AVVISO ALLENATORI IN DUE POSTI ───────────────────────────
+    conflitti_all = st.session_state.get("conflitti_allenatori", [])
+    if conflitti_all and "partita" in st.session_state:
+        for cf in conflitti_all:
+            st.warning(
+                f"⚠️ **ATTENZIONE:** **{cf['allenatore']}** è già impegnato in questo orario "
+                f"con **{cf['squadra']}** ({cf['ora_inizio']}–{cf['ora_fine']})."
+            )
+        st.info("ℹ️ Puoi comunque procedere — questa è solo una segnalazione.")
+
     # ── RISULTATO: FUORI CASA ──────────────────────────────────────
     if st.session_state.get("fuori_casa") and "partita" in st.session_state:
         partita = st.session_state["partita"]
@@ -291,16 +329,20 @@ def render(as_tab: bool = False, dati: dict = None):
                     st.markdown(f"&nbsp;&nbsp;✅ **{s['squadra']}** — {s['palestra']} &nbsp;{s['ora_inizio']}–{s['ora_fine']}")
         if st.button("✅ Aggiungi al Calendario Definitivo", key="salva_fuori", use_container_width=True):
             with st.spinner("Salvataggio in corso..."):
-                if scrivi_riga("Calendario Definitivo", [partita["data"], partita["giorno"], partita["squadra"],
-                    "Partita Fuori Casa", partita.get("avversario",""), partita["ora_partita"], partita["ora_fine"], "Fuori Casa", partita["luogo"]]):
+                # Trasferta: nessuno slot palestra — salva solo l'orario della partita
+                if scrivi_evento("calendario", {
+                    "data": partita["data"], "giorno": partita["giorno"], "squadra": partita["squadra"],
+                    "tipo": "Partita Fuori Casa", "avversario": partita.get("avversario", ""),
+                    "ora_inizio": partita["ora_partita"], "ora_fine": partita["ora_partita"],
+                    "casa_fuori": "Fuori Casa", "palestra": partita["luogo"],
+                }):
                     st.success("✅ Salvata!")
                     df_all = dati["Allenatori"]
                     ok, err = notifica_nuova_partita(partita["squadra"], partita["data"], partita["giorno"], partita["ora_partita"], partita["luogo"], "Fuori", df_all)
                     if ok:
                         st.info("📧 Notifica inviata agli allenatori.")
                     st.balloons()
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     reset_form()
                     st.rerun()
 
@@ -326,16 +368,19 @@ def render(as_tab: bool = False, dati: dict = None):
             )
             if st.button("✅ Aggiungi al Calendario Definitivo", key="salva_casa", use_container_width=True):
                 with st.spinner("Salvataggio in corso..."):
-                    if scrivi_riga("Calendario Definitivo", [partita["data"], partita["giorno"], partita["squadra"],
-                        "Partita in Casa", partita.get("avversario",""), partita["ora_partita"], partita["ora_fine"], "Casa", partita["palestra"]]):
+                    if scrivi_evento("calendario", {
+                        "data": partita["data"], "giorno": partita["giorno"], "squadra": partita["squadra"],
+                        "tipo": "Partita in Casa", "avversario": partita.get("avversario", ""),
+                        "ora_inizio": partita["ora_partita"], "ora_fine": partita["ora_fine"],
+                        "casa_fuori": "Casa", "palestra": partita["palestra"],
+                    }):
                         st.success("✅ Salvata!")
                         df_all = dati["Allenatori"]
                         ok, err = notifica_nuova_partita(partita["squadra"], partita["data"], partita["giorno"], partita["ora_partita"], partita["palestra"], "Casa", df_all)
                         if ok:
                             st.info("📧 Notifica inviata agli allenatori.")
                         st.balloons()
-                        carica_tutti_i_dati.clear()
-                        leggi_foglio.clear()
+                        invalida_cache()
                         reset_form()
                         st.rerun()
         else:
@@ -365,13 +410,15 @@ def render(as_tab: bool = False, dati: dict = None):
                         st.warning("⚠️ Seleziona uno slot per ogni conflitto.")
                     else:
                         with st.spinner("Salvataggio in corso..."):
-                            riga_partita = [
-                                partita["data"], partita["giorno"], partita["squadra"],
-                                "Partita in Casa", partita.get("avversario", ""),
-                                partita["ora_partita"], partita["ora_fine"], "Casa", partita["palestra"],
-                            ]
-                            righe_spostamenti = build_spostamento_rows(partita["data"], scelte)
-                            if scrivi_righe_batch("Calendario Definitivo", [riga_partita] + righe_spostamenti):
+                            dict_partita = {
+                                "data": partita["data"], "giorno": partita["giorno"],
+                                "squadra": partita["squadra"], "tipo": "Partita in Casa",
+                                "avversario": partita.get("avversario", ""),
+                                "ora_inizio": partita["ora_partita"], "ora_fine": partita["ora_fine"],
+                                "casa_fuori": "Casa", "palestra": partita["palestra"],
+                            }
+                            dicts_spostamenti = build_spostamento_dicts(partita["data"], scelte)
+                            if scrivi_eventi_batch("calendario", [dict_partita] + dicts_spostamenti):
                                 st.success("✅ Salvato!")
                                 df_all = dati["Allenatori"]
                                 ok, err = notifica_nuova_partita(partita["squadra"], partita["data"], partita["giorno"], partita["ora_partita"], partita["palestra"], "Casa", df_all)
@@ -390,20 +437,22 @@ def render(as_tab: bool = False, dati: dict = None):
                                         if ok2:
                                             st.info(f"📧 Notifica spostamento inviata per {nome_sq}.")
                                 st.balloons()
-                                carica_tutti_i_dati.clear()
-                                leggi_foglio.clear()
+                                invalida_cache()
                                 reset_form()
                                 st.rerun()
 
             if st.button("⚠️ Salva con conflitto da risolvere", key="salva_conflitto", use_container_width=True):
-                scrivi_riga("Calendario Definitivo", [partita["data"], partita["giorno"], partita["squadra"],
-                    "⚠️ Partita in Casa (CONFLITTO DA RISOLVERE)", partita.get("avversario",""), partita["ora_partita"], partita["ora_fine"],
-                    "Casa", partita["palestra"]])
+                scrivi_evento("calendario", {
+                    "data": partita["data"], "giorno": partita["giorno"], "squadra": partita["squadra"],
+                    "tipo": "⚠️ Partita in Casa (CONFLITTO DA RISOLVERE)",
+                    "avversario": partita.get("avversario", ""),
+                    "ora_inizio": partita["ora_partita"], "ora_fine": partita["ora_fine"],
+                    "casa_fuori": "Casa", "palestra": partita["palestra"],
+                })
                 df_all = dati["Allenatori"]
                 notifica_conflitto(partita["squadra"], partita["data"], df_all)
                 st.warning("⚠️ Salvata con conflitto — notifica inviata agli allenatori.")
-                carica_tutti_i_dati.clear()
-                leggi_foglio.clear()
+                invalida_cache()
                 reset_form()
                 st.rerun()
 

@@ -3,8 +3,10 @@ import pandas as pd
 from datetime import datetime, timedelta, date
 from collections import defaultdict
 from logic import GIORNI_SETTIMANA, parse_data, _norm
-from sheets import carica_tutti_i_dati, leggi_foglio
+from database import carica_tutti_i_dati_db, invalida_cache, leggi_orario_settimana
+# LEGACY: from sheets import carica_tutti_i_dati, leggi_foglio
 from views._components import get_team_color
+from views.home import _render_oggi
 
 
 _GIORNO_LABEL = {
@@ -101,11 +103,10 @@ def render():
     )
 
     if st.button("🔄 Aggiorna dati", key="refresh_vista_allenatore"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
-    dati          = carica_tutti_i_dati()
+    dati          = carica_tutti_i_dati_db()
     df_allenatori = dati["Allenatori"]
     if df_allenatori.empty:
         st.warning("⚠️ Nessun allenatore configurato.")
@@ -169,6 +170,19 @@ def render():
         f"</div></div>",
         unsafe_allow_html=True,
     )
+
+    # ── Sezione OGGI ────────────────────────────────────────────────────
+    st.markdown("### 📍 Oggi")
+    orario_settimana_oggi_va = leggi_orario_settimana(
+        data_inizio=oggi.strftime("%Y-%m-%d"),
+        data_fine=oggi.strftime("%Y-%m-%d"),
+    )
+    _render_oggi(
+        orario_fisso, calendario, oggi,
+        orario_settimana=orario_settimana_oggi_va,
+        squadre_filter={s.lower() for s in squadre_seguite},
+    )
+    st.markdown("---")
 
     # ── Tabs ────────────────────────────────────────────────────────────
     tab1, tab2 = st.tabs(["📅 Settimana corrente", "📋 Calendario partite"])

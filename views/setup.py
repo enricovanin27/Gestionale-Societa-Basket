@@ -2,11 +2,19 @@ import time
 import streamlit as st
 from datetime import datetime
 from logic import GIORNI
-from sheets import (
-    leggi_foglio, scrivi_riga, scrivi_righe_batch,
-    carica_tutti_i_dati, aggiorna_riga, elimina_riga,
+from database import (
+    leggi_squadre, leggi_palestre, leggi_allenatori,
+    carica_tutti_i_dati_db, invalida_cache,
+    scrivi_evento, aggiorna_evento, elimina_evento,
 )
+# LEGACY: from sheets import (
+#     leggi_foglio, scrivi_riga, scrivi_righe_batch,
+#     carica_tutti_i_dati, aggiorna_riga, elimina_riga,
+# )
 from views._components import get_team_color
+
+# Giorni in ordine per la mappatura lista → dict
+_GIORNI_DB = ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"]
 
 # Abbreviazioni per la colonna Giorni nella tabella
 _GIORNI_ABBR = {g: g[:2] for g in GIORNI}   # "Lunedi" → "Lu", ecc.
@@ -41,12 +49,14 @@ def _render_tabella_azioni(df, foglio: str, key: str, cols_mostra=None):
 
     Parameters
     ----------
-    df          : DataFrame da visualizzare
-    foglio      : nome del foglio Google (usato da elimina_riga)
+    df          : DataFrame da visualizzare (indice = id Supabase)
+    foglio      : nome tabella Supabase (es. "palestre")
     key         : prefisso univoco per i widget
     cols_mostra : lista di nomi colonna da mostrare (None = auto, esclude le
                   colonne GIORNI e le compatta in una colonna "Giorni")
     """
+    from database import TABELLE
+    tabella = TABELLE.get(foglio, foglio)
     if df.empty:
         return
 
@@ -75,7 +85,7 @@ def _render_tabella_azioni(df, foglio: str, key: str, cols_mostra=None):
     )
 
     # ── Righe ─────────────────────────────────────────────────────
-    for idx, (_, row) in enumerate(df.iterrows()):
+    for idx, (row_id, row) in enumerate(df.iterrows()):
         confirm_key = f"{key}_confirm_{idx}"
 
         if st.session_state.get(confirm_key):
@@ -89,10 +99,9 @@ def _render_tabella_azioni(df, foglio: str, key: str, cols_mostra=None):
                     type="primary",
                     use_container_width=True,
                 ):
-                    if elimina_riga(foglio, idx + 1):
+                    if elimina_evento(tabella, row_id):
                         del st.session_state[confirm_key]
-                        carica_tutti_i_dati.clear()
-                        leggi_foglio.clear()
+                        invalida_cache()
                         time.sleep(0.5)
                         st.rerun()
             with cc[2]:
@@ -132,25 +141,43 @@ def _render_tabella_azioni(df, foglio: str, key: str, cols_mostra=None):
 #  PALESTRE
 # ═══════════════════════════════════════════════════════════════
 
+_PALESTRA_TIPI = ["Principale", "Secondaria", "Esterna"]
+
+
 def _pagina_palestre():
     st.subheader("🏟️ Palestre")
+    st.caption(
+        "**Tipo:** Principale = palestra primaria (es. Palasport), "
+        "Secondaria = alternativa (es. San Vincenzo), "
+        "Esterna = fuori sede (es. Sansovino). "
+        "Nella ricerca slot liberi le palestre vengono proposte in quest'ordine."
+    )
     if st.button("🔄 Aggiorna dati", key="refresh_palestre"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
-    df = leggi_foglio("Palestre")
+    df = leggi_palestre()
     if not df.empty:
-        _render_tabella_azioni(df, "Palestre", "pal")
+        _render_tabella_azioni(
+            df, "Palestre", "pal",
+            cols_mostra=["Nome", "Tipo", "Orario Inizio", "Orario Fine", "Zone"],
+        )
 
     # ── AGGIUNGI ──────────────────────────────────────────────────
     st.markdown("#### ➕ Aggiungi palestra")
     nome = st.text_input("Nome palestra", key="new_pal_nome")
-    c1, c2 = st.columns(2)
+    c1, c2, c3 = st.columns(3)
     with c1:
         ora_inizio = st.time_input("Orario inizio", value=_parse_time("15:00"), key="new_pal_oi")
     with c2:
         ora_fine = st.time_input("Orario fine", value=_parse_time("22:00"), key="new_pal_of")
+    with c3:
+        tipo_pal = st.selectbox("Tipo", _PALESTRA_TIPI, key="new_pal_tipo")
+    zone_pal = st.text_input(
+        "Zone della palestra (separate da virgola, es. Campo principale,Zona fisica)",
+        key="new_pal_zone",
+        placeholder="es. Campo principale,Zona fisica/pesi",
+    )
     st.markdown("**Giorni disponibili:**")
     gcols = st.columns(7)
     giorni_sel = {}
@@ -159,12 +186,17 @@ def _pagina_palestre():
             giorni_sel[g] = "SI" if st.checkbox(g[:3], key=f"new_pal_{g}") else "NO"
     if st.button("➕ Aggiungi palestra", type="primary", key="btn_add_pal"):
         if nome:
-            riga = [nome, ora_inizio.strftime("%H:%M"), ora_fine.strftime("%H:%M")]
-            riga += [giorni_sel[g] for g in GIORNI]
-            if scrivi_riga("Palestre", riga):
+            dati = {
+                "nome": nome,
+                "orario_inizio": ora_inizio.strftime("%H:%M"),
+                "orario_fine":   ora_fine.strftime("%H:%M"),
+                "tipo":          tipo_pal,
+                "zone":          zone_pal.strip(),
+                **{g_db: giorni_sel[g] for g, g_db in zip(GIORNI, _GIORNI_DB)},
+            }
+            if scrivi_evento("palestre", dati):
                 st.success(f"✅ Palestra '{nome}' salvata con successo!")
-                carica_tutti_i_dati.clear()
-                leggi_foglio.clear()
+                invalida_cache()
                 time.sleep(1)
                 st.rerun()
         else:
@@ -182,6 +214,7 @@ def _pagina_palestre():
 
     pos = df["Nome"].tolist().index(sel)
     row = df.iloc[pos]
+    row_id = df.index[pos]  # Supabase id
 
     col_oi = _find_col(df, "inizio") or (df.columns[1] if len(df.columns) > 1 else None)
     col_of = _find_col(df, "fine")   or (df.columns[2] if len(df.columns) > 2 else None)
@@ -190,11 +223,19 @@ def _pagina_palestre():
 
     with st.form(f"mod_pal_{sel}"):
         nome_mod = st.text_input("Nome palestra", value=str(row.get("Nome", sel)))
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         with c1:
             ora_i_mod = st.time_input("Orario inizio", value=_parse_time(val_oi, "15:00"))
         with c2:
             ora_f_mod = st.time_input("Orario fine", value=_parse_time(val_of, "22:00"))
+        with c3:
+            _tipo_cur = str(row.get("Tipo", "Principale"))
+            _tipo_idx = _PALESTRA_TIPI.index(_tipo_cur) if _tipo_cur in _PALESTRA_TIPI else 0
+            tipo_mod = st.selectbox("Tipo", _PALESTRA_TIPI, index=_tipo_idx)
+        zone_mod = st.text_input(
+            "Zone della palestra (separate da virgola)",
+            value=str(row.get("Zone", "")),
+        )
         st.markdown("**Giorni disponibili:**")
         gcols2 = st.columns(7)
         giorni_mod = {}
@@ -207,12 +248,17 @@ def _pagina_palestre():
             salva = st.form_submit_button("💾 Salva modifiche", type="primary", use_container_width=True)
 
     if salva:
-        nuova = [nome_mod, ora_i_mod.strftime("%H:%M"), ora_f_mod.strftime("%H:%M")]
-        nuova += [giorni_mod[g] for g in GIORNI]
-        if aggiorna_riga("Palestre", pos + 1, nuova):
+        dati = {
+            "nome": nome_mod,
+            "orario_inizio": ora_i_mod.strftime("%H:%M"),
+            "orario_fine":   ora_f_mod.strftime("%H:%M"),
+            "tipo":          tipo_mod,
+            "zone":          zone_mod.strip(),
+            **{g_db: giorni_mod[g] for g, g_db in zip(GIORNI, _GIORNI_DB)},
+        }
+        if aggiorna_evento("palestre", row_id, dati):
             st.success(f"✅ Palestra '{nome_mod}' aggiornata!")
-            carica_tutti_i_dati.clear()
-            leggi_foglio.clear()
+            invalida_cache()
             time.sleep(1)
             st.rerun()
 
@@ -255,16 +301,16 @@ def _render_cards_grid(items, render_fn, n_cols=3):
 def _pagina_squadre(df_allenatori=None):
     st.subheader("👥 Squadre")
     if st.button("🔄 Aggiorna dati", key="refresh_squadre"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
-    df = leggi_foglio("Squadre")
+    df = leggi_squadre()
 
     # ── CARD SQUADRE ──────────────────────────────────────────────
     if not df.empty:
         def _card_sq(item):
             idx, row = item
+            sq_row_id = row.name  # Supabase id (df index)
             nome_sq  = str(row.get("Categoria", "")).strip()
             color    = get_team_color(nome_sq)
             coaches  = _coaches_per_squadra(nome_sq, df_allenatori)
@@ -303,10 +349,9 @@ def _pagina_squadre(df_allenatori=None):
                 cc = st.columns([2, 1, 1])
                 cc[0].warning("Eliminare?")
                 if cc[1].button("✅ Sì", key=f"sq_yes_{idx}", type="primary", use_container_width=True):
-                    elimina_riga("Squadre", idx + 1)
+                    elimina_evento("squadre", sq_row_id)
                     st.session_state.pop(confirm_key, None)
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     time.sleep(0.5)
                     st.rerun()
                 if cc[2].button("❌ No", key=f"sq_no_{idx}", use_container_width=True):
@@ -318,6 +363,7 @@ def _pagina_squadre(df_allenatori=None):
                     st.rerun()
 
         _render_cards_grid(list(enumerate(row for _, row in df.iterrows())), _card_sq)
+        # Note: row.name preserves Supabase id even in enumerate
         st.markdown("---")
 
     # ── AGGIUNGI ──────────────────────────────────────────────────
@@ -328,12 +374,16 @@ def _pagina_squadre(df_allenatori=None):
     if st.button("➕ Aggiungi squadra", type="primary", key="btn_add_sq"):
         if categoria:
             # Valori di default — configurabili in seguito tramite Modifica
-            riga = [categoria, 30, 105] + ["SI"] * len(GIORNI)
-            ok = scrivi_riga("Squadre", riga)
+            dati = {
+                "categoria": categoria,
+                "minuti_riscaldamento": 30,
+                "durata_partita": 105,
+                **{g_db: "SI" for g_db in _GIORNI_DB},
+            }
+            ok = scrivi_evento("squadre", dati)
             if ok:
                 st.success(f"✅ Squadra '{categoria}' salvata con successo!")
-                carica_tutti_i_dati.clear()
-                leggi_foglio.clear()
+                invalida_cache()
                 time.sleep(1)
                 st.rerun()
         else:
@@ -351,6 +401,7 @@ def _pagina_squadre(df_allenatori=None):
 
     pos = df["Categoria"].tolist().index(sel)
     row = df.iloc[pos]
+    row_id = df.index[pos]  # Supabase id
 
     col_risc = _find_col(df, "riscaldamento", "risc")
     col_dur  = _find_col(df, "durata")
@@ -376,12 +427,15 @@ def _pagina_squadre(df_allenatori=None):
             salva = st.form_submit_button("💾 Salva modifiche", type="primary", use_container_width=True)
 
     if salva:
-        nuova = [cat_mod, risc_mod, dur_mod]
-        nuova += [giorni_mod[g] for g in GIORNI]
-        if aggiorna_riga("Squadre", pos + 1, nuova):
+        dati = {
+            "categoria": cat_mod,
+            "minuti_riscaldamento": int(risc_mod),
+            "durata_partita": int(dur_mod),
+            **{g_db: giorni_mod[g] for g, g_db in zip(GIORNI, _GIORNI_DB)},
+        }
+        if aggiorna_evento("squadre", row_id, dati):
             st.success(f"✅ Squadra '{cat_mod}' aggiornata!")
-            carica_tutti_i_dati.clear()
-            leggi_foglio.clear()
+            invalida_cache()
             time.sleep(1)
             st.rerun()
 
@@ -393,16 +447,16 @@ def _pagina_squadre(df_allenatori=None):
 def _pagina_allenatori(df_squadre):
     st.subheader("👤 Allenatori")
     if st.button("🔄 Aggiorna dati", key="refresh_allenatori"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
-    df = leggi_foglio("Allenatori")
+    df = leggi_allenatori()
 
     # ── CARD ALLENATORI ───────────────────────────────────────────
     if not df.empty:
         def _card_all(item):
             idx, row = item
+            all_row_id = row.name  # Supabase id
             nome_c   = f"{str(row.get('Nome','')).strip()} {str(row.get('Cognome','')).strip()}".strip()
             sq_ruoli = _parse_sq_ruoli(str(row.get("Squadre", "")))
 
@@ -443,10 +497,9 @@ def _pagina_allenatori(df_squadre):
                 cc = st.columns([2, 1, 1])
                 cc[0].warning("Eliminare?")
                 if cc[1].button("✅ Sì", key=f"all_yes_{idx}", type="primary", use_container_width=True):
-                    elimina_riga("Allenatori", idx + 1)
+                    elimina_evento("allenatori", all_row_id)
                     st.session_state.pop(confirm_key, None)
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     time.sleep(0.5)
                     st.rerun()
                 if cc[2].button("❌ No", key=f"all_no_{idx}", use_container_width=True):
@@ -471,10 +524,9 @@ def _pagina_allenatori(df_squadre):
 
     if st.button("➕ Aggiungi allenatore", type="primary", key="btn_add_all"):
         if nome and cognome:
-            if scrivi_riga("Allenatori", [nome, cognome, "", ""]):
+            if scrivi_evento("allenatori", {"nome": nome, "cognome": cognome, "email": "", "squadre": ""}):
                 st.success(f"✅ Allenatore '{nome} {cognome}' salvato!")
-                carica_tutti_i_dati.clear()
-                leggi_foglio.clear()
+                invalida_cache()
                 time.sleep(1)
                 st.rerun()
         else:
@@ -496,6 +548,7 @@ def _pagina_allenatori(df_squadre):
 
     pos = etichette.index(sel) - 1
     row = df.iloc[pos]
+    all_row_id = df.index[pos]  # Supabase id
 
     with st.form(f"mod_all_{sel}"):
         c1, c2 = st.columns(2)
@@ -509,16 +562,15 @@ def _pagina_allenatori(df_squadre):
 
     if salva:
         # Preserva Squadre (con ruoli inline) — si gestisce solo in Assegnazioni
-        nuova = [
-            nome_mod,
-            cognome_mod,
-            str(row.get("Email",   "")),
-            str(row.get("Squadre", "")).strip(),
-        ]
-        if aggiorna_riga("Allenatori", pos + 1, nuova):
+        dati = {
+            "nome":    nome_mod,
+            "cognome": cognome_mod,
+            "email":   str(row.get("Email",   "")),
+            "squadre": str(row.get("Squadre", "")).strip(),
+        }
+        if aggiorna_evento("allenatori", all_row_id, dati):
             st.success(f"✅ Allenatore '{nome_mod} {cognome_mod}' aggiornato!")
-            carica_tutti_i_dati.clear()
-            leggi_foglio.clear()
+            invalida_cache()
             time.sleep(1)
             st.rerun()
 
@@ -566,7 +618,7 @@ def _salva_assegnazione(squadra: str, nuovi: dict, df_allenatori):
     Ruolo e squadra vengono salvati inline nella colonna Squadre:
     es. 'U18 (Capo allenatore), U15 (Assistente)'
     """
-    for pos, (_, row) in enumerate(df_allenatori.iterrows()):
+    for row_id, row in df_allenatori.iterrows():
         nome = f"{str(row.get('Nome', '')).strip()} {str(row.get('Cognome', '')).strip()}".strip()
         if not nome:
             continue
@@ -585,20 +637,19 @@ def _salva_assegnazione(squadra: str, nuovi: dict, df_allenatori):
         else:
             sq_ruoli.pop(squadra, None)
 
-        aggiorna_riga("Allenatori", pos + 1, [
-            str(row.get("Nome",  "")),
-            str(row.get("Cognome", "")),
-            str(row.get("Email", "")),
-            _format_sq_ruoli(sq_ruoli),
-        ])
+        aggiorna_evento("allenatori", row_id, {
+            "nome":    str(row.get("Nome",  "")),
+            "cognome": str(row.get("Cognome", "")),
+            "email":   str(row.get("Email", "")),
+            "squadre": _format_sq_ruoli(sq_ruoli),
+        })
 
 
 def _pagina_assegnazioni(df_squadre, df_allenatori):
     st.subheader("🔗 Assegnazioni Allenatore ↔ Squadra")
 
     if st.button("🔄 Aggiorna dati", key="refresh_assign"):
-        carica_tutti_i_dati.clear()
-        leggi_foglio.clear()
+        invalida_cache()
         st.rerun()
 
     if df_squadre.empty or df_allenatori.empty:
@@ -658,8 +709,7 @@ def _pagina_assegnazioni(df_squadre, df_allenatori):
     if st.button("💾 Salva assegnazione", type="primary", key="btn_save_assign", use_container_width=True):
         with st.spinner("Salvataggio in corso..."):
             _salva_assegnazione(sel, nuovi, df_allenatori)
-            carica_tutti_i_dati.clear()
-            leggi_foglio.clear()
+            invalida_cache()
             time.sleep(0.5)
         st.success(f"✅ Assegnazioni aggiornate per **{sel}**.")
         st.rerun()
@@ -672,8 +722,8 @@ def _pagina_assegnazioni(df_squadre, df_allenatori):
 def render():
     st.header("⚙️ Setup")
 
-    df_allenatori = leggi_foglio("Allenatori")
-    df_squadre    = leggi_foglio("Squadre")
+    df_allenatori = leggi_allenatori()
+    df_squadre    = leggi_squadre()
 
     tab_pal, tab_sq_all = st.tabs(["🏟️ Palestre", "👥 Squadre & Allenatori"])
 

@@ -6,11 +6,16 @@ from logic import (
     trova_date_alternative, trova_slot_liberi, c_e_conflitto,
     parse_data, calcola_slot, str_to_time, time_to_minutes,
 )
-from sheets import (
-    leggi_foglio, carica_tutti_i_dati,
-    scrivi_riga, scrivi_righe_batch, aggiorna_riga, elimina_riga,
+from database import (
+    leggi_calendario, leggi_orario_fisso, leggi_squadre, leggi_allenatori, leggi_palestre,
+    carica_tutti_i_dati_db, invalida_cache,
+    scrivi_evento, scrivi_eventi_batch, aggiorna_evento, elimina_evento,
 )
-from views._components import render_sposta_allenamenti, build_spostamento_rows
+# LEGACY: from sheets import (
+#     leggi_foglio, carica_tutti_i_dati,
+#     scrivi_riga, scrivi_righe_batch, aggiorna_riga, elimina_riga,
+# )
+from views._components import render_sposta_allenamenti, build_spostamento_dicts
 import views.gestione_partite as _page_inserisci
 import views.importa_pdf      as _page_pdf
 
@@ -151,10 +156,9 @@ def _render_tabella_interattiva(df_view: pd.DataFrame, key_prefix: str = "tab"):
                     type="primary",
                     use_container_width=True,
                 ):
-                    if elimina_riga("Calendario Definitivo", row_label + 1):
+                    if elimina_evento("calendario", row_label):
                         st.session_state.pop(confirm_key, None)
-                        carica_tutti_i_dati.clear()
-                        leggi_foglio.clear()
+                        invalida_cache()
                         st.rerun()
             with cc[2]:
                 if st.button(
@@ -199,16 +203,16 @@ def _render_modifica_evento():
     if idx is None:
         return
 
-    df        = leggi_foglio("Calendario Definitivo")
-    df_squadre = leggi_foglio("Squadre")
-    df_palestre = leggi_foglio("Palestre")
+    df        = leggi_calendario()
+    df_squadre = leggi_squadre()
+    df_palestre = leggi_palestre()
 
-    if df.empty or idx >= len(df):
+    if df.empty or idx not in df.index:
         st.warning("Evento non trovato.")
         st.session_state.pop("modifica_evento_idx", None)
         return
 
-    evento = df.iloc[idx]
+    evento = df.loc[idx]
     squadra = str(evento.get("Squadra", ""))
     tipo_ev  = str(evento.get("Tipo", ""))
 
@@ -289,15 +293,19 @@ def _render_modifica_evento():
     with ca:
         if st.button("💾 Salva modifiche", type="primary", use_container_width=True):
             giorno_nuovo = GIORNI_SETTIMANA[nuova_data_dt.weekday()]
-            if aggiorna_riga(
-                "Calendario Definitivo", idx + 1,
-                [nuova_data, giorno_nuovo, nuova_squadra, nuovo_tipo,
-                 nuovo_avversario, nuovo_orario_i, nuovo_orario_f,
-                 nuova_palestra, nuovo_luogo],
-            ):
+            dati_upd = {
+                "data":       nuova_data,
+                "giorno":     giorno_nuovo,
+                "squadra":    nuova_squadra,
+                "tipo":       nuovo_tipo,
+                "avversario": nuovo_avversario,
+                "ora_inizio": nuovo_orario_i,
+                "ora_fine":   nuovo_orario_f,
+                "palestra":   nuova_palestra,
+            }
+            if aggiorna_evento("calendario", idx, dati_upd):
                 st.success("✅ Evento aggiornato!")
-                carica_tutti_i_dati.clear()
-                leggi_foglio.clear()
+                invalida_cache()
                 st.session_state.pop("modifica_evento_idx", None)
                 st.session_state.pop("_conferma_elimina_ev", None)
                 st.rerun()
@@ -323,10 +331,9 @@ def _render_modifica_evento():
                 type="primary",
                 use_container_width=True,
             ):
-                if elimina_riga("Calendario Definitivo", idx + 1):
+                if elimina_evento("calendario", idx):
                     st.success("✅ Eliminato!")
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     st.session_state.pop("modifica_evento_idx", None)
                     st.session_state.pop("_conferma_elimina_ev", None)
                     st.rerun()
@@ -343,18 +350,18 @@ def _render_risolvi_conflitto():
     if idx is None:
         return
 
-    df          = leggi_foglio("Calendario Definitivo")
-    orario_fisso = leggi_foglio("Orario Fisso")
-    df_squadre  = leggi_foglio("Squadre")
-    df_allenatori = leggi_foglio("Allenatori")
-    df_palestre = leggi_foglio("Palestre")
-    calendario  = leggi_foglio("Calendario Definitivo")
+    df          = leggi_calendario()
+    orario_fisso = leggi_orario_fisso()
+    df_squadre  = leggi_squadre()
+    df_allenatori = leggi_allenatori()
+    df_palestre = leggi_palestre()
+    calendario  = df  # stesso DataFrame
 
-    if df.empty or idx >= len(df):
+    if df.empty or idx not in df.index:
         st.warning("Evento non trovato.")
         return
 
-    evento     = df.iloc[idx]
+    evento     = df.loc[idx]
     squadra    = evento["Squadra"]
     palestra   = evento.get("Palestra", "")
     ora_inizio = evento.get("Ora Inizio", "")
@@ -486,33 +493,42 @@ def _render_risolvi_conflitto():
                 ok = False
                 if piano["tipo"] == "sposta_partita":
                     d0 = piano["data"]
-                    nuova_riga = [
-                        d0["data_raw"], d0["giorno"].lower(), squadra,
-                        "Partita in Casa", ora_inizio, ora_fine,
-                        palestra, evento.get("Luogo", palestra),
-                    ]
-                    ok = aggiorna_riga("Calendario Definitivo", idx + 1, nuova_riga)
+                    ok = aggiorna_evento("calendario", idx, {
+                        "data":       d0["data_raw"],
+                        "giorno":     d0["giorno"].lower(),
+                        "squadra":    squadra,
+                        "tipo":       "Partita in Casa",
+                        "ora_inizio": ora_inizio,
+                        "ora_fine":   ora_fine,
+                        "palestra":   palestra,
+                    })
                 elif piano["tipo"] == "sposta_allenamenti":
                     righe_new = []
                     for c in piano["conflitti"]:
                         s = c["slot"]
-                        righe_new.append([
-                            data, giorno, c["squadra"],
-                            "Allenamento spostato", "",
-                            s["ora_inizio"], s["ora_fine"], "Casa", s["palestra"],
-                        ])
-                    aggiorna_riga(
-                        "Calendario Definitivo", idx + 1,
-                        [data, giorno, squadra, "Partita in Casa",
-                         ora_inizio, ora_fine, palestra, evento.get("Luogo", palestra)],
-                    )
+                        righe_new.append({
+                            "data":       data,
+                            "giorno":     giorno,
+                            "squadra":    c["squadra"],
+                            "tipo":       "Allenamento spostato",
+                            "avversario": "",
+                            "ora_inizio": s["ora_inizio"],
+                            "ora_fine":   s["ora_fine"],
+                            "casa_fuori": "Casa",
+                            "palestra":   s["palestra"],
+                        })
+                    aggiorna_evento("calendario", idx, {
+                        "data": data, "giorno": giorno, "squadra": squadra,
+                        "tipo": "Partita in Casa",
+                        "ora_inizio": ora_inizio, "ora_fine": ora_fine,
+                        "palestra": palestra,
+                    })
                     if righe_new:
-                        scrivi_righe_batch("Calendario Definitivo", righe_new)
+                        scrivi_eventi_batch("calendario", righe_new)
                     ok = True
 
                 if ok:
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     st.session_state.pop(piano_key, None)
                     st.session_state.pop("risolvi_conflitto_idx", None)
                     st.success("✅ Conflitto risolto!")
@@ -532,10 +548,16 @@ def _render_risolvi_conflitto():
         for i, d in enumerate(date_alt):
             with cols[i]:
                 if st.button(f"📅 {d['giorno']}\n{d['data']}", key=f"risolvi_data_{i}"):
-                    nuova_riga = [d["data_raw"], d["giorno"].lower(), squadra,
-                                  "Partita in Casa", ora_inizio, ora_fine,
-                                  palestra, evento.get("Luogo", palestra)]
-                    if aggiorna_riga("Calendario Definitivo", idx + 1, nuova_riga):
+                    if aggiorna_evento("calendario", idx, {
+                        "data":       d["data_raw"],
+                        "giorno":     d["giorno"].lower(),
+                        "squadra":    squadra,
+                        "tipo":       "Partita in Casa",
+                        "ora_inizio": ora_inizio,
+                        "ora_fine":   ora_fine,
+                        "palestra":   palestra,
+                    }):
+                        invalida_cache()
                         st.success("✅ Partita spostata!")
                         del st.session_state["risolvi_conflitto_idx"]
                         st.rerun()
@@ -630,12 +652,16 @@ def _render_risolvi_conflitto():
             if not tutti_ok:
                 st.warning("⚠️ Seleziona uno slot per ogni allenamento.")
             else:
-                aggiorna_riga("Calendario Definitivo", idx + 1,
-                              [data, giorno, squadra, "Partita in Casa",
-                               ora_inizio, ora_fine, palestra, evento.get("Luogo", palestra)])
-                righe_spostamenti = build_spostamento_rows(data, scelte)
-                if righe_spostamenti:
-                    scrivi_righe_batch("Calendario Definitivo", righe_spostamenti)
+                aggiorna_evento("calendario", idx, {
+                    "data": data, "giorno": giorno, "squadra": squadra,
+                    "tipo": "Partita in Casa",
+                    "ora_inizio": ora_inizio, "ora_fine": ora_fine,
+                    "palestra": palestra,
+                })
+                dicts_spostamenti = build_spostamento_dicts(data, scelte)
+                if dicts_spostamenti:
+                    scrivi_eventi_batch("calendario", dicts_spostamenti)
+                invalida_cache()
                 st.success("✅ Conflitto risolto!")
                 del st.session_state["risolvi_conflitto_idx"]
                 st.rerun()
@@ -719,10 +745,9 @@ def _render_evento_card(row_label, row, key_prefix: str):
         with cc[1]:
             if st.button("✅", key=f"{key_prefix}_delyes_{row_label}",
                          type="primary", use_container_width=True):
-                if elimina_riga("Calendario Definitivo", row_label + 1):
+                if elimina_evento("calendario", row_label):
                     st.session_state.pop(confirm_key, None)
-                    carica_tutti_i_dati.clear()
-                    leggi_foglio.clear()
+                    invalida_cache()
                     st.rerun()
         with cc[2]:
             if st.button("✖", key=f"{key_prefix}_delno_{row_label}",
@@ -816,7 +841,7 @@ def render():
         "</div>",
         unsafe_allow_html=True,
     )
-    dati = carica_tutti_i_dati()
+    dati = carica_tutti_i_dati_db()
 
     df_raw       = dati.get("Calendario Definitivo", pd.DataFrame())
     orario_fisso = dati.get("Orario Fisso", pd.DataFrame())
@@ -829,7 +854,8 @@ def render():
         df["_sort_dt"] = df["Data"].apply(
             lambda x: pd.Timestamp(parse_data(x)) if parse_data(x) else pd.Timestamp("2099-01-01")
         )
-        df = df.sort_values("_sort_dt").drop(columns=["_sort_dt"]).reset_index(drop=True)
+        df = df.sort_values("_sort_dt").drop(columns=["_sort_dt"])
+        # NON fare reset_index: l'indice è il Supabase id, necessario per update/delete
 
         # ── CONTATORI ─────────────────────────────────────────────
         tipo_col = df["Tipo"].astype(str) if "Tipo" in df.columns else pd.Series([""] * len(df))
@@ -852,18 +878,19 @@ def render():
 
         # ── AVVISI CONFLITTI ──────────────────────────────────────
         if "Tipo" in df.columns:
+            # Usa row_id (indice Supabase) invece dell'indice posizionale
             conflitti_urgenti = [
-                (i, row) for i, (_, row) in enumerate(df.iterrows())
+                (row_id, row) for row_id, row in df.iterrows()
                 if "CONFLITTO" in str(row.get("Tipo", "")) and is_settimana_prossima(row.get("Data", ""))
             ]
             conflitti_normali = [
-                (i, row) for i, (_, row) in enumerate(df.iterrows())
+                (row_id, row) for row_id, row in df.iterrows()
                 if "CONFLITTO" in str(row.get("Tipo", "")) and not is_settimana_prossima(row.get("Data", ""))
             ]
             _is_admin_conf = st.session_state.get("ruolo", "admin") == "admin"
             if conflitti_urgenti:
                 st.error(f"🚨 **URGENTE — {len(conflitti_urgenti)} conflitti nella settimana prossima!**")
-                for real_idx, ev in conflitti_urgenti:
+                for row_id, ev in conflitti_urgenti:
                     con = _conflitti_inline(ev, orario_fisso, df)
                     con_str = "  \n&nbsp;&nbsp;&nbsp;&nbsp;↔ " + " &amp; ".join(con) if con else ""
                     if _is_admin_conf:
@@ -875,8 +902,8 @@ def render():
                                 f"@ {ev.get('Palestra','')}{con_str}"
                             )
                         with col2:
-                            if st.button("🔧 Risolvi", key=f"risolvi_urgente_{real_idx}"):
-                                st.session_state["risolvi_conflitto_idx"] = real_idx
+                            if st.button("🔧 Risolvi", key=f"risolvi_urgente_{row_id}"):
+                                st.session_state["risolvi_conflitto_idx"] = row_id
                                 st.rerun()
                     else:
                         st.markdown(
@@ -886,7 +913,7 @@ def render():
                         )
             if conflitti_normali:
                 st.warning(f"⚠️ **{len(conflitti_normali)} conflitti da risolvere**")
-                for real_idx, ev in conflitti_normali:
+                for row_id, ev in conflitti_normali:
                     con = _conflitti_inline(ev, orario_fisso, df)
                     con_str = "  \n&nbsp;&nbsp;&nbsp;&nbsp;↔ " + " &amp; ".join(con) if con else ""
                     if _is_admin_conf:
@@ -898,8 +925,8 @@ def render():
                                 f"@ {ev.get('Palestra','')}{con_str}"
                             )
                         with col2:
-                            if st.button("🔧 Risolvi", key=f"risolvi_{real_idx}"):
-                                st.session_state["risolvi_conflitto_idx"] = real_idx
+                            if st.button("🔧 Risolvi", key=f"risolvi_{row_id}"):
+                                st.session_state["risolvi_conflitto_idx"] = row_id
                                 st.rerun()
                     else:
                         st.markdown(

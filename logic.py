@@ -86,6 +86,11 @@ def trova_conflitti_allenamenti(orario_fisso) -> list:
                 cond_b = _norm(ev_b.get("condivisione", ev_b.get("tipo", "")))
                 if cond_a == "si" and cond_b == "si":
                     continue  # condivisione volontaria — non è un conflitto
+                # Zone diverse nella stessa palestra → non è un conflitto
+                zona_a = _norm(str(ev_a.get("zona", "") or ""))
+                zona_b = _norm(str(ev_b.get("zona", "") or ""))
+                if zona_a and zona_b and zona_a != zona_b:
+                    continue
                 conflitti.append({
                     "giorno":       giorno_a,
                     "palestra":     str(ev_a.get("palestra", "")).strip(),
@@ -138,6 +143,54 @@ def allenatori_squadra(squadra, df_allenatori):
             risultato.append(f"{nome} {cognome}".strip())
     return risultato
 
+def trova_conflitti_allenatore_slot(squadra, giorno, ora_inizio, ora_fine, orario_fisso, df_allenatori):
+    """
+    Verifica se uno degli allenatori della squadra è già impegnato
+    in un'altra squadra nello stesso slot orario nell'orario fisso.
+
+    Returns: lista di dict {allenatore, altra_squadra, ora_inizio, ora_fine}
+    """
+    if orario_fisso is None or orario_fisso.empty or df_allenatori is None or df_allenatori.empty:
+        return []
+
+    # Ricava i cognomi degli allenatori della squadra corrente
+    cognomi_squadra = []
+    for _, row in df_allenatori.iterrows():
+        sq_list = [s.split("(")[0].strip() for s in str(row.get("Squadre", "")).split(",")]
+        if squadra in sq_list:
+            cognome = str(row.get("Cognome", "")).strip()
+            if cognome:
+                cognomi_squadra.append(cognome)
+
+    if not cognomi_squadra:
+        return []
+
+    conflitti = []
+    mask = orario_fisso["giorno"].str.lower().str.strip() == _norm(giorno)
+    for _, ev in orario_fisso[mask].iterrows():
+        sq_ev = str(ev.get("squadra", "")).strip()
+        if _norm(sq_ev) == _norm(squadra):
+            continue  # stessa squadra, ignora
+        if not c_e_conflitto(ora_inizio, ora_fine,
+                             str(ev.get("ora_inizio", "")),
+                             str(ev.get("ora_fine", ""))):
+            continue
+        all_ev = [a.strip() for a in str(ev.get("allenatori", "")).split("-") if a.strip()]
+        for cognome in cognomi_squadra:
+            for ae in all_ev:
+                # Confronto flessibile: cognome contenuto nel nome o viceversa
+                if _norm(cognome) in _norm(ae) or _norm(ae) in _norm(cognome):
+                    conflitti.append({
+                        "allenatore": cognome,
+                        "squadra":    sq_ev,
+                        "ora_inizio": str(ev.get("ora_inizio", "")),
+                        "ora_fine":   str(ev.get("ora_fine", "")),
+                    })
+                    break  # un match per allenatore è sufficiente
+
+    return conflitti
+
+
 def allenatori_liberi(squadra, giorno, ora_inizio, ora_fine, orario_fisso, df_allenatori):
     tutti = allenatori_squadra(squadra, df_allenatori)
     occupati = set()
@@ -157,7 +210,16 @@ def allenatori_liberi(squadra, giorno, ora_inizio, ora_fine, orario_fisso, df_al
 def trova_slot_liberi(squadra, durata_minuti_tot, orario_fisso, df_squadre, df_allenatori, df_palestre):
     giorni = giorni_disponibili_squadra(squadra, df_squadre)
     slot_trovati = []
-    palestre_lista = df_palestre["Nome"].tolist() if not df_palestre.empty else ["palasport", "sanvi"]
+    if not df_palestre.empty:
+        # Ordina: Principale → Secondaria → Esterna → altro
+        _tipo_ord = {"Principale": 0, "Secondaria": 1, "Esterna": 2}
+        _df_pal = df_palestre.copy()
+        if "Tipo" in _df_pal.columns:
+            _df_pal["_ord"] = _df_pal["Tipo"].map(lambda t: _tipo_ord.get(str(t), 3))
+            _df_pal = _df_pal.sort_values("_ord")
+        palestre_lista = _df_pal["Nome"].tolist()
+    else:
+        palestre_lista = ["palasport", "sanvi"]
 
     for giorno in giorni:
         for palestra in palestre_lista:
