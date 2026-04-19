@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, timedelta
 from logic import parse_data, GIORNI_SETTIMANA, _norm
 from database import carica_tutti_i_dati_db, invalida_cache, leggi_orario_settimana
 # LEGACY: from sheets import carica_tutti_i_dati
@@ -144,19 +144,136 @@ def _render_oggi(
     # Ordina per orario crescente
     rows.sort(key=lambda r: _ore_to_min(r["Ora"]) if r["Ora"] else 9999)
 
-    df_oggi = pd.DataFrame(rows)[["Ora", "Squadra", "Tipo", "Palestra", "Allenatori"]]
-    st.dataframe(
-        df_oggi,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Ora":        st.column_config.TextColumn("⏰ Ora",      width="small"),
-            "Squadra":    st.column_config.TextColumn("🏀 Squadra",  width="medium"),
-            "Tipo":       st.column_config.TextColumn("📋 Tipo",     width="medium"),
-            "Palestra":   st.column_config.TextColumn("🏟️ Palestra", width="medium"),
-            "Allenatori": st.column_config.TextColumn("👤 Allenatori", width="large"),
-        },
-    )
+    for row in rows:
+        tipo = row["Tipo"]
+        if "CONFLITTO" in tipo:
+            bg = "#8B0000"
+        elif "ANNULLATO" in tipo.upper() or "annullato" in tipo:
+            bg = "#555555"
+        elif "extra" in tipo.lower():
+            bg = "#1a4a2e"
+        elif "Partita" in tipo:
+            bg = "#0D3B6E" if "Casa" in tipo else "#4A235A"
+        else:
+            bg = "#1a3a5c"
+
+        all_html = (
+            f" &nbsp;&nbsp; 👤 {row['Allenatori']}"
+            if row["Allenatori"] and row["Allenatori"] not in ("", "nan", "None")
+            else ""
+        )
+        pal_html = row["Palestra"] if row["Palestra"] and row["Palestra"] not in ("", "nan") else "—"
+
+        st.markdown(
+            f"<div style='background:{bg};border-radius:10px;padding:10px 15px;"
+            f"margin:5px 0;box-shadow:0 2px 8px rgba(0,0,0,0.22)'>"
+            f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+            f"<span style='color:white;font-weight:800;font-size:1.0em'>"
+            f"{tipo} &nbsp; <span style='font-weight:600'>{row['Squadra']}</span></span>"
+            f"<span style='color:rgba(255,255,255,0.95);font-weight:700;font-size:0.9em'>"
+            f"⏰ {row['Ora']}</span>"
+            f"</div>"
+            f"<div style='color:rgba(255,255,255,0.8);font-size:0.85em;margin-top:4px'>"
+            f"🏟️ {pal_html}{all_html}"
+            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+
+_STATI_FIP = {
+    "da_spostare": ("⚠️", "#c0392b"),
+    "provvisoria": ("🕐", "#5d6d7e"),
+    "confermata":  ("✅", "#1e8449"),
+}
+
+
+def _render_fip_dashboard(df_cal: pd.DataFrame, oggi: date):
+    """Riquadro '📊 Stato Calendario FIP' nella home."""
+    _go_fip = False
+    with st.container(border=True):
+        st.markdown("#### 📊 Stato Calendario FIP")
+
+        if df_cal.empty or "tipo_import" not in df_cal.columns:
+            st.info("Nessuna partita FIP importata.")
+            return
+
+        df_fip = df_cal[df_cal["tipo_import"].isin(["provvisorio", "definitivo"])].copy()
+
+        if df_fip.empty:
+            st.info("Nessuna partita FIP importata ancora.")
+            return
+
+        totale = len(df_fip)
+        contatori = df_fip["stato"].value_counts().to_dict()
+        n_confermate = contatori.get("confermata", 0)
+
+        # Barra di progresso
+        progresso = n_confermate / totale if totale > 0 else 0
+        st.markdown(
+            f"**Calendario completato:** {n_confermate}/{totale} partite confermate"
+        )
+        st.progress(progresso)
+
+        # Contatori per stato in colonnine
+        cols = st.columns(len(_STATI_FIP))
+        for col, (stato, (emoji, color)) in zip(cols, _STATI_FIP.items()):
+            n = contatori.get(stato, 0)
+            col.markdown(
+                f"<div style='text-align:center'>"
+                f"<div style='font-size:1.1em'>{emoji}</div>"
+                f"<div style='font-weight:700;color:{color};font-size:1em'>{n}</div>"
+                f"<div style='font-size:0.7em;color:#aaa'>{stato}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        # Partite urgenti questa settimana (da_spostare entro 7 giorni)
+        fine_settimana = oggi + timedelta(days=7)
+        urgenti = []
+        for _, row in df_fip.iterrows():
+            if row.get("stato") != "da_spostare":
+                continue
+            data_ev = parse_data(row.get("Data", ""))
+            if data_ev is not None and oggi <= data_ev <= fine_settimana:
+                urgenti.append(row)
+
+        if urgenti:
+            st.markdown("---")
+            st.markdown(f"**🚨 {len(urgenti)} partite urgenti questa settimana:**")
+            for row in urgenti:
+                data_str = str(row.get("Data", ""))
+                try:
+                    data_fmt = date.fromisoformat(data_str).strftime("%d/%m")
+                except Exception:
+                    data_fmt = data_str
+                ora  = str(row.get("Ora Inizio", ""))[:5]
+                sq   = str(row.get("Squadra", ""))
+                avv  = str(row.get("Avversario", ""))
+                stato_row = str(row.get("stato", ""))
+                emoji_s, color_s = _STATI_FIP.get(stato_row, ("❓", "#555"))
+                st.markdown(
+                    f"<div style='background:#3d1010;border-radius:6px;padding:6px 10px;"
+                    f"margin:3px 0;font-size:0.85em'>"
+                    f"{emoji_s} <strong>{sq}</strong> vs {avv} — {data_fmt} {ora}"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+        elif n_confermate < totale:
+            st.markdown("---")
+            n_da_spostare = contatori.get("da_spostare", 0)
+            if n_da_spostare > 0:
+                st.warning(f"{n_da_spostare} partite da spostare — nessuna urgente questa settimana.")
+            else:
+                st.success("Nessuna partita urgente questa settimana.")
+
+        # Link rapido alla pagina
+        _go_fip = st.button("📋 Apri Gestione Calendario FIP", key="home_fip_link",
+                            use_container_width=True)
+    if _go_fip:
+        st.session_state["nav_radio"] = "📋 Gestione Calendario FIP"
+        st.rerun()
+    return
 
 
 def render():
@@ -281,3 +398,10 @@ def render():
                 st.metric("🏠 Partite in casa",      n_casa)
                 st.metric("🚌 Partite fuori casa",   n_fuori)
                 st.metric("🔄 Allenamenti spostati", n_spostati)
+
+    st.markdown("---")
+
+    # ── Dashboard Stato Calendario FIP ───────────────────────────────────────
+    ruolo = st.session_state.get("ruolo", "genitore")
+    if ruolo in ("admin", "allenatore"):
+        _render_fip_dashboard(df_cal, oggi)

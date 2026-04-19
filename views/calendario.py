@@ -846,6 +846,15 @@ def render():
     df_raw       = dati.get("Calendario Definitivo", pd.DataFrame())
     orario_fisso = dati.get("Orario Fisso", pd.DataFrame())
 
+    # Escludi partite FIP non ancora confermate (solo confermata è visibile nel calendario)
+    if not df_raw.empty and "tipo_import" in df_raw.columns and "stato" in df_raw.columns:
+        mask_fip      = df_raw["tipo_import"].isin(["provvisorio", "definitivo"])
+        mask_non_conf = df_raw["stato"] != "confermata"
+        df_raw = df_raw[~(mask_fip & mask_non_conf)].copy()
+    # Escludi anche partite con [PROV] nel tipo (provvisorie manuali)
+    if not df_raw.empty and "Tipo" in df_raw.columns:
+        df_raw = df_raw[~df_raw["Tipo"].astype(str).str.contains(r"\[PROV\]", na=False)].copy()
+
     # ── Prepara df e filtri solo se ci sono dati ──────────────────
     df_filtrato = pd.DataFrame()
 

@@ -158,10 +158,56 @@ def _pagina_palestre():
 
     df = leggi_palestre()
     if not df.empty:
-        _render_tabella_azioni(
-            df, "Palestre", "pal",
-            cols_mostra=["Nome", "Tipo", "Orario Inizio", "Orario Fine", "Zone"],
-        )
+        _TIPO_PAL_COLOR = {"Principale": "#0D3B6E", "Secondaria": "#4A235A", "Esterna": "#2C3E50"}
+        day_cols = [c for c in df.columns if c in GIORNI]
+        for _pi, (_row_id, _pr) in enumerate(df.iterrows()):
+            _confirm_k = f"pal_confirm_{_pi}"
+            _pnome  = str(_pr.get("Nome", "")).strip()
+            _ptipo  = str(_pr.get("Tipo", "Principale")).strip()
+            _poi    = str(_pr.get("Orario Inizio", "")).strip()
+            _pof    = str(_pr.get("Orario Fine",   "")).strip()
+            _pzone  = str(_pr.get("Zone", "")).strip()
+            _pgiorni = " · ".join(g[:2] for g in day_cols if str(_pr.get(g, "NO")).upper() == "SI") or "—"
+            _pbg    = _TIPO_PAL_COLOR.get(_ptipo, "#1a3a5c")
+            _pzone_html = (f"<div style='color:rgba(255,255,255,0.7);font-size:0.82em;margin-top:3px'>📍 {_pzone}</div>"
+                           if _pzone else "")
+            _card_p_html = (
+                f"<div style='background:{_pbg};border-radius:12px;padding:14px 16px;"
+                f"box-shadow:0 2px 8px rgba(0,0,0,0.2);margin-bottom:4px'>"
+                f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+                f"<span style='color:white;font-weight:800;font-size:1.1em'>🏟️ {_pnome}</span>"
+                f"<span style='background:rgba(255,255,255,0.15);color:white;font-size:0.78em;"
+                f"padding:2px 9px;border-radius:10px'>{_ptipo}</span>"
+                f"</div>"
+                f"<div style='color:rgba(255,255,255,0.8);font-size:0.85em;margin-top:6px'>"
+                f"⏰ {_poi} – {_pof} &nbsp;&nbsp; 📅 {_pgiorni}"
+                f"</div>"
+                f"{_pzone_html}"
+                f"</div>"
+            )
+            if st.session_state.get(_confirm_k):
+                _cc = st.columns([5, 2, 2])
+                _cc[0].warning("⚠️ **Sei sicuro?** L'eliminazione è irreversibile.")
+                with _cc[1]:
+                    if st.button("✅ Sì, elimina", key=f"pal_yes_{_pi}", type="primary", use_container_width=True):
+                        if elimina_evento("palestre", _row_id):
+                            del st.session_state[_confirm_k]
+                            invalida_cache()
+                            time.sleep(0.5)
+                            st.rerun()
+                with _cc[2]:
+                    if st.button("❌ Annulla", key=f"pal_no_{_pi}", use_container_width=True):
+                        del st.session_state[_confirm_k]
+                        st.rerun()
+            else:
+                _c1p, _c2p = st.columns([10, 1])
+                with _c1p:
+                    st.markdown(_card_p_html, unsafe_allow_html=True)
+                with _c2p:
+                    st.write("")
+                    if st.button("🗑️", key=f"pal_del_{_pi}", help="Elimina palestra"):
+                        st.session_state[_confirm_k] = True
+                        st.rerun()
 
     # ── AGGIUNGI ──────────────────────────────────────────────────
     st.markdown("#### ➕ Aggiungi palestra")

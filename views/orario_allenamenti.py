@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from logic import GIORNI, GIORNI_SETTIMANA, c_e_conflitto, parse_data, _norm, trova_conflitti_allenamenti, trova_conflitti_allenatore_slot
+from logic import GIORNI, GIORNI_SETTIMANA, c_e_conflitto, parse_data, _norm, trova_conflitti_allenamenti, trova_conflitti_allenatore_slot, controlla_conflitti_slot, trova_slot_liberi_data
 from database import (
     carica_tutti_i_dati_db, invalida_cache,
     scrivi_evento, aggiorna_evento, elimina_evento,
@@ -11,6 +11,8 @@ from database import (
 #     carica_tutti_i_dati, leggi_foglio, scrivi_riga, elimina_riga, aggiorna_riga,
 # )
 from views._components import get_team_color, get_palestra_tipo_color, FLAG_EMOJIS
+import json
+import streamlit.components.v1 as components
 
 _GIORNI_ORDER = ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"]
 _GIORNI_LABEL = {
@@ -44,6 +46,70 @@ def _ore_to_min(s: str):
 
 def _min_to_ore(m: int) -> str:
     return f"{m // 60:02d}:{m % 60:02d}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Conflict-check helpers (usati nelle form di modifica e aggiunta)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _check_e_mostra_slot(
+    data_str, squadra, palestra, ora_inizio, ora_fine, giorno_norm,
+    orario_fisso, orario_settimana_df, calendario, df_allenatori,
+    exclude_sett_id=None,
+) -> dict:
+    """Mostra indicatore real-time (✅/❌/⚠️) e ritorna i conflitti trovati."""
+    if not all([data_str, squadra, palestra, ora_inizio, ora_fine, giorno_norm]):
+        return {"palestra": [], "allenatore": [], "doppio": None}
+    conf = controlla_conflitti_slot(
+        data_str, squadra, palestra, ora_inizio, ora_fine, giorno_norm,
+        orario_fisso, orario_settimana_df, calendario, df_allenatori, exclude_sett_id,
+    )
+    n_pal = len(conf["palestra"])
+    n_all = len(conf["allenatore"])
+    ha_dop = conf["doppio"] is not None
+
+    if n_pal == 0 and n_all == 0 and not ha_dop:
+        st.success("✅ Slot libero — nessun conflitto rilevato")
+    else:
+        for c in conf["palestra"]:
+            st.error(
+                f"❌ **CONFLITTO PALESTRA:** {palestra} è già occupata dalle "
+                f"{c['ora_inizio']} alle {c['ora_fine']} da **{c['squadra']}**"
+            )
+        for c in conf["allenatore"]:
+            st.warning(
+                f"⚠️ **CONFLITTO ALLENATORE:** {c['nome']} è già impegnato dalle "
+                f"{c['ora_inizio']} alle {c['ora_fine']} con **{c['squadra_o_evento']}**"
+            )
+        if ha_dop:
+            dp = conf["doppio"]
+            src_label = {"partita": "partita", "fisso": "allenamento", "settimana": "allenamento"}.get(dp.get("source", ""), "evento")
+            st.warning(
+                f"⚠️ **ATTENZIONE:** {squadra} ha già un {src_label} oggi dalle "
+                f"{dp['ora_inizio']} alle {dp['ora_fine']}"
+            )
+    return conf
+
+
+def _mostra_alternativi_ui(
+    data_str, palestra, ora_inizio, ora_fine, giorno_norm,
+    orario_fisso, orario_settimana_df, df_palestre, key_pfx,
+):
+    """Mostra slot alternativi liberi e ritorna (oi, of) scelto, o (None, None)."""
+    oi_m = _ore_to_min(ora_inizio) or 0
+    of_m = _ore_to_min(ora_fine)   or 0
+    durata = max(30, of_m - oi_m)
+    slots = trova_slot_liberi_data(
+        data_str, palestra, durata, orario_fisso, orario_settimana_df, df_palestre, giorno_norm,
+    )
+    if not slots:
+        st.info(f"💡 Nessuno slot libero disponibile per **{palestra}** in questa data.")
+        return None, None
+    st.markdown(f"**💡 Slot liberi disponibili per {palestra}:**")
+    labels = [f"{s['ora_inizio']} – {s['ora_fine']}" for s in slots]
+    chosen = st.selectbox("🔄 Scegli slot alternativo", labels, key=f"{key_pfx}_altsel")
+    idx = labels.index(chosen)
+    return slots[idx]["ora_inizio"], slots[idx]["ora_fine"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -437,8 +503,7 @@ def _render_settimana_corrente(orario_fisso: pd.DataFrame, calendario: pd.DataFr
 
         for ri, e in enumerate(evs):
             key_suf = f"{d}_{ri}"
-            edit_key      = f"_edit_ev_{e['row_label']}_{e['source']}"
-            flag_mode_key = f"_flag_mode_{e['row_label']}_{e['source']}_{e.get('data','')}"
+            edit_key   = f"_edit_ev_{e['row_label']}_{e['source']}"
             is_editing = is_admin and e["source"] in ("fisso", "settimana") and not e.get("annullato") and st.session_state.get(edit_key)
 
             if is_editing:
@@ -540,84 +605,85 @@ def _render_settimana_corrente(orario_fisso: pd.DataFrame, calendario: pd.DataFr
                     )
                     new_allenatori = " - ".join(new_allenatori_sel) if new_allenatori_sel else e["allenatori"]
 
-                    sb1, sb2 = st.columns(2)
-                    with sb1:
-                        if st.button("💾 Salva", key=f"_ef_save_{rl}",
-                                     type="primary", use_container_width=True):
-                            nuovi_dati = {
-                                "giorno":       e["giorno_norm"],
-                                "palestra":     new_pal,
-                                "squadra":      e["squadra"],
-                                "ora_inizio":   new_oi,
-                                "ora_fine":     new_of,
-                                "allenatori":   new_allenatori,
-                                "condivisione": "SI" if new_cond else "NO",
-                                "annullato":    False,
-                                "flag":         new_flag,
-                                "zona":         new_zona,
-                            }
-                            if fonte == "fisso":
-                                # Crea override in orario_settimana per questa data
-                                nuovi_dati["data"] = e["data"]
-                                ok = scrivi_evento("orario_settimana", nuovi_dati)
-                            else:
-                                # Aggiorna entry esistente in orario_settimana
-                                ok = aggiorna_evento("orario_settimana", rl, nuovi_dati)
-                            if ok:
-                                invalida_cache()
-                            st.session_state.pop(edit_key, None)
-                            st.rerun()
-                    with sb2:
-                        if st.button("✖ Annulla", key=f"_ef_cancel_{rl}",
-                                     use_container_width=True):
-                            st.session_state.pop(edit_key, None)
-                            st.rerun()
-            elif (is_admin and e["source"] in ("fisso", "settimana")
-                  and not e.get("annullato")
-                  and st.session_state.get(flag_mode_key)):
-                # ── modalità cambio flag ──────────────────────────────
-                fc1, fc2, fc3 = st.columns([5, 1, 1])
-                with fc1:
-                    _f_opts = list(FLAG_EMOJIS.keys())
-                    _f_cur  = e.get("flag", "normale")
-                    _f_idx  = _f_opts.index(_f_cur) if _f_cur in _f_opts else 0
-                    new_quick_flag = st.selectbox(
-                        "🚩 Flag",
-                        _f_opts,
-                        index=_f_idx,
-                        key=f"_fq_sel_{e['row_label']}_{e['source']}",
-                        format_func=lambda x: (
-                            f"{FLAG_EMOJIS[x]} {x}" if FLAG_EMOJIS.get(x) else x
-                        ),
-                        label_visibility="collapsed",
+                    # ── Indicatore real-time slot ──────────────────────
+                    _conf_rt = _check_e_mostra_slot(
+                        e["data"], e["squadra"], new_pal, new_oi, new_of, e["giorno_norm"],
+                        orario_fisso, orario_settimana, calendario, df_allenatori,
+                        exclude_sett_id=(rl if fonte == "settimana" else None),
                     )
-                with fc2:
-                    if st.button("💾", key=f"_fq_save_{e['row_label']}_{e.get('data','')}",
-                                 help="Salva flag", use_container_width=True):
-                        _fdati = {"flag": new_quick_flag}
-                        if e["source"] == "fisso":
-                            _fdati.update({
-                                "data": e["data"], "giorno": e["giorno_norm"],
-                                "palestra": e["palestra"].lower(),
-                                "squadra": e["squadra"],
-                                "ora_inizio": e["ora_inizio"],
-                                "ora_fine": e["ora_fine"],
-                                "allenatori": e["allenatori"],
-                                "condivisione": "SI" if e.get("condivisione") else "NO",
-                                "annullato": False,
-                                "zona": e.get("zona", ""),
-                            })
-                            scrivi_evento("orario_settimana", _fdati)
+                    _has_conf = (len(_conf_rt["palestra"]) > 0 or
+                                 len(_conf_rt["allenatore"]) > 0 or
+                                 _conf_rt["doppio"] is not None)
+
+                    _sc_pend_key = f"_sc_pend_{rl}"
+
+                    def _sc_do_save(dati_save, is_fisso, row_label):
+                        if is_fisso:
+                            ok = scrivi_evento("orario_settimana", dati_save)
                         else:
-                            aggiorna_evento("orario_settimana", e["row_label"], _fdati)
-                        invalida_cache()
-                        st.session_state.pop(flag_mode_key, None)
+                            ok = aggiorna_evento("orario_settimana", row_label, dati_save)
+                        if ok:
+                            invalida_cache()
+                        st.session_state.pop(_sc_pend_key, None)
+                        st.session_state.pop(edit_key, None)
                         st.rerun()
-                with fc3:
-                    if st.button("✖", key=f"_fq_cancel_{e['row_label']}_{e.get('data','')}",
-                                 use_container_width=True):
-                        st.session_state.pop(flag_mode_key, None)
-                        st.rerun()
+
+                    if st.session_state.get(_sc_pend_key):
+                        _pd = st.session_state[_sc_pend_key]
+                        _alt_oi, _alt_of = _mostra_alternativi_ui(
+                            e["data"], new_pal, new_oi, new_of, e["giorno_norm"],
+                            orario_fisso, orario_settimana, df_palestre, f"sc_{rl}",
+                        )
+                        _cc1, _cc2, _cc3 = st.columns(3)
+                        with _cc1:
+                            if st.button("🔄 Usa slot alternativo", key=f"_sc_alt_{rl}",
+                                         use_container_width=True, disabled=(_alt_oi is None)):
+                                _d2 = dict(_pd)
+                                _d2["ora_inizio"] = _alt_oi
+                                _d2["ora_fine"]   = _alt_of
+                                _d2["flag"] = _pd.get("flag", "normale")
+                                _sc_do_save(_d2, fonte == "fisso", rl)
+                        with _cc2:
+                            if st.button("⚠️ Salva comunque", key=f"_sc_force_{rl}",
+                                         use_container_width=True):
+                                _d2 = dict(_pd)
+                                _d2["flag"] = "conflitto"
+                                _sc_do_save(_d2, fonte == "fisso", rl)
+                        with _cc3:
+                            if st.button("✖ Annulla", key=f"_ef_cancel_{rl}",
+                                         use_container_width=True):
+                                st.session_state.pop(_sc_pend_key, None)
+                                st.session_state.pop(edit_key, None)
+                                st.rerun()
+                    else:
+                        sb1, sb2 = st.columns(2)
+                        with sb1:
+                            if st.button("💾 Salva", key=f"_ef_save_{rl}",
+                                         type="primary", use_container_width=True):
+                                nuovi_dati = {
+                                    "giorno":       e["giorno_norm"],
+                                    "palestra":     new_pal,
+                                    "squadra":      e["squadra"],
+                                    "ora_inizio":   new_oi,
+                                    "ora_fine":     new_of,
+                                    "allenatori":   new_allenatori,
+                                    "condivisione": "SI" if new_cond else "NO",
+                                    "annullato":    False,
+                                    "flag":         new_flag,
+                                    "zona":         new_zona,
+                                }
+                                if fonte == "fisso":
+                                    nuovi_dati["data"] = e["data"]
+                                if _has_conf:
+                                    st.session_state[_sc_pend_key] = nuovi_dati
+                                    st.rerun()
+                                else:
+                                    _sc_do_save(nuovi_dati, fonte == "fisso", rl)
+                        with sb2:
+                            if st.button("✖ Annulla", key=f"_ef_cancel2_{rl}",
+                                         use_container_width=True):
+                                st.session_state.pop(edit_key, None)
+                                st.rerun()
             else:
                 # ── card normale + bottoni ────────────────────────────
                 if e.get("annullato"):
@@ -674,8 +740,8 @@ def _render_settimana_corrente(orario_fisso: pd.DataFrame, calendario: pd.DataFr
                                 st.session_state.pop(del_confirm_key, None)
                                 st.rerun()
                     else:
-                        # Numero bottoni: fisso → ✏️ + ❌ annulla;  settimana → ✏️ + 🗑️  + 🚩 flag
-                        c1, c2, c3, c4 = st.columns([8, 1, 1, 1])
+                        # Numero bottoni: ✏️ + ❌/🗑️
+                        c1, c2, c3 = st.columns([9, 1, 1])
                         with c1:
                             badge = ""
                             if e["source"] == "settimana" and e.get("is_override"):
@@ -701,13 +767,6 @@ def _render_settimana_corrente(orario_fisso: pd.DataFrame, calendario: pd.DataFr
                                          help=btn_help, use_container_width=True):
                                 st.session_state[del_confirm_key] = True
                                 st.rerun()
-                        with c4:
-                            st.write("")
-                            if st.button("🚩", key=f"_flag_btn_{key_suf}",
-                                         help="Cambia flag allenamento",
-                                         use_container_width=True):
-                                st.session_state[flag_mode_key] = True
-                                st.rerun()
                 elif e["source"] in ("fisso", "settimana"):
                     _render_event_card(e, key_suffix=key_suf)
                 else:
@@ -716,317 +775,758 @@ def _render_settimana_corrente(orario_fisso: pd.DataFrame, calendario: pd.DataFr
     if not qualcosa:
         st.info("Nessun evento per i filtri selezionati.")
 
-    # ── Prossima settimana ────────────────────────────────────────────
-    lun_prox = lun + timedelta(days=7)
-    dom_prox = lun_prox + timedelta(days=6)
-    sett_prox = [lun_prox + timedelta(days=i) for i in range(7)]
-
-    # Carica overrides settimana prossima
-    os_prox = leggi_orario_settimana(
-        data_inizio=lun_prox.strftime("%Y-%m-%d"),
-        data_fine=dom_prox.strftime("%Y-%m-%d"),
-    )
-    sl_prox: dict = {}
-    if not os_prox.empty:
-        for _rid, _rw in os_prox.iterrows():
-            _ds = str(_rw.get("data", ""))
-            _sq = _norm(str(_rw.get("squadra", "")).strip())
-            sl_prox.setdefault(_ds, {})[_sq] = (_rid, _rw)
-
-    evts_prox: dict = {d: [] for d in sett_prox}
-    inc_prox: set   = set()
-
-    if not orario_fisso.empty:
-        for _rl, _ev in orario_fisso.iterrows():
-            _g = _norm(_ev.get("giorno", ""))
-            for _d in sett_prox:
-                if GIORNI_SETTIMANA[_d.weekday()] != _g:
-                    continue
-                _ds   = _d.strftime("%Y-%m-%d")
-                _sqn  = _norm(str(_ev.get("squadra", "")).strip())
-                _ov   = sl_prox.get(_ds, {}).get(_sqn)
-                if _ov:
-                    _oid, _orw = _ov
-                    inc_prox.add((_ds, _sqn))
-                    if not _orw.get("annullato", False):
-                        _p = str(_orw.get("palestra", _ev.get("palestra", ""))).strip()
-                        evts_prox[_d].append({
-                            "squadra":  str(_orw.get("squadra", _ev.get("squadra", ""))).strip(),
-                            "ora_inizio": str(_orw.get("ora_inizio", "")).strip(),
-                            "ora_fine":   str(_orw.get("ora_fine", "")).strip(),
-                            "palestra":   _p.capitalize(),
-                            "allenatori": str(_orw.get("allenatori", _ev.get("allenatori", ""))).strip(),
-                            "flag":       str(_orw.get("flag", "normale")),
-                            "zona":       str(_orw.get("zona", "")).strip(),
-                            "palestra_tipo": _pal_tipo_map.get(_norm(_p), "Principale"),
-                        })
-                else:
-                    _p = str(_ev.get("palestra", "")).strip()
-                    evts_prox[_d].append({
-                        "squadra":    str(_ev.get("squadra", "")).strip(),
-                        "ora_inizio": str(_ev.get("ora_inizio", "")).strip(),
-                        "ora_fine":   str(_ev.get("ora_fine", "")).strip(),
-                        "palestra":   _p.capitalize(),
-                        "allenatori": str(_ev.get("allenatori", "")).strip(),
-                        "flag":       "normale",
-                        "zona":       str(_ev.get("zona", "")).strip(),
-                        "palestra_tipo": _pal_tipo_map.get(_norm(_p), "Principale"),
-                    })
-
-    if not os_prox.empty:
-        for _rid, _rw in os_prox.iterrows():
-            _ds = str(_rw.get("data", ""))
-            _sq = _norm(str(_rw.get("squadra", "")).strip())
-            if (_ds, _sq) in inc_prox or _rw.get("annullato", False):
-                continue
-            try:
-                _d = datetime.strptime(_ds, "%Y-%m-%d").date()
-            except Exception:
-                continue
-            if _d not in evts_prox:
-                continue
-            _p = str(_rw.get("palestra", "")).strip()
-            evts_prox[_d].append({
-                "squadra":    str(_rw.get("squadra", "")).strip(),
-                "ora_inizio": str(_rw.get("ora_inizio", "")).strip(),
-                "ora_fine":   str(_rw.get("ora_fine", "")).strip(),
-                "palestra":   _p.capitalize(),
-                "allenatori": str(_rw.get("allenatori", "")).strip(),
-                "flag":       str(_rw.get("flag", "normale")),
-                "zona":       str(_rw.get("zona", "")).strip(),
-                "palestra_tipo": _pal_tipo_map.get(_norm(_p), "Principale"),
-            })
-
-    # Partite in casa settimana prossima
-    if not calendario.empty:
-        for _cid, _cev in calendario.iterrows():
-            from logic import parse_data as _pd2
-            _dev = _pd2(_cev.get("Data", ""))
-            if _dev is None or _dev not in evts_prox:
-                continue
-            _tip = str(_cev.get("Tipo", ""))
-            if "Casa" not in _tip and "CONFLITTO" not in _tip:
-                continue
-            evts_prox[_dev].append({
-                "squadra":    str(_cev.get("Squadra", "")).strip(),
-                "ora_inizio": str(_cev.get("Ora Inizio", "")).strip(),
-                "ora_fine":   str(_cev.get("Ora Fine", "")).strip(),
-                "palestra":   str(_cev.get("Palestra", "")).strip(),
-                "allenatori": "",
-                "flag":       "normale",
-                "zona":       "",
-                "palestra_tipo": "Principale",
-                "_is_partita": True,
-                "_tipo_partita": _tip,
-            })
-
+    # ── Riepilogo modifiche settimana corrente ───────────────────────
     st.markdown("---")
     st.markdown(
+        f"<div style='background:#1a3a5c;color:white;"
+        f"padding:9px 16px;border-radius:8px;margin:6px 0 10px 0;"
+        f"font-weight:700;font-size:1.0em'>"
+        f"📋 Riepilogo modifiche — settimana corrente"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption("Confronto tra la **settimana tipo** e quanto effettivamente in programma questa settimana.")
+
+    # Classifica gli override della settimana corrente
+    rp_ann: list = []
+    rp_mod: list = []
+    rp_ext: list = []
+
+    if orario_settimana is not None and not orario_settimana.empty:
+        for _rp_id, _rp_row in orario_settimana.iterrows():
+            _rp_ds = str(_rp_row.get("data", ""))
+            try:
+                _rp_d = datetime.strptime(_rp_ds, "%Y-%m-%d").date()
+            except Exception:
+                continue
+            if _rp_d not in settimana:
+                continue
+            _rp_sq = str(_rp_row.get("squadra", "")).strip()
+            _rp_g  = GIORNI_SETTIMANA[_rp_d.weekday()]
+            _rp_fe = None
+            if not orario_fisso.empty:
+                for _, _fe in orario_fisso.iterrows():
+                    if (_norm(str(_fe.get("squadra", ""))) == _norm(_rp_sq) and
+                            _norm(str(_fe.get("giorno", ""))) == _rp_g):
+                        _rp_fe = _fe
+                        break
+            _rp_entry = {
+                "data": _rp_d, "squadra": _rp_sq,
+                "g_label": _GIORNI_LABEL.get(_rp_g, ""),
+                "row": _rp_row, "fisso_ev": _rp_fe,
+            }
+            if bool(_rp_row.get("annullato", False)):
+                rp_ann.append(_rp_entry)
+            elif _rp_fe is not None:
+                rp_mod.append(_rp_entry)
+            else:
+                rp_ext.append(_rp_entry)
+
+    # Conta fissi totali questa settimana per calcolare i confermati
+    _n_fissi_settimana = 0
+    if not orario_fisso.empty:
+        for _fd in settimana:
+            _fg = GIORNI_SETTIMANA[_fd.weekday()]
+            _n_fissi_settimana += sum(
+                1 for _, _fe in orario_fisso.iterrows()
+                if _norm(str(_fe.get("giorno", ""))) == _fg
+            )
+    _n_confermati = max(0, _n_fissi_settimana - len(rp_mod) - len(rp_ann))
+
+    _rc1, _rc2, _rc3, _rc4 = st.columns(4)
+    with _rc1:
+        st.metric("✅ Confermati", _n_confermati)
+    with _rc2:
+        st.metric("🔄 Modificati", len(rp_mod))
+    with _rc3:
+        st.metric("❌ Annullati", len(rp_ann))
+    with _rc4:
+        st.metric("➕ Extra", len(rp_ext))
+
+    if not rp_mod and not rp_ann and not rp_ext:
+        st.info("✅ Nessuna modifica rispetto alla settimana tipo.")
+    else:
+        if rp_ann:
+            st.markdown("**❌ Annullati questa settimana:**")
+            for _e in sorted(rp_ann, key=lambda x: (x["data"], x["squadra"])):
+                _e_fi = (str(_e["fisso_ev"].get("ora_inizio", "")).strip()
+                         if _e["fisso_ev"] is not None
+                         else str(_e["row"].get("ora_inizio", "")).strip())
+                st.markdown(f"&nbsp;&nbsp;- **{_e['squadra']}**: {_e['g_label']} {_e_fi} annullato")
+        if rp_mod:
+            st.markdown("**🔄 Modificati questa settimana:**")
+            for _e in sorted(rp_mod, key=lambda x: (x["data"], x["squadra"])):
+                _e_rw  = _e["row"]
+                _e_fe  = _e["fisso_ev"]
+                _e_oi  = str(_e_rw.get("ora_inizio", "")).strip()
+                _e_of  = str(_e_rw.get("ora_fine",   "")).strip()
+                _e_pal = str(_e_rw.get("palestra",   "")).strip()
+                _e_foi = str(_e_fe.get("ora_inizio", "")).strip()
+                _e_fof = str(_e_fe.get("ora_fine",   "")).strip()
+                _e_fpl = str(_e_fe.get("palestra",   "")).strip()
+                _e_diffs = []
+                if _e_oi != _e_foi or _e_of != _e_fof:
+                    _e_diffs.append(f"orario {_e_foi}–{_e_fof} → {_e_oi}–{_e_of}")
+                if _norm(_e_pal) != _norm(_e_fpl):
+                    _e_diffs.append(f"palestra {_e_fpl.capitalize()} → {_e_pal.capitalize()}")
+                if _norm(str(_e_rw.get("allenatori", ""))) != _norm(str(_e_fe.get("allenatori", ""))):
+                    _e_diffs.append("allenatori modificati")
+                _e_diffs_str = ", ".join(_e_diffs) if _e_diffs else "modificato"
+                st.markdown(
+                    f"&nbsp;&nbsp;- **{_e['squadra']}**: "
+                    f"{_e['g_label']} {_e['data'].strftime('%d/%m')} — {_e_diffs_str}"
+                )
+        if rp_ext:
+            st.markdown("**➕ Extra questa settimana:**")
+            for _e in sorted(rp_ext, key=lambda x: (x["data"], x["squadra"])):
+                _e_rw  = _e["row"]
+                _e_oi  = str(_e_rw.get("ora_inizio", "")).strip()
+                _e_of  = str(_e_rw.get("ora_fine",   "")).strip()
+                _e_pal = str(_e_rw.get("palestra",   "")).strip().capitalize()
+                st.markdown(
+                    f"&nbsp;&nbsp;- **{_e['squadra']}**: "
+                    f"{_e['g_label']} {_e['data'].strftime('%d/%m')} {_e_oi}–{_e_of} @ {_e_pal}"
+                )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tab NEW — Prossima Settimana
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_prossima_settimana(
+    orario_fisso: pd.DataFrame,
+    df_palestre: pd.DataFrame = None,
+    df_allenatori: pd.DataFrame = None,
+    df_squadre: pd.DataFrame = None,
+    calendario: pd.DataFrame = None,
+):
+    """Tab Prossima Settimana — tutti gli allenamenti della settimana tipo come
+    base, con pulsanti per modificare, annullare, aggiungere extra per la sola
+    settimana prossima, riepilogo differenze e messaggio WhatsApp."""
+
+    oggi      = datetime.today().date()
+    lun       = oggi - timedelta(days=oggi.weekday())
+    lun_prox  = lun + timedelta(days=7)
+    dom_prox  = lun_prox + timedelta(days=6)
+    sett_prox = [lun_prox + timedelta(days=i) for i in range(7)]
+
+    st.markdown(
         f"<div style='background:linear-gradient(135deg,#1a4a2e,#2e7d52);color:white;"
-        f"padding:10px 18px;border-radius:10px;margin:6px 0 14px 0;"
-        f"font-weight:800;font-size:1.1em'>"
+        f"padding:8px 16px;border-radius:8px;margin:0 0 14px 0;font-weight:700;font-size:1.0em'>"
         f"📅 Prossima settimana &nbsp;·&nbsp; "
         f"{lun_prox.strftime('%d/%m')} → {dom_prox.strftime('%d/%m/%Y')}"
         f"</div>",
         unsafe_allow_html=True,
     )
+    st.caption(
+        "Tutti gli allenamenti della **settimana tipo** come punto di partenza. "
+        "Le modifiche vengono salvate in `orario_settimana` e **non alterano il template fisso**."
+    )
 
-    _any_prox = False
-    for _d in sett_prox:
-        _evs = [_e for _e in evts_prox[_d] if _match(_e)]
-        if not _evs:
-            continue
-        _evs.sort(key=lambda _e: _ore_to_min(_e["ora_inizio"]) or 0)
-        _any_prox = True
-        _gk  = GIORNI_SETTIMANA[_d.weekday()]
-        _glb = _GIORNI_LABEL.get(_gk, "")
+    is_admin = st.session_state.get("ruolo", "admin") == "admin"
+
+    # Carica overrides per la prossima settimana
+    os_prox = leggi_orario_settimana(
+        data_inizio=lun_prox.strftime("%Y-%m-%d"),
+        data_fine=dom_prox.strftime("%Y-%m-%d"),
+    )
+
+    palestre_lista: list = []
+    if df_palestre is not None and not df_palestre.empty and "Nome" in df_palestre.columns:
+        palestre_lista = df_palestre["Nome"].tolist()
+
+    # Costruisci indice override: (data_str, squadra_norm) → (row_id, row)
+    sett_lookup_prox: dict = {}
+    if not os_prox.empty:
+        for row_id, row in os_prox.iterrows():
+            data_s = str(row.get("data", ""))
+            sq_s   = _norm(str(row.get("squadra", "")).strip())
+            sett_lookup_prox.setdefault(data_s, {})[sq_s] = (row_id, row)
+
+    # Costruisci eventi per giorno partendo da orario_fisso
+    eventi_prox: dict = {d: [] for d in sett_prox}
+    inclusi_override_prox: set = set()
+
+    if not orario_fisso.empty:
+        for row_label, ev in orario_fisso.iterrows():
+            g = _norm(ev.get("giorno", ""))
+            for d in sett_prox:
+                if GIORNI_SETTIMANA[d.weekday()] != g:
+                    continue
+                data_str = d.strftime("%Y-%m-%d")
+                sq_str   = str(ev.get("squadra", "")).strip()
+                sq_norm  = _norm(sq_str)
+                override_entry = sett_lookup_prox.get(data_str, {}).get(sq_norm)
+
+                if override_entry:
+                    sett_id, sett_row = override_entry
+                    inclusi_override_prox.add((data_str, sq_norm))
+                    is_ann = bool(sett_row.get("annullato", False))
+                    eventi_prox[d].append({
+                        "squadra":      sq_str,
+                        "giorno_norm":  g,
+                        "giorno_label": _GIORNI_LABEL.get(g, ""),
+                        "data":         data_str,
+                        "fisso_id":     row_label,
+                        "fisso_ev":     ev,
+                        "sett_id":      sett_id,
+                        "sett_row":     sett_row,
+                        "annullato":    is_ann,
+                        "is_override":  not is_ann,
+                        "is_extra":     False,
+                        "ora_inizio":   str(sett_row.get("ora_inizio", ev.get("ora_inizio", ""))).strip(),
+                        "ora_fine":     str(sett_row.get("ora_fine",   ev.get("ora_fine",   ""))).strip(),
+                        "palestra":     str(sett_row.get("palestra",   ev.get("palestra",   ""))).strip(),
+                        "allenatori":   str(sett_row.get("allenatori", ev.get("allenatori", ""))).strip(),
+                        "fisso_oi":     str(ev.get("ora_inizio", "")).strip(),
+                        "fisso_of":     str(ev.get("ora_fine",   "")).strip(),
+                        "fisso_pal":    str(ev.get("palestra",   "")).strip(),
+                        "fisso_all":    str(ev.get("allenatori", "")).strip(),
+                    })
+                else:
+                    _fisso_pal = str(ev.get("palestra", "")).strip()
+                    eventi_prox[d].append({
+                        "squadra":      sq_str,
+                        "giorno_norm":  g,
+                        "giorno_label": _GIORNI_LABEL.get(g, ""),
+                        "data":         data_str,
+                        "fisso_id":     row_label,
+                        "fisso_ev":     ev,
+                        "sett_id":      None,
+                        "sett_row":     None,
+                        "annullato":    False,
+                        "is_override":  False,
+                        "is_extra":     False,
+                        "ora_inizio":   str(ev.get("ora_inizio", "")).strip(),
+                        "ora_fine":     str(ev.get("ora_fine",   "")).strip(),
+                        "palestra":     _fisso_pal,
+                        "allenatori":   str(ev.get("allenatori", "")).strip(),
+                        "fisso_oi":     str(ev.get("ora_inizio", "")).strip(),
+                        "fisso_of":     str(ev.get("ora_fine",   "")).strip(),
+                        "fisso_pal":    _fisso_pal,
+                        "fisso_all":    str(ev.get("allenatori", "")).strip(),
+                    })
+
+    # Aggiungi extra (in orario_settimana ma NON override di fisso)
+    if not os_prox.empty:
+        for row_id, sett_row in os_prox.iterrows():
+            data_s = str(sett_row.get("data", ""))
+            sq_s   = _norm(str(sett_row.get("squadra", "")).strip())
+            if (data_s, sq_s) in inclusi_override_prox:
+                continue
+            if sett_row.get("annullato", False):
+                continue
+            try:
+                d = datetime.strptime(data_s, "%Y-%m-%d").date()
+            except Exception:
+                continue
+            if d not in sett_prox:
+                continue
+            g = GIORNI_SETTIMANA[d.weekday()]
+            sq_str = str(sett_row.get("squadra", "")).strip()
+            eventi_prox[d].append({
+                "squadra":      sq_str,
+                "giorno_norm":  g,
+                "giorno_label": _GIORNI_LABEL.get(g, ""),
+                "data":         data_s,
+                "fisso_id":     None,
+                "fisso_ev":     None,
+                "sett_id":      row_id,
+                "sett_row":     sett_row,
+                "annullato":    False,
+                "is_override":  False,
+                "is_extra":     True,
+                "ora_inizio":   str(sett_row.get("ora_inizio", "")).strip(),
+                "ora_fine":     str(sett_row.get("ora_fine",   "")).strip(),
+                "palestra":     str(sett_row.get("palestra",   "")).strip(),
+                "allenatori":   str(sett_row.get("allenatori", "")).strip(),
+                "fisso_oi": "", "fisso_of": "", "fisso_pal": "", "fisso_all": "",
+            })
+
+    # ── Render per giorno ────────────────────────────────────────────────
+    for d in sett_prox:
+        evs = sorted(eventi_prox[d], key=lambda e: _ore_to_min(e["ora_inizio"]) or 0)
+        g_key   = GIORNI_SETTIMANA[d.weekday()]
+        g_label = _GIORNI_LABEL.get(g_key, "")
+        d_fmt   = d.strftime("%d/%m/%Y")
+
         st.markdown(
-            f"<div style='background:#1a4a2e;color:white;"
-            f"padding:6px 14px;border-radius:7px;margin:12px 0 5px 0;"
-            f"font-weight:700;font-size:1.0em'>"
-            f"📅 {_glb} &nbsp;·&nbsp; {_d.strftime('%d/%m/%Y')}</div>",
+            f"<div style='background:#1a3a5c;color:white;"
+            f"padding:7px 14px;border-radius:7px;margin:14px 0 6px 0;"
+            f"font-weight:700;font-size:1.05em'>"
+            f"📅 {g_label} &nbsp;·&nbsp; {d_fmt}"
+            f"</div>",
             unsafe_allow_html=True,
         )
-        for _e in _evs:
-            if _e.get("_is_partita"):
-                _tip = _e["_tipo_partita"]
-                _icon = "⚠️" if "CONFLITTO" in _tip else "🏠"
-                _lbl  = "Partita"
-                _color = "#8B0000" if "CONFLITTO" in _tip else "#0D3B6E"
-            else:
-                _fe    = FLAG_EMOJIS.get(_e["flag"], "")
-                _icon  = f"🏀 {_fe}" if _fe else "🏀"
-                _lbl   = _e["squadra"]
-                _color = _pal_tipo_map  # override below
-                _pt    = _e.get("palestra_tipo", "Principale")
-                _border = f"border-left:4px solid {get_palestra_tipo_color(_pt)};" if _pt != "Principale" else ""
-                _color  = get_team_color(_e["squadra"])
+
+        if not evs:
+            st.caption("Nessun allenamento programmato.")
+            continue
+
+        for ri, e in enumerate(evs):
+            sq      = e["squadra"]
+            sett_id = e["sett_id"]
+            key_suf = f"p4_{d}_{ri}"
+            edit_key = f"_p4_edit_{d}_{sq}"
+            delc_key = f"_p4_delc_{d}_{sq}"
+
+            if e["annullato"]:
                 st.markdown(
-                    f"<div style='background:{_color};border-radius:10px;"
-                    f"padding:9px 14px;margin:4px 0;opacity:0.9;{_border}'>"
+                    f"<div style='background:#555;border-radius:10px;padding:9px 14px;"
+                    f"margin:4px 0;opacity:0.85'>"
                     f"<div style='display:flex;justify-content:space-between'>"
-                    f"<span style='color:white;font-weight:800'>{_icon} {_e['squadra']}</span>"
-                    f"<span style='color:rgba(255,255,255,0.95);font-weight:700'>"
-                    f"⏰ {_e['ora_inizio']} → {_e['ora_fine']}</span>"
+                    f"<span style='color:#ccc;font-weight:700;text-decoration:line-through'>🏀 {sq}</span>"
+                    f"<span style='color:#f90;font-size:0.88em'>❌ ANNULLATO</span>"
                     f"</div>"
-                    f"<div style='color:rgba(255,255,255,0.8);font-size:0.85em;margin-top:3px'>"
-                    f"🏟️ {_e['palestra']}"
-                    f"{(' &nbsp;&nbsp; 👤 ' + _e['allenatori']) if _e['allenatori'] else ''}"
-                    f"</div>"
-                    f"</div>",
+                    f"<div style='color:#aaa;font-size:0.83em;margin-top:3px'>"
+                    f"⏰ {e['fisso_oi']} → {e['fisso_of']}"
+                    f"{(' &nbsp;&nbsp; 🏟️ ' + e['fisso_pal'].capitalize()) if e['fisso_pal'] else ''}"
+                    f"{(' &nbsp;&nbsp; 👤 ' + e['fisso_all']) if e['fisso_all'] else ''}"
+                    f"</div></div>",
                     unsafe_allow_html=True,
                 )
-                continue
-            st.markdown(
-                f"<div style='background:{_color};border-radius:10px;"
-                f"padding:9px 14px;margin:4px 0'>"
-                f"<span style='color:white;font-weight:800'>{_icon} {_lbl}</span>"
-                f"<span style='color:rgba(255,255,255,0.8);font-size:0.85em;margin-left:8px'>"
-                f"⏰ {_e['ora_inizio']} — 🏟️ {_e['palestra']}</span>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
-    if not _any_prox:
-        st.info("Nessun evento programmato per la prossima settimana con i filtri selezionati.")
-
-    # ── Allenamento extra settimana prossima ──────────────────────────
-    if st.session_state.get("ruolo", "admin") == "admin":
-        st.markdown("---")
-        with st.expander("➕ Aggiungi allenamento extra — settimana prossima"):
-            lun_prox = lun + timedelta(days=7)
-            dom_prox = lun_prox + timedelta(days=6)
-            st.caption(
-                f"L'allenamento verrà aggiunto **solo per la settimana prossima** "
-                f"({lun_prox.strftime('%d/%m')} → {dom_prox.strftime('%d/%m/%Y')}) "
-                f"in `orario_settimana`, senza modificare il template fisso."
-            )
-
-            # Carica opzioni squadre e palestre
-            _sq_opts = []
-            if df_squadre is not None and not df_squadre.empty and "Categoria" in df_squadre.columns:
-                _sq_opts = df_squadre["Categoria"].tolist()
-            _pal_opts = []
-            if df_palestre is not None and not df_palestre.empty and "Nome" in df_palestre.columns:
-                _pal_opts = df_palestre["Nome"].tolist()
-
-            ep_col1, ep_col2 = st.columns(2)
-            with ep_col1:
-                ep_squadra = st.selectbox(
-                    "🏀 Squadra", ["— Seleziona —"] + _sq_opts, key="_ep_squadra"
-                )
-            with ep_col2:
-                _giorni_prox_labels = [_GIORNI_LABEL[g] for g in _GIORNI_ORDER]
-                ep_giorno_label = st.selectbox(
-                    "📅 Giorno", ["— Seleziona —"] + _giorni_prox_labels, key="_ep_giorno"
-                )
-
-            if ep_squadra != "— Seleziona —" and ep_giorno_label != "— Seleziona —":
-                ep_giorno_norm = next(
-                    (g for g in _GIORNI_ORDER if _GIORNI_LABEL[g] == ep_giorno_label), ""
-                )
-                # Calcola la data esatta nella settimana prossima
-                _weekday_map = {g: i for i, g in enumerate(_GIORNI_ORDER)}
-                ep_data = lun_prox + timedelta(days=_weekday_map.get(ep_giorno_norm, 0))
-                ep_data_str = ep_data.strftime("%Y-%m-%d")
-                st.info(f"📅 Data: **{ep_data.strftime('%d/%m/%Y')}** ({ep_giorno_label})")
-
-                ep_col3, ep_col4 = st.columns(2)
-                with ep_col3:
-                    ep_oi = st.time_input(
-                        "⏰ Ora inizio",
-                        value=datetime.strptime("18:00", "%H:%M").time(),
-                        key="_ep_oi",
-                    ).strftime("%H:%M")
-                with ep_col4:
-                    ep_of = st.time_input(
-                        "⏰ Ora fine",
-                        value=datetime.strptime("19:30", "%H:%M").time(),
-                        key="_ep_of",
-                    ).strftime("%H:%M")
-
-                ep_pal = st.selectbox(
-                    "🏟️ Palestra",
-                    ["— Seleziona —"] + _pal_opts if _pal_opts else ["— Seleziona —"],
-                    key="_ep_pal",
-                )
-
-                # Allenatori auto-caricati dalla squadra
-                _ep_all_opts = []
-                if df_allenatori is not None and not df_allenatori.empty:
-                    for _, _ar in df_allenatori.iterrows():
-                        _sq_list = [s.split("(")[0].strip()
-                                    for s in str(_ar.get("Squadre", "")).split(",")]
-                        if ep_squadra in _sq_list:
-                            _cog = str(_ar.get("Cognome", "")).strip()
-                            if _cog:
-                                _ep_all_opts.append(_cog)
-                ep_all_sel = st.multiselect(
-                    "👤 Allenatori",
-                    options=_ep_all_opts,
-                    default=_ep_all_opts,
-                    key="_ep_all",
-                )
-                ep_cond = st.checkbox(
-                    "🤝 Condivide la palestra", key="_ep_cond"
-                )
-
-                # Flag allenamento extra
-                _ep_flag_opts = list(FLAG_EMOJIS.keys())
-                ep_flag = st.selectbox(
-                    "🚩 Flag",
-                    _ep_flag_opts,
-                    index=0,
-                    key="_ep_flag",
-                    format_func=lambda x: f"{FLAG_EMOJIS[x]} {x}" if FLAG_EMOJIS.get(x) else x,
-                )
-
-                # Zona palestra extra
-                _ep_zone_opts: list = []
-                if _pal_opts and ep_pal != "— Seleziona —" and df_palestre is not None and not df_palestre.empty:
-                    _ep_pal_row = df_palestre[df_palestre["Nome"] == ep_pal]
-                    if not _ep_pal_row.empty:
-                        _ep_z_str = str(_ep_pal_row.iloc[0].get("Zone", "")).strip()
-                        if _ep_z_str:
-                            _ep_zone_opts = [z.strip() for z in _ep_z_str.split(",") if z.strip()]
-                ep_zona = ""
-                if _ep_zone_opts:
-                    ep_zona = st.selectbox(
-                        "📍 Zona palestra",
-                        [""] + _ep_zone_opts,
-                        key="_ep_zona",
-                        format_func=lambda x: x if x else "— Nessuna zona specifica —",
-                    )
-
-                ep_disabled = ep_pal == "— Seleziona —"
-                if st.button(
-                    f"💾 Salva allenamento extra — {ep_squadra} · {ep_giorno_label} · {ep_oi}–{ep_of}",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=ep_disabled,
-                    key="_ep_salva",
-                ):
-                    ok = scrivi_evento("orario_settimana", {
-                        "data":         ep_data_str,
-                        "giorno":       ep_giorno_norm,
-                        "palestra":     ep_pal,
-                        "squadra":      ep_squadra,
-                        "ora_inizio":   ep_oi,
-                        "ora_fine":     ep_of,
-                        "allenatori":   " - ".join(ep_all_sel),
-                        "condivisione": "SI" if ep_cond else "NO",
-                        "annullato":    False,
-                        "flag":         ep_flag,
-                        "zona":         ep_zona,
-                    })
-                    if ok:
+                if is_admin and sett_id is not None:
+                    if st.button("↩️ Ripristina", key=f"_p4_rip_{key_suf}"):
+                        elimina_evento("orario_settimana", sett_id)
                         invalida_cache()
-                        st.success(
-                            f"✅ Allenamento extra aggiunto: {ep_squadra} · "
-                            f"{ep_data.strftime('%d/%m/%Y')} · {ep_oi}–{ep_of}"
+                        st.rerun()
+
+            elif is_admin and st.session_state.get(edit_key):
+                with st.container():
+                    st.markdown(
+                        f"<div style='background:#1a3a5c;border-radius:8px;padding:8px 14px;margin:4px 0'>"
+                        f"<span style='color:white;font-weight:700'>✏️ Modifica — {sq} · {g_label} {d_fmt}</span>"
+                        f"<small style='color:#7ec8f7'> (solo prossima settimana)</small></div>",
+                        unsafe_allow_html=True,
+                    )
+                    _pc1, _pc2, _pc3 = st.columns(3)
+                    with _pc1:
+                        try:
+                            _poi = datetime.strptime(e["ora_inizio"] or "18:00", "%H:%M").time()
+                        except Exception:
+                            _poi = datetime.strptime("18:00", "%H:%M").time()
+                        _new_oi = st.time_input("⏰ Ora inizio", value=_poi, key=f"_p4_oi_{key_suf}").strftime("%H:%M")
+                    with _pc2:
+                        try:
+                            _pof = datetime.strptime(e["ora_fine"] or "19:30", "%H:%M").time()
+                        except Exception:
+                            _pof = datetime.strptime("19:30", "%H:%M").time()
+                        _new_of = st.time_input("⏰ Ora fine", value=_pof, key=f"_p4_of_{key_suf}").strftime("%H:%M")
+                    with _pc3:
+                        _pal_cur = e["palestra"].strip()
+                        _pal_ls  = palestre_lista if palestre_lista else ([_pal_cur] if _pal_cur else [""])
+                        _pal_ix  = _pal_ls.index(_pal_cur) if _pal_cur in _pal_ls else 0
+                        _new_pal = st.selectbox("🏟️ Palestra", _pal_ls, index=_pal_ix, key=f"_p4_pal_{key_suf}")
+
+                    _ao: list = []
+                    if df_allenatori is not None and not df_allenatori.empty:
+                        for _, _ar in df_allenatori.iterrows():
+                            if sq in [s.split("(")[0].strip() for s in str(_ar.get("Squadre", "")).split(",")]:
+                                _cg = str(_ar.get("Cognome", "")).strip()
+                                if _cg:
+                                    _ao.append(_cg)
+                    _ac = [a.strip() for a in e["allenatori"].split("-") if a.strip()]
+                    _ad = [a for a in _ac if a in _ao] or _ao
+                    _new_all = st.multiselect("👤 Allenatori", options=_ao or _ac, default=_ad, key=f"_p4_all_{key_suf}")
+
+                    # ── Indicatore real-time slot ──────────────────────
+                    _ps_conf_rt = _check_e_mostra_slot(
+                        e["data"], sq, _new_pal, _new_oi, _new_of, e["giorno_norm"],
+                        orario_fisso, os_prox, calendario, df_allenatori,
+                        exclude_sett_id=(sett_id if sett_id is not None else None),
+                    )
+                    _ps_has_conf = (len(_ps_conf_rt["palestra"]) > 0 or
+                                    len(_ps_conf_rt["allenatore"]) > 0 or
+                                    _ps_conf_rt["doppio"] is not None)
+
+                    _ps_pend_key = f"_ps_pend_{d}_{sq}"
+
+                    def _ps_do_save(dati_save, sid):
+                        if sid is not None:
+                            ok = aggiorna_evento("orario_settimana", sid, dati_save)
+                        else:
+                            ok = scrivi_evento("orario_settimana", dati_save)
+                        if ok:
+                            invalida_cache()
+                        st.session_state.pop(_ps_pend_key, None)
+                        st.session_state.pop(edit_key, None)
+                        st.rerun()
+
+                    if st.session_state.get(_ps_pend_key):
+                        _pd = st.session_state[_ps_pend_key]
+                        _alt_oi, _alt_of = _mostra_alternativi_ui(
+                            e["data"], _new_pal, _new_oi, _new_of, e["giorno_norm"],
+                            orario_fisso, os_prox, df_palestre, f"ps_{d}_{sq}",
                         )
+                        _pcc1, _pcc2, _pcc3 = st.columns(3)
+                        with _pcc1:
+                            if st.button("🔄 Usa slot alternativo", key=f"_ps_alt_{key_suf}",
+                                         use_container_width=True, disabled=(_alt_oi is None)):
+                                _d2 = dict(_pd)
+                                _d2["ora_inizio"] = _alt_oi
+                                _d2["ora_fine"]   = _alt_of
+                                _ps_do_save(_d2, sett_id)
+                        with _pcc2:
+                            if st.button("⚠️ Salva comunque", key=f"_ps_force_{key_suf}",
+                                         use_container_width=True):
+                                _d2 = dict(_pd)
+                                _d2["flag"] = "conflitto"
+                                _ps_do_save(_d2, sett_id)
+                        with _pcc3:
+                            if st.button("✖ Annulla", key=f"_p4_cancel_{key_suf}",
+                                         use_container_width=True):
+                                st.session_state.pop(_ps_pend_key, None)
+                                st.session_state.pop(edit_key, None)
+                                st.rerun()
+                    else:
+                        _sb1, _sb2 = st.columns(2)
+                        with _sb1:
+                            if st.button("💾 Salva", key=f"_p4_save_{key_suf}", type="primary", use_container_width=True):
+                                _dati_new = {
+                                    "data": e["data"], "giorno": e["giorno_norm"],
+                                    "palestra": _new_pal, "squadra": sq,
+                                    "ora_inizio": _new_oi, "ora_fine": _new_of,
+                                    "allenatori": " - ".join(_new_all),
+                                    "condivisione": "NO", "annullato": False,
+                                    "flag": "normale", "zona": "",
+                                }
+                                if _ps_has_conf:
+                                    st.session_state[_ps_pend_key] = _dati_new
+                                    st.rerun()
+                                else:
+                                    _ps_do_save(_dati_new, sett_id)
+                        with _sb2:
+                            if st.button("✖ Annulla", key=f"_p4_cancel2_{key_suf}", use_container_width=True):
+                                st.session_state.pop(edit_key, None)
+                                st.rerun()
+
+            else:
+                oi  = e["ora_inizio"]
+                of  = e["ora_fine"]
+                pal = e["palestra"].capitalize() if e["palestra"] else "—"
+                all_str = e["allenatori"]
+                bg = get_team_color(sq)
+
+                if e["is_override"]:
+                    badge_html = "<span style='background:rgba(255,255,255,0.15);color:#a0d4ff;font-size:0.75em;padding:2px 6px;border-radius:10px;margin-left:6px'>✎ modificato</span>"
+                elif e["is_extra"]:
+                    badge_html = "<span style='background:rgba(255,255,255,0.15);color:#a0ffb0;font-size:0.75em;padding:2px 6px;border-radius:10px;margin-left:6px'>★ extra</span>"
+                else:
+                    badge_html = ""
+
+                card_html = (
+                    f"<div style='background:{bg};border-radius:10px;padding:10px 15px;"
+                    f"margin:4px 0;box-shadow:0 2px 8px rgba(0,0,0,0.22)'>"
+                    f"<div style='display:flex;justify-content:space-between;align-items:center'>"
+                    f"<span style='color:white;font-weight:800;font-size:1.0em'>🏀 {sq}{badge_html}</span>"
+                    f"<span style='color:rgba(255,255,255,0.95);font-weight:700;font-size:0.9em'>⏰ {oi} → {of}</span>"
+                    f"</div>"
+                    f"<div style='color:rgba(255,255,255,0.82);font-size:0.85em;margin-top:4px'>"
+                    f"🏟️ {pal}{(' &nbsp;&nbsp; 👤 ' + all_str) if all_str else ''}"
+                    f"</div></div>"
+                )
+
+                if is_admin:
+                    if st.session_state.get(delc_key):
+                        _dc = st.columns([5, 1, 1])
+                        if e["is_extra"]:
+                            _dc[0].warning(f"⚠️ Elimina extra **{sq}**?")
+                        else:
+                            _dc[0].warning(f"⚠️ Annulla **{sq}** solo la prossima settimana?")
+                        with _dc[1]:
+                            if st.button("✅", key=f"_p4_dely_{key_suf}", type="primary", use_container_width=True):
+                                if e["is_extra"] and sett_id is not None:
+                                    elimina_evento("orario_settimana", sett_id)
+                                elif e["is_override"] and sett_id is not None:
+                                    aggiorna_evento("orario_settimana", sett_id, {
+                                        "data": e["data"], "giorno": e["giorno_norm"],
+                                        "palestra": e["fisso_pal"], "squadra": sq,
+                                        "ora_inizio": e["fisso_oi"], "ora_fine": e["fisso_of"],
+                                        "allenatori": e["fisso_all"],
+                                        "condivisione": "NO", "annullato": True,
+                                        "flag": "annullato", "zona": "",
+                                    })
+                                else:
+                                    scrivi_evento("orario_settimana", {
+                                        "data": e["data"], "giorno": e["giorno_norm"],
+                                        "palestra": e["fisso_pal"].lower(), "squadra": sq,
+                                        "ora_inizio": e["fisso_oi"], "ora_fine": e["fisso_of"],
+                                        "allenatori": e["fisso_all"],
+                                        "condivisione": "NO", "annullato": True,
+                                        "flag": "annullato", "zona": "",
+                                    })
+                                invalida_cache()
+                                st.session_state.pop(delc_key, None)
+                                st.rerun()
+                        with _dc[2]:
+                            if st.button("✖", key=f"_p4_deln_{key_suf}", use_container_width=True):
+                                st.session_state.pop(delc_key, None)
+                                st.rerun()
+                    else:
+                        _wc = st.columns([8, 1, 1])
+                        with _wc[0]:
+                            st.markdown(card_html, unsafe_allow_html=True)
+                        with _wc[1]:
+                            st.write("")
+                            if st.button("✏️", key=f"_p4_edit_btn_{key_suf}", help="Modifica (solo prossima settimana)", use_container_width=True):
+                                st.session_state[edit_key] = True
+                                st.rerun()
+                        with _wc[2]:
+                            st.write("")
+                            _btn_icon = "🗑️" if e["is_extra"] else "❌"
+                            _btn_help = "Elimina extra" if e["is_extra"] else "Annulla solo prossima settimana"
+                            if st.button(_btn_icon, key=f"_p4_del_btn_{key_suf}", help=_btn_help, use_container_width=True):
+                                st.session_state[delc_key] = True
+                                st.rerun()
+                        if e["is_override"] and sett_id is not None:
+                            if st.button("↩️ Ripristina fisso", key=f"_p4_rev_{key_suf}", help="Annulla la modifica e torna al template fisso"):
+                                elimina_evento("orario_settimana", sett_id)
+                                invalida_cache()
+                                st.rerun()
+                else:
+                    st.markdown(card_html, unsafe_allow_html=True)
+
+    # ── Aggiungi allenamento extra ────────────────────────────────────────
+    st.markdown("---")
+    with st.expander("➕ Aggiungi allenamento extra — prossima settimana"):
+        st.caption(
+            f"L'allenamento verrà aggiunto **solo per la prossima settimana** "
+            f"({lun_prox.strftime('%d/%m')} → {dom_prox.strftime('%d/%m/%Y')}) "
+            f"in `orario_settimana`, senza modificare il template fisso."
+        )
+        _sq_opts  = df_squadre["Categoria"].tolist() if df_squadre is not None and not df_squadre.empty and "Categoria" in df_squadre.columns else []
+        _pal_opts = palestre_lista
+
+        ep_c1, ep_c2 = st.columns(2)
+        with ep_c1:
+            ep_squadra = st.selectbox("🏀 Squadra", ["— Seleziona —"] + _sq_opts, key="_p4_ep_sq")
+        with ep_c2:
+            ep_giorno_label = st.selectbox("📅 Giorno", ["— Seleziona —"] + [_GIORNI_LABEL[g] for g in _GIORNI_ORDER], key="_p4_ep_g")
+
+        if ep_squadra != "— Seleziona —" and ep_giorno_label != "— Seleziona —":
+            ep_giorno_norm = next((g for g in _GIORNI_ORDER if _GIORNI_LABEL[g] == ep_giorno_label), "")
+            _wdm = {g: i for i, g in enumerate(_GIORNI_ORDER)}
+            ep_data     = lun_prox + timedelta(days=_wdm.get(ep_giorno_norm, 0))
+            ep_data_str = ep_data.strftime("%Y-%m-%d")
+            st.info(f"📅 Data: **{ep_data.strftime('%d/%m/%Y')}** ({ep_giorno_label})")
+
+            ep_c3, ep_c4 = st.columns(2)
+            with ep_c3:
+                ep_oi = st.time_input("⏰ Ora inizio", value=datetime.strptime("18:00", "%H:%M").time(), key="_p4_ep_oi").strftime("%H:%M")
+            with ep_c4:
+                ep_of = st.time_input("⏰ Ora fine",   value=datetime.strptime("19:30", "%H:%M").time(), key="_p4_ep_of").strftime("%H:%M")
+
+            ep_pal = st.selectbox("🏟️ Palestra", (["— Seleziona —"] + _pal_opts) if _pal_opts else ["— Seleziona —"], key="_p4_ep_pal")
+
+            _ep_all_opts: list = []
+            if df_allenatori is not None and not df_allenatori.empty:
+                for _, _ar in df_allenatori.iterrows():
+                    if ep_squadra in [s.split("(")[0].strip() for s in str(_ar.get("Squadre", "")).split(",")]:
+                        _cg = str(_ar.get("Cognome", "")).strip()
+                        if _cg:
+                            _ep_all_opts.append(_cg)
+            ep_all_sel = st.multiselect("👤 Allenatori", options=_ep_all_opts, default=_ep_all_opts, key="_p4_ep_all")
+            ep_cond    = st.checkbox("🤝 Condivide la palestra", key="_p4_ep_cond")
+
+            # ── Indicatore real-time slot per extra ────────────────────
+            _ep_conf_rt = {"palestra": [], "allenatore": [], "doppio": None}
+            if ep_pal != "— Seleziona —":
+                _ep_conf_rt = _check_e_mostra_slot(
+                    ep_data_str, ep_squadra, ep_pal, ep_oi, ep_of, ep_giorno_norm,
+                    orario_fisso, os_prox, calendario, df_allenatori,
+                )
+            _ep_has_conf = (len(_ep_conf_rt["palestra"]) > 0 or
+                            len(_ep_conf_rt["allenatore"]) > 0 or
+                            _ep_conf_rt["doppio"] is not None)
+
+            _ep_pend_key = "_pe_pend"
+
+            if st.session_state.get(_ep_pend_key):
+                _epd = st.session_state[_ep_pend_key]
+                _ep_alt_oi, _ep_alt_of = _mostra_alternativi_ui(
+                    ep_data_str, ep_pal, ep_oi, ep_of, ep_giorno_norm,
+                    orario_fisso, os_prox, df_palestre, "pe",
+                )
+                _ec1, _ec2, _ec3 = st.columns(3)
+                with _ec1:
+                    if st.button("🔄 Usa slot alternativo", key="_pe_alt",
+                                 use_container_width=True, disabled=(_ep_alt_oi is None)):
+                        _d2 = dict(_epd)
+                        _d2["ora_inizio"] = _ep_alt_oi
+                        _d2["ora_fine"]   = _ep_alt_of
+                        ok = scrivi_evento("orario_settimana", _d2)
+                        if ok:
+                            invalida_cache()
+                        st.session_state.pop(_ep_pend_key, None)
+                        st.success(f"✅ Allenamento extra aggiunto: {ep_squadra} · {ep_data.strftime('%d/%m/%Y')} · {_ep_alt_oi}–{_ep_alt_of}")
+                        st.rerun()
+                with _ec2:
+                    if st.button("⚠️ Salva comunque", key="_pe_force",
+                                 use_container_width=True):
+                        _d2 = dict(_epd)
+                        _d2["flag"] = "conflitto"
+                        ok = scrivi_evento("orario_settimana", _d2)
+                        if ok:
+                            invalida_cache()
+                        st.session_state.pop(_ep_pend_key, None)
+                        st.success(f"✅ Allenamento extra aggiunto (con conflitto): {ep_squadra} · {ep_data.strftime('%d/%m/%Y')}")
+                        st.rerun()
+                with _ec3:
+                    if st.button("✖ Annulla", key="_pe_cancel",
+                                 use_container_width=True):
+                        st.session_state.pop(_ep_pend_key, None)
+                        st.rerun()
+            else:
+                if st.button(
+                    f"💾 Salva — {ep_squadra} · {ep_giorno_label} · {ep_oi}–{ep_of}",
+                    type="primary", use_container_width=True,
+                    disabled=(ep_pal == "— Seleziona —"), key="_p4_ep_salva",
+                ):
+                    _ep_dati = {
+                        "data": ep_data_str, "giorno": ep_giorno_norm, "palestra": ep_pal,
+                        "squadra": ep_squadra, "ora_inizio": ep_oi, "ora_fine": ep_of,
+                        "allenatori": " - ".join(ep_all_sel),
+                        "condivisione": "SI" if ep_cond else "NO",
+                        "annullato": False, "flag": "normale", "zona": "",
+                    }
+                    if _ep_has_conf:
+                        st.session_state[_ep_pend_key] = _ep_dati
                         st.rerun()
                     else:
-                        st.error("❌ Errore nel salvataggio. Riprova.")
+                        ok = scrivi_evento("orario_settimana", _ep_dati)
+                        if ok:
+                            invalida_cache()
+                            st.success(f"✅ Allenamento extra aggiunto: {ep_squadra} · {ep_data.strftime('%d/%m/%Y')} · {ep_oi}–{ep_of}")
+                            st.rerun()
+                        else:
+                            st.error("❌ Errore nel salvataggio. Riprova.")
+
+    # ── Riepilogo differenze ─────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("### 📋 MODIFICHE PROSSIMA SETTIMANA")
+
+    confermati: list = []
+    modificati: list = []
+    annullati:  list = []
+    extra:      list = []
+
+    for d in sett_prox:
+        for e in eventi_prox[d]:
+            if e["annullato"]:
+                annullati.append(e)
+            elif e["is_extra"]:
+                extra.append(e)
+            elif e["is_override"]:
+                modificati.append(e)
+            else:
+                confermati.append(e)
+
+    _ms1, _ms2, _ms3, _ms4 = st.columns(4)
+    with _ms1:
+        st.metric("✅ Confermati", len(confermati))
+    with _ms2:
+        st.metric("🔄 Modificati", len(modificati))
+    with _ms3:
+        st.metric("❌ Annullati", len(annullati))
+    with _ms4:
+        st.metric("➕ Extra", len(extra))
+
+    st.markdown("---")
+
+    if confermati:
+        st.markdown(f"**✅ Confermati senza modifiche:** {len(confermati)} allenamenti")
+
+    if modificati:
+        st.markdown("**🔄 Modificati:**")
+        for e in modificati:
+            diffs = []
+            if e["ora_inizio"] != e["fisso_oi"] or e["ora_fine"] != e["fisso_of"]:
+                diffs.append(f"orario {e['fisso_oi']}–{e['fisso_of']} → {e['ora_inizio']}–{e['ora_fine']}")
+            if _norm(e["palestra"]) != _norm(e["fisso_pal"]):
+                diffs.append(f"palestra {e['fisso_pal'].capitalize()} → {e['palestra'].capitalize()}")
+            if _norm(e["allenatori"]) != _norm(e["fisso_all"]):
+                diffs.append("allenatori modificati")
+            diffs_str = ", ".join(diffs) if diffs else "modificato"
+            st.markdown(f"&nbsp;&nbsp;- **{e['squadra']}**: {diffs_str} ({e['giorno_label']} {e['data']})")
+
+    if annullati:
+        st.markdown("**❌ Annullati:**")
+        for e in annullati:
+            st.markdown(f"&nbsp;&nbsp;- **{e['squadra']}**: {e['giorno_label']} {e['fisso_oi']} annullato")
+
+    if extra:
+        st.markdown("**➕ Extra:**")
+        for e in extra:
+            st.markdown(f"&nbsp;&nbsp;- **{e['squadra']}**: {e['giorno_label']} {e['ora_inizio']}–{e['ora_fine']} @ {e['palestra'].capitalize()}")
+
+    if not modificati and not annullati and not extra:
+        st.info("✅ Nessuna modifica rispetto al solito.")
+
+    # ── Messaggio WhatsApp ────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("#### 📱 Messaggio WhatsApp")
+
+    lun_str = lun_prox.strftime("%d/%m/%Y")
+    dom_str = dom_prox.strftime("%d/%m/%Y")
+
+    if not modificati and not annullati and not extra:
+        wa_msg = (
+            f"🏀 ODERZO BASKET — Settimana {lun_str} - {dom_str}\n"
+            f"✅ Nessuna modifica. Orario invariato rispetto al solito."
+        )
+    else:
+        lines = [
+            f"🏀 ODERZO BASKET — SETTIMANA {lun_str} - {dom_str}",
+            "📋 MODIFICHE RISPETTO AL SOLITO:",
+        ]
+        if modificati:
+            lines.append("")
+            lines.append("🔄 ALLENAMENTI SPOSTATI:")
+            for e in modificati:
+                diffs = []
+                if e["ora_inizio"] != e["fisso_oi"] or e["ora_fine"] != e["fisso_of"]:
+                    diffs.append(f"orario {e['fisso_oi']}–{e['fisso_of']} → {e['ora_inizio']}–{e['ora_fine']}")
+                if _norm(e["palestra"]) != _norm(e["fisso_pal"]):
+                    diffs.append(f"palestra {e['fisso_pal'].capitalize()} → {e['palestra'].capitalize()}")
+                diffs_str = ", ".join(diffs) if diffs else "modificato"
+                lines.append(f"- {e['squadra']}: {diffs_str}")
+        if annullati:
+            lines.append("")
+            lines.append("❌ ALLENAMENTI ANNULLATI:")
+            for e in annullati:
+                lines.append(f"- {e['squadra']}: {e['giorno_label']} {e['fisso_oi']} annullato")
+        if extra:
+            lines.append("")
+            lines.append("➕ ALLENAMENTI EXTRA:")
+            for e in extra:
+                lines.append(f"- {e['squadra']}: {e['giorno_label']} {e['ora_inizio']}–{e['ora_fine']} {e['palestra'].capitalize()}")
+        lines.append("")
+        lines.append("✅ Tutto il resto rimane invariato.")
+        wa_msg = "\n".join(lines)
+
+    st.text_area("Anteprima:", value=wa_msg, height=200, key="_p4_wa_preview")
+
+    _wa_escaped = json.dumps(wa_msg)
+    components.html(
+        f"""<button onclick="
+            navigator.clipboard.writeText({_wa_escaped}).then(() => {{
+                this.innerText = '✅ Copiato negli appunti!';
+                this.style.background = '#27ae60';
+                setTimeout(() => {{
+                    this.innerText = '📱 Copia messaggio WhatsApp';
+                    this.style.background = '#25D366';
+                }}, 2500);
+            }}).catch(() => {{
+                this.innerText = '⚠️ Copia manuale — seleziona il testo sopra';
+                setTimeout(() => {{ this.innerText = '📱 Copia messaggio WhatsApp'; }}, 3000);
+            }});
+        " style="background:#25D366;color:white;font-weight:700;font-size:1em;
+            border:none;border-radius:8px;padding:11px 24px;cursor:pointer;
+            box-shadow:0 2px 8px rgba(0,0,0,0.18);width:100%;margin-top:6px">
+            📱 Copia messaggio WhatsApp
+        </button>""",
+        height=60,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1569,14 +2069,14 @@ def render():
     is_admin = st.session_state.get("ruolo", "admin") == "admin"
 
     if is_admin:
-        tab_settimana, tab_tipo, tab_configura = st.tabs(
-            ["📅 Settimana corrente", "📊 Settimana tipo", "⚙️ Configura allenamenti"]
+        tab_settimana, tab_prox, tab_tipo, tab_configura = st.tabs(
+            ["📅 Settimana corrente", "📅 Prossima Settimana", "📊 Settimana tipo", "⚙️ Configura allenamenti"]
         )
         with tab_configura:
             _render_configura(orario_fisso, df_squadre, df_palestre, df_allenatori)
     else:
-        tab_settimana, tab_tipo = st.tabs(
-            ["📅 Settimana corrente", "📊 Settimana tipo"]
+        tab_settimana, tab_prox, tab_tipo = st.tabs(
+            ["📅 Settimana corrente", "📅 Prossima Settimana", "📊 Settimana tipo"]
         )
 
     with tab_settimana:
@@ -1584,6 +2084,9 @@ def render():
             orario_fisso, calendario, df_palestre, conflicting_labels,
             orario_settimana, df_allenatori, df_squadre,
         )
+
+    with tab_prox:
+        _render_prossima_settimana(orario_fisso, df_palestre, df_allenatori, df_squadre, calendario)
 
     with tab_tipo:
         _render_settimana_tipo(orario_fisso, conflicting_labels)

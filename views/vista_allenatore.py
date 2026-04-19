@@ -117,19 +117,52 @@ def render():
         for _, r in df_allenatori.iterrows()
         if r.get("Nome") and r.get("Cognome")
     ]
-    nomi.insert(0, "— Seleziona il tuo nome —")
 
-    try:
-        saved = st.query_params.get("allenatore", "")
-    except Exception:
-        saved = ""
-    default_idx = nomi.index(saved) if saved in nomi else 0
+    # ── Auto-rilevamento allenatore da email loggata ────────────────────────
+    utente_email = st.session_state.get("utente_email", "").lower().strip()
+    allenatore_autosel = None
 
-    allenatore_sel = st.selectbox("👤 Chi sei?", nomi, index=default_idx, key="va_nome")
+    if utente_email:
+        for _, r in df_allenatori.iterrows():
+            email_row = str(r.get("Email", "")).lower().strip()
+            if email_row and email_row == utente_email:
+                allenatore_autosel = f"{r['Nome']} {r['Cognome']}".strip()
+                break
 
-    if allenatore_sel == "— Seleziona il tuo nome —":
-        st.info("👆 Seleziona il tuo nome per vedere il tuo calendario personale.")
-        return
+    ruolo_utente = st.session_state.get("ruolo", "admin")
+
+    if allenatore_autosel:
+        # Utente riconosciuto: mostra il profilo senza selectbox
+        allenatore_sel = allenatore_autosel
+        if ruolo_utente == "allenatore":
+            st.info(f"👋 Benvenuto! Stai visualizzando il tuo calendario personale.")
+        else:
+            # Admin o altro ruolo: mostra selectbox ma pre-seleziona
+            nomi.insert(0, "— Seleziona il tuo nome —")
+            default_idx = nomi.index(allenatore_autosel) if allenatore_autosel in nomi else 0
+            allenatore_sel = st.selectbox("👤 Chi sei?", nomi, index=default_idx, key="va_nome")
+            if allenatore_sel == "— Seleziona il tuo nome —":
+                st.info("👆 Seleziona il tuo nome per vedere il tuo calendario personale.")
+                return
+    else:
+        # Nessuna corrispondenza email: mostra selectbox manuale
+        nomi.insert(0, "— Seleziona il tuo nome —")
+        try:
+            saved = st.query_params.get("allenatore", "")
+        except Exception:
+            saved = ""
+        default_idx = nomi.index(saved) if saved in nomi else 0
+        allenatore_sel = st.selectbox("👤 Chi sei?", nomi, index=default_idx, key="va_nome")
+
+        if allenatore_sel == "— Seleziona il tuo nome —":
+            if utente_email:
+                st.info(
+                    "👆 Seleziona il tuo nome oppure aggiungi la tua email alla tabella **Allenatori** "
+                    "nel Setup per il riconoscimento automatico."
+                )
+            else:
+                st.info("👆 Seleziona il tuo nome per vedere il tuo calendario personale.")
+            return
 
     try:
         st.query_params["allenatore"] = allenatore_sel

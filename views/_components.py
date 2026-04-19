@@ -10,6 +10,7 @@ FLAG_EMOJIS = {
     "importante":    "⭐",
     "annullato":     "❌",
     "da_confermare": "⚠️",
+    "conflitto":     "🔴",
 }
 
 # ── Colori bordo per tipo palestra ────────────────────────────────────────────

@@ -1,15 +1,185 @@
-import streamlit as st
-from datetime import datetime
-from logic import GIORNI_SETTIMANA, calcola_slot, c_e_conflitto, estrai_partite_da_pdf, notifica_nuova_partita
-from database import (
-    leggi_squadre, leggi_orario_fisso, leggi_palestre, leggi_allenatori, leggi_calendario,
-    carica_tutti_i_dati_db, invalida_cache, scrivi_evento,
-)
-# LEGACY: from sheets import leggi_foglio, scrivi_riga, carica_tutti_i_dati
+"""
+Importazione calendario FIP (provvisorio e definitivo).
+- Provvisorio: analizza vs conflitti e DOA → imposta stato automaticamente
+- Definitivo: confronta con provvisorio esistente → aggiorna stati
+NON tocca il sistema email né il parser PDF.
+"""
 
+import streamlit as st
+from datetime import datetime, date
+from logic import (
+    GIORNI_SETTIMANA, calcola_slot, c_e_conflitto,
+    estrai_partite_da_pdf, notifica_nuova_partita,
+    partita_in_doa, motivo_fuori_doa,
+    trova_date_alternative_doa, confronta_calendari,
+)
+from database import (
+    leggi_squadre, leggi_orario_fisso, leggi_palestre, leggi_allenatori,
+    leggi_calendario, leggi_doa, salva_doa, salva_doa_lista,
+    carica_tutti_i_dati_db, invalida_cache,
+    scrivi_evento, aggiorna_evento, aggiorna_stato_partita,
+)
+
+_GIORNI_NOMI = ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"]
+_GIORNI_ABBR = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
+
+_STATO_BADGE = {
+    "provvisoria": "🕐 Provvisoria",
+    "confermata":  "✅ Confermata",
+    "da_spostare": "⚠️ Da spostare",
+    "in_attesa":   "⏳ In attesa",
+    "definitiva":  "🏆 Definitiva",
+}
+
+
+def _stagione_corrente() -> str:
+    oggi = date.today()
+    if oggi.month >= 9:
+        return f"{oggi.year}-{oggi.year + 1}"
+    return f"{oggi.year - 1}-{oggi.year}"
+
+
+# ── DOA DA PDF (formato B) ───────────────────────────────────────────────────
+
+def _render_doa_estratte(squadra: str):
+    """Mostra le DOA estratte automaticamente dal PDF formato B e permette di salvarle."""
+    info = st.session_state.get("doa_estratte_pdf")
+    if not info or info.get("squadra") != squadra:
+        return
+    doa_list = info.get("doa", [])
+    if not doa_list:
+        return
+
+    fasce = ", ".join(
+        f"**{d['giorno'].capitalize()}** {d['ora_inizio']}–{d['ora_fine']}"
+        for d in doa_list
+    )
+    st.info(f"📋 DOA rilevate automaticamente dal PDF: {fasce}")
+    if st.button("💾 Salva DOA dal PDF", key="btn_salva_doa_pdf"):
+        stagione = _stagione_corrente()
+        if salva_doa_lista(squadra, doa_list, stagione):
+            st.success("✅ DOA salvate!")
+            del st.session_state["doa_estratte_pdf"]
+            st.rerun()
+        else:
+            st.error("❌ Errore nel salvataggio DOA.")
+
+
+# ── DOA CONFIGURATOR ──────────────────────────────────────────────────────────
+
+def _render_doa_configurator(squadra: str):
+    """Mostra e permette di configurare le DOA per una categoria."""
+    stagione = _stagione_corrente()
+    doa_df = leggi_doa(categoria=squadra, stagione=stagione)
+
+    with st.expander("📋 DOA — Disponibilità Orario Accordate", expanded=doa_df.empty):
+        if not doa_df.empty:
+            st.success(f"✅ DOA salvate per **{squadra}** ({stagione}):")
+            for _, d in doa_df.iterrows():
+                st.markdown(
+                    f"- **{d['giorno'].capitalize()}**: "
+                    f"{str(d['ora_inizio'])[:5]} – {str(d['ora_fine'])[:5]}"
+                )
+            st.markdown("---")
+            st.markdown("**Modifica DOA:**")
+        else:
+            st.warning("⚠️ Nessuna DOA configurata. Le partite senza DOA saranno marcate come **da spostare**.")
+            st.markdown("**Configura le disponibilità orarie accordate:**")
+
+        giorni_attuali = set(doa_df["giorno"].str.lower().tolist()) if not doa_df.empty else set()
+        gcols = st.columns(7)
+        giorni_sel = []
+        for i, (g, lbl) in enumerate(zip(_GIORNI_NOMI, _GIORNI_ABBR)):
+            with gcols[i]:
+                if st.checkbox(lbl, value=(g in giorni_attuali), key=f"doa_{squadra}_{g}"):
+                    giorni_sel.append(g)
+
+        ora_inizio_def = "15:00"
+        ora_fine_def   = "21:00"
+        if not doa_df.empty:
+            ora_inizio_def = str(doa_df.iloc[0].get("ora_inizio", "15:00"))[:5]
+            ora_fine_def   = str(doa_df.iloc[0].get("ora_fine",   "21:00"))[:5]
+
+        c1, c2 = st.columns(2)
+        with c1:
+            ora_min = st.text_input("Orario minimo", value=ora_inizio_def, key=f"doa_min_{squadra}",
+                                    placeholder="es. 15:00")
+        with c2:
+            ora_max = st.text_input("Orario massimo", value=ora_fine_def, key=f"doa_max_{squadra}",
+                                    placeholder="es. 21:00")
+
+        if st.button("💾 Salva DOA", key=f"btn_doa_{squadra}"):
+            if not giorni_sel:
+                st.error("Seleziona almeno un giorno.")
+            elif not ora_min or not ora_max:
+                st.error("Inserisci orario minimo e massimo.")
+            else:
+                if salva_doa(squadra, giorni_sel, ora_min, ora_max, stagione):
+                    st.success("✅ DOA salvate!")
+                    st.rerun()
+
+
+# ── ANALISI PARTITE ───────────────────────────────────────────────────────────
+
+def _analizza_partite(partite_mod, squadra, df_squadre, orario_fisso, doa_list):
+    """
+    Analizza ogni partita vs conflitti allenamenti e DOA.
+    Returns: list of (partita, stato, note_str)
+    """
+    riga_sq = df_squadre[df_squadre["Categoria"] == squadra]
+    minuti_risc, durata = 30, 105
+    if not riga_sq.empty:
+        try:
+            minuti_risc = int(riga_sq.iloc[0]["Minuti Riscaldamento"])
+            durata      = int(riga_sq.iloc[0]["Durata Partita"])
+        except Exception:
+            pass
+
+    risultati = []
+    for p in partite_mod:
+        motivi = []
+
+        # Calcola slot
+        try:
+            ora_inizio_slot, _ = calcola_slot(p["ora"], minuti_risc, durata)
+            ora_fine_slot, _   = calcola_slot(p["ora"], 0, minuti_risc + durata)
+            _, ora_fine_slot   = calcola_slot(p["ora"], minuti_risc, durata)
+        except Exception:
+            ora_inizio_slot = p["ora"]
+            ora_fine_slot   = p["ora"]
+
+        # Conflitti con orario fisso (solo casa)
+        ha_conflitti = False
+        if p["casa_fuori"] == "Casa" and not orario_fisso.empty:
+            palestra_lower = p["luogo"].lower().strip()
+            mask = (
+                (orario_fisso["giorno"].str.lower().str.strip() == p["giorno"].lower()) &
+                (orario_fisso["palestra"].str.lower().str.strip() == palestra_lower)
+            )
+            for _, ev in orario_fisso[mask].iterrows():
+                if c_e_conflitto(ora_inizio_slot, ora_fine_slot,
+                                 str(ev["ora_inizio"]), str(ev["ora_fine"])):
+                    ha_conflitti = True
+                    motivi.append(
+                        f"Conflitto allenamento {ev.get('squadra','?')} "
+                        f"({ev['ora_inizio']}–{ev['ora_fine']})"
+                    )
+                    break
+
+        # Check DOA
+        in_doa = partita_in_doa(p["giorno"], p["ora"], doa_list)
+        if not in_doa and doa_list:
+            motivi.append(motivo_fuori_doa(p["giorno"], p["ora"], doa_list))
+
+        stato = "da_spostare" if (ha_conflitti or (not in_doa and doa_list)) else "provvisoria"
+        risultati.append((p, stato, "; ".join(motivi)))
+
+    return risultati
+
+
+# ── RIEPILOGO POST-IMPORT ─────────────────────────���──────────────────────────
 
 def _render_riepilogo():
-    """Sezione riepilogo gare importate nell'ultima sessione."""
     ril = st.session_state.get("import_riepilogo")
     if not ril:
         return
@@ -22,116 +192,100 @@ def _render_riepilogo():
         unsafe_allow_html=True,
     )
 
-    partite: list = ril.get("partite", [])
+    partite = ril.get("partite", [])
     if not partite:
         st.info("Nessuna partita nel riepilogo.")
         return
 
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        stati_disponibili = sorted({p["stato"] for p in partite})
-        filtro_stato = st.selectbox(
-            "Filtra per stato",
-            ["Tutti"] + stati_disponibili,
-            key="_ril_stato",
-        )
-    with col_f2:
-        cf_opts = sorted({p["casa_fuori"] for p in partite})
-        filtro_cf = st.selectbox(
-            "Filtra per Casa/Fuori",
-            ["Tutti"] + cf_opts,
-            key="_ril_cf",
-        )
+    n_conf  = sum(1 for p in partite if p.get("stato") == "confermata")
+    n_sposta = sum(1 for p in partite if p.get("stato") == "da_spostare")
+    n_def   = sum(1 for p in partite if p.get("stato") == "definitiva")
 
-    filtrate = [
-        p for p in partite
-        if (filtro_stato == "Tutti" or p["stato"] == filtro_stato)
-        and (filtro_cf == "Tutti" or p["casa_fuori"] == filtro_cf)
-    ]
-
-    if not filtrate:
-        st.info("Nessuna partita corrisponde ai filtri.")
-        return
+    c1, c2, c3 = st.columns(3)
+    if n_conf:
+        c1.success(f"✅ {n_conf} {'partita confermata' if n_conf == 1 else 'partite confermate'}")
+    if n_sposta:
+        c2.warning(f"⚠️ {n_sposta} {'partita da spostare' if n_sposta == 1 else 'partite da spostare'}")
+    if n_def:
+        c3.info(f"🏆 {n_def} definitiv{'a' if n_def == 1 else 'e'}")
 
     import pandas as _pd
-    df_ril = _pd.DataFrame(filtrate)[[
-        "nr_gara", "data", "ora", "casa_fuori", "avversario", "stato"
-    ]].rename(columns={
-        "nr_gara":   "Nr. Gara",
-        "data":      "Data",
-        "ora":       "Ora",
-        "casa_fuori":"Casa/Fuori",
-        "avversario":"Avversario",
-        "stato":     "Stato",
+    cols_show = ["data", "ora", "casa_fuori", "avversario", "stato"]
+    df_ril = _pd.DataFrame(partite)
+    df_ril = df_ril[[c for c in cols_show if c in df_ril.columns]]
+    df_ril = df_ril.rename(columns={
+        "data": "Data", "ora": "Ora", "casa_fuori": "C/F",
+        "avversario": "Avversario", "stato": "Stato",
     })
 
-    st.dataframe(
-        df_ril,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Nr. Gara":   st.column_config.TextColumn("Nr. Gara",   width="small"),
-            "Data":       st.column_config.TextColumn("📅 Data",    width="small"),
-            "Ora":        st.column_config.TextColumn("⏰ Ora",     width="small"),
-            "Casa/Fuori": st.column_config.TextColumn("📍 C/F",     width="small"),
-            "Avversario": st.column_config.TextColumn("⚔️ Avversario", width="large"),
-            "Stato":      st.column_config.TextColumn("🔖 Stato",   width="medium"),
-        },
-    )
-    st.caption(f"Totale: {len(filtrate)} gare mostrate su {len(partite)} importate.")
+    st.dataframe(df_ril, use_container_width=True, hide_index=True)
+    st.caption(f"Totale: {len(partite)} gare importate.")
 
     if st.button("🗑️ Cancella riepilogo", key="_ril_clear"):
         del st.session_state["import_riepilogo"]
         st.rerun()
 
 
+# ── RENDER ────────────────────────────────────────────────────────────────────
+
 def render(as_tab: bool = False, dati: dict = None):
     if not as_tab:
         st.header("📄 Importa Calendario FIP")
-    st.markdown("Carica il PDF del calendario provvisorio FIP per una squadra. L'app estrae automaticamente le partite di Oderzo.")
 
+    # ── Tipo di calendario ──────────────────────────���──────────────────
+    tipo_import = st.radio(
+        "Tipo di calendario da importare",
+        ["📋 Provvisorio FIP", "✅ Definitivo FIP"],
+        horizontal=True,
+        key="tipo_import_radio",
+    )
+    is_provvisorio = tipo_import == "📋 Provvisorio FIP"
+
+    if is_provvisorio:
+        st.markdown("Carica il PDF del **calendario provvisorio** FIP. Le partite verranno analizzate automaticamente vs conflitti e DOA.")
+    else:
+        st.markdown("Carica il PDF del **calendario definitivo** FIP. Verrà confrontato con il provvisorio già importato.")
+
+    # ── Caricamento dati ───────────────────────────────────────────────
     if dati is not None:
         df_squadre  = dati.get("Squadre",  leggi_squadre())
         df_palestre = dati.get("Palestre", leggi_palestre())
     else:
         df_squadre  = leggi_squadre()
         df_palestre = leggi_palestre()
+
     squadre_lista  = df_squadre["Categoria"].tolist()  if not df_squadre.empty  else []
     palestre_lista = df_palestre["Nome"].tolist()       if not df_palestre.empty else []
 
     col1, col2 = st.columns(2)
     with col1:
-        squadra_sel = st.selectbox("A quale squadra si riferisce questo calendario?", squadre_lista)
+        squadra_sel = st.selectbox("A quale squadra si riferisce questo calendario?", squadre_lista, key="imp_squadra")
     with col2:
-        nome_societa = st.text_input("Nome società da cercare nel PDF", value="Oderzo")
+        nome_societa = st.text_input("Nome società da cercare nel PDF", value="Oderzo", key="imp_societa")
 
-    pdf_file = st.file_uploader("Carica il PDF FIP", type=["pdf"])
+    # ── DOA configurator (solo per provvisorio) ────────────────────────
+    if is_provvisorio and squadra_sel:
+        _render_doa_estratte(squadra_sel)
+        _render_doa_configurator(squadra_sel)
 
-    if pdf_file and st.button("🔍 Estrai partite", type="primary"):
+    # ── Upload PDF ──────────────────────────────────────────────────────
+    pdf_file = st.file_uploader("Carica il PDF FIP", type=["pdf"], key="imp_pdf")
+
+    if pdf_file and st.button("🔍 Estrai partite", type="primary", key="imp_estrai"):
         with st.spinner("Lettura PDF in corso..."):
             pdf_bytes = pdf_file.read()
-            print(f"[DEBUG PDF] File: {pdf_file.name}, dimensione: {len(pdf_bytes)} bytes")
 
             import pdfplumber, io as _io
             testo_debug = ""
             try:
                 with pdfplumber.open(_io.BytesIO(pdf_bytes)) as pdf_debug:
-                    n_pag = len(pdf_debug.pages)
-                    print(f"[DEBUG PDF] Pagine trovate: {n_pag}")
-                    for i, pag in enumerate(pdf_debug.pages):
-                        t = pag.extract_text() or ""
-                        testo_debug += t + "\n"
-                        print(f"[DEBUG PDF] Pagina {i+1}: {len(t)} caratteri estratti")
-            except Exception as ex_pdf:
-                print(f"[DEBUG PDF] Errore lettura PDF: {ex_pdf}")
-
+                    for pag in pdf_debug.pages:
+                        testo_debug += (pag.extract_text() or "") + "\n"
+            except Exception:
+                pass
             linee_debug = [l for l in testo_debug.split("\n") if l.strip()]
-            print(f"[DEBUG PDF] Totale righe non vuote: {len(linee_debug)}")
-            if linee_debug:
-                print(f"[DEBUG PDF] Prime 5 righe: {linee_debug[:5]}")
 
-            partite, errore = estrai_partite_da_pdf(pdf_bytes, nome_societa)
-            print(f"[DEBUG PDF] estrai_partite_da_pdf → partite={len(partite) if partite else 0}, errore={errore!r}")
+            partite, errore, doa_estratte = estrai_partite_da_pdf(pdf_bytes, nome_societa)
 
         if errore:
             st.error(f"❌ {errore}")
@@ -148,232 +302,278 @@ def render(as_tab: bool = False, dati: dict = None):
             return
 
         st.success(f"✅ Trovate {len(partite)} partite!")
-        st.session_state["partite_pdf"] = partite
-        st.session_state["squadra_pdf"] = squadra_sel
+
+        if doa_estratte:
+            st.session_state["doa_estratte_pdf"] = {"doa": doa_estratte, "squadra": squadra_sel}
+
+        st.session_state["partite_pdf"]  = partite
+        st.session_state["squadra_pdf"]  = squadra_sel
+        st.session_state["tipo_imp_pdf"] = "provvisorio" if is_provvisorio else "definitivo"
 
     if "partite_pdf" not in st.session_state:
+        _render_riepilogo()
         return
 
-    partite = st.session_state["partite_pdf"]
-    squadra_sel = st.session_state.get("squadra_pdf", "")
-
-    st.markdown("---")
-    st.subheader("📋 Partite estratte — verifica e modifica")
-    st.info("Controlla i dati estratti e correggi eventuali errori prima di importare.")
-
-    partite_modificate = []
-
-    for i, p in enumerate(partite):
-        with st.expander(f"{'🏠' if p['casa_fuori'] == 'Casa' else '🚌'} {p['data_display']} — {p['ora']} — {p['casa_fuori']}"):
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                data_mod = st.text_input("Data (DD/MM/YYYY)", value=p["data_display"], key=f"pdf_data_{i}")
-                ora_mod = st.text_input("Ora partita", value=p["ora"], key=f"pdf_ora_{i}")
-            with col2:
-                cf_mod = st.radio("Casa/Fuori", ["Casa", "Fuori"],
-                                  index=0 if p["casa_fuori"] == "Casa" else 1,
-                                  key=f"pdf_cf_{i}", horizontal=True)
-                avv_mod = st.text_input("Avversario", value=p["avversario"], key=f"pdf_avv_{i}")
-            with col3:
-                # Partita in Casa → selectbox palestre; Fuori → testo libero
-                if cf_mod == "Casa":
-                    luogo_default_idx = 0
-                    if p["luogo"] in palestre_lista:
-                        luogo_default_idx = palestre_lista.index(p["luogo"])
-                    luogo_mod = st.selectbox(
-                        "Palestra (Casa)",
-                        palestre_lista if palestre_lista else [p["luogo"]],
-                        index=luogo_default_idx,
-                        key=f"pdf_luogo_{i}",
-                    )
-                else:
-                    luogo_mod = st.text_input(
-                        "Luogo trasferta (estratto dal PDF)",
-                        value=p["luogo"],
-                        key=f"pdf_luogo_{i}",
-                    )
-                stato_mod = st.selectbox("Stato", ["Provvisorio", "Confermato", "Da spostare"],
-                                         key=f"pdf_stato_{i}")
-
-            try:
-                data_obj = datetime.strptime(data_mod, "%d/%m/%Y")
-                data_iso = data_obj.strftime("%Y-%m-%d")
-                giorno_calc = GIORNI_SETTIMANA[data_obj.weekday()]
-            except:
-                data_iso = p["data"]
-                giorno_calc = p["giorno"]
-
-            partite_modificate.append({
-                "nr_gara": p["nr_gara"],
-                "data": data_iso,
-                "data_display": data_mod,
-                "giorno": giorno_calc,
-                "ora": ora_mod,
-                "casa_fuori": cf_mod,
-                "avversario": avv_mod,
-                "luogo": luogo_mod,
-                "stato": stato_mod
-            })
+    partite     = st.session_state["partite_pdf"]
+    squadra_sel = st.session_state.get("squadra_pdf", squadra_sel)
+    tipo_imp    = st.session_state.get("tipo_imp_pdf", "provvisorio")
 
     st.markdown("---")
 
-    riga_squadra = df_squadre[df_squadre["Categoria"] == squadra_sel]
-    minuti_risc, durata = 30, 105
-    if not riga_squadra.empty:
-        try:
-            minuti_risc = int(riga_squadra.iloc[0]["Minuti Riscaldamento"])
-            durata = int(riga_squadra.iloc[0]["Durata Partita"])
-        except:
-            pass
+    # ══════════════════════════════���═══════════════════════════════════���═
+    # FLUSSO PROVVISORIO
+    # ════════════════════════════════════════════════════════════════════
+    if tipo_imp == "provvisorio":
+        st.subheader("📋 Partite estratte — verifica e modifica")
+        st.info("Controlla i dati. Dopo l'importazione verranno analizzate automaticamente vs conflitti e DOA.")
 
-    if st.button("✅ Importa tutte nel Calendario Definitivo", type="primary"):
-        successi = 0
-        errori = 0
-        log_errori = []
-        orario_fisso = leggi_orario_fisso()
-        calendario = leggi_calendario()
+        partite_mod = []
+        for i, p in enumerate(partite):
+            with st.expander(
+                f"{'🏠' if p['casa_fuori'] == 'Casa' else '🚌'} "
+                f"{p['data_display']} — {p['ora']} — {p['casa_fuori']} vs {p['avversario']}"
+            ):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    data_mod = st.text_input("Data (DD/MM/YYYY)", value=p["data_display"], key=f"pp_data_{i}")
+                    ora_mod  = st.text_input("Ora partita",        value=p["ora"],          key=f"pp_ora_{i}")
+                with c2:
+                    cf_mod  = st.radio("Casa/Fuori", ["Casa", "Fuori"],
+                                       index=0 if p["casa_fuori"] == "Casa" else 1,
+                                       key=f"pp_cf_{i}", horizontal=True)
+                    avv_mod = st.text_input("Avversario", value=p["avversario"], key=f"pp_avv_{i}")
+                with c3:
+                    if cf_mod == "Casa":
+                        idx_pal = 0
+                        if p["luogo"] in palestre_lista:
+                            idx_pal = palestre_lista.index(p["luogo"])
+                        luogo_mod = st.selectbox(
+                            "Palestra", palestre_lista if palestre_lista else [p["luogo"]],
+                            index=idx_pal, key=f"pp_luogo_{i}",
+                        )
+                    else:
+                        luogo_mod = st.text_input("Luogo trasferta", value=p["luogo"], key=f"pp_luogo_{i}")
 
-        for p in partite_modificate:
-            try:
-                print(f"[DEBUG IMPORT] Elaboro: {p['data_display']} {p['ora']} vs {p['avversario']}")
+                try:
+                    data_obj  = datetime.strptime(data_mod, "%d/%m/%Y")
+                    data_iso  = data_obj.strftime("%Y-%m-%d")
+                    giorno_c  = GIORNI_SETTIMANA[data_obj.weekday()]
+                except Exception:
+                    data_iso = p["data"]
+                    giorno_c = p["giorno"]
 
-                # Validazione ora
-                if not p["ora"] or ":" not in p["ora"]:
-                    msg = f"Ora non valida: {p['ora']!r}"
-                    print(f"[DEBUG IMPORT] ❌ {msg}")
-                    log_errori.append(f"{p['data_display']}: {msg}")
-                    errori += 1
-                    continue
+                partite_mod.append({
+                    "nr_gara": p["nr_gara"], "data": data_iso, "data_display": data_mod,
+                    "giorno": giorno_c, "ora": ora_mod, "casa_fuori": cf_mod,
+                    "avversario": avv_mod, "luogo": luogo_mod,
+                })
 
-                ora_inizio_slot, ora_fine_slot = calcola_slot(p["ora"], minuti_risc, durata)
-                print(f"[DEBUG IMPORT] Slot: {ora_inizio_slot}→{ora_fine_slot}")
+        st.markdown("---")
 
-                ha_conflitti = False
-                if p["casa_fuori"] == "Casa" and not orario_fisso.empty:
-                    df_palestre = leggi_palestre()
-                    palestra_casa = df_palestre["Nome"].iloc[0] if not df_palestre.empty else "palasport"
-                    for _, ev in orario_fisso[
-                        (orario_fisso["giorno"] == p["giorno"]) &
-                        (orario_fisso["palestra"] == palestra_casa.lower())
-                    ].iterrows():
-                        if c_e_conflitto(ora_inizio_slot, ora_fine_slot, ev["ora_inizio"], ev["ora_fine"]):
-                            ha_conflitti = True
-                            break
+        if st.button("✅ Analizza e importa provvisorio", type="primary", key="imp_btn_prov"):
+            orario_fisso = leggi_orario_fisso()
+            doa_df       = leggi_doa(categoria=squadra_sel, stagione=_stagione_corrente())
+            doa_list     = doa_df.to_dict("records") if not doa_df.empty else []
 
-                tipo = f"{'Partita in Casa' if p['casa_fuori'] == 'Casa' else 'Partita Fuori Casa'}"
-                if ha_conflitti:
-                    tipo = f"⚠️ {tipo} (CONFLITTO DA RISOLVERE)"
-                if p["stato"] == "Provvisorio":
-                    tipo = f"[PROV] {tipo}"
-                elif p["stato"] == "Da spostare":
-                    tipo = f"[DA SPOSTARE] {tipo}"
+            analisi = _analizza_partite(partite_mod, squadra_sel, df_squadre, orario_fisso, doa_list)
 
-                dati_ev = {
-                    "data": p["data"], "giorno": p["giorno"], "squadra": squadra_sel,
-                    "tipo": tipo, "avversario": p["avversario"],
-                    "ora_inizio": p["ora"], "ora_fine": ora_fine_slot,
-                    "casa_fuori": "Casa" if p["casa_fuori"] == "Casa" else "Fuori Casa",
-                    "palestra": p["luogo"],
-                }
-                print(f"[DEBUG IMPORT] scrivi_evento('calendario', {dati_ev})")
+            riga_sq = df_squadre[df_squadre["Categoria"] == squadra_sel]
+            minuti_risc, durata = 30, 105
+            if not riga_sq.empty:
+                try:
+                    minuti_risc = int(riga_sq.iloc[0]["Minuti Riscaldamento"])
+                    durata      = int(riga_sq.iloc[0]["Durata Partita"])
+                except Exception:
+                    pass
 
-                if scrivi_evento("calendario", dati_ev):
-                    successi += 1
-                    print(f"[DEBUG IMPORT] ✅ Salvata: {p['data_display']}")
-                else:
-                    errori += 1
-                    log_errori.append(f"{p['data_display']}: scrivi_evento ha restituito False")
-                    print(f"[DEBUG IMPORT] ❌ scrivi_evento False: {p['data_display']}")
-            except Exception as exc:
-                errori += 1
-                msg = f"{p.get('data_display','?')}: {type(exc).__name__}: {exc}"
-                log_errori.append(msg)
-                print(f"[DEBUG IMPORT] ❌ Eccezione: {msg}")
+            successi = errori = 0
+            riepilogo_partite = []
 
-        if successi > 0:
-            # Salva riepilogo in session state per la sezione sottostante
-            st.session_state["import_riepilogo"] = {
-                "squadra": squadra_sel,
-                "partite": [
-                    {
-                        "nr_gara":   p.get("nr_gara", "—"),
-                        "data":      p.get("data_display", p.get("data", "")),
-                        "ora":       p.get("ora", ""),
-                        "casa_fuori":p.get("casa_fuori", ""),
-                        "avversario":p.get("avversario", ""),
-                        "stato":     p.get("stato", ""),
+            for p, stato, note in analisi:
+                try:
+                    _, ora_fine = calcola_slot(p["ora"], minuti_risc, durata)
+
+                    tipo_str = "Partita in Casa" if p["casa_fuori"] == "Casa" else "Partita Fuori Casa"
+                    dati_ev = {
+                        "data":        p["data"],
+                        "giorno":      p["giorno"],
+                        "squadra":     squadra_sel,
+                        "tipo":        tipo_str,
+                        "avversario":  p["avversario"],
+                        "ora_inizio":  p["ora"],
+                        "ora_fine":    ora_fine,
+                        "casa_fuori":  "Casa" if p["casa_fuori"] == "Casa" else "Fuori Casa",
+                        "palestra":    p["luogo"],
+                        "stato":       stato,
+                        "tipo_import": "provvisorio",
+                        "note":        note,
                     }
-                    for p in partite_modificate
-                ],
-            }
-            st.success(f"✅ {successi} partite importate nel Calendario Definitivo!")
-            if errori > 0:
-                st.warning(f"⚠️ {errori} partite non importate — verifica manualmente.")
-                if log_errori:
-                    with st.expander("🔍 Dettaglio errori"):
-                        for e_msg in log_errori:
-                            st.code(e_msg)
-            df_all = leggi_allenatori()
-            email_ok = 0
-            email_err = []
-            for p in partite_modificate:
-                ok, err = notifica_nuova_partita(
-                    squadra_sel, p["data_display"], p["giorno"],
-                    p["ora"], p["luogo"], p["casa_fuori"], df_all
-                )
-                if ok:
-                    email_ok += 1
-                elif err:
-                    email_err.append(err)
-            if email_ok > 0:
-                st.info(f"📧 {email_ok} notifiche inviate agli allenatori.")
-            elif email_err:
-                st.warning(f"⚠️ Email non inviate: {email_err[0]}")
+                    if scrivi_evento("calendario", dati_ev):
+                        successi += 1
+                        riepilogo_partite.append({
+                            "data": p["data_display"], "ora": p["ora"],
+                            "casa_fuori": p["casa_fuori"], "avversario": p["avversario"],
+                            "stato": stato,
+                        })
+                    else:
+                        errori += 1
+                except Exception as exc:
+                    errori += 1
+                    st.warning(f"Errore {p.get('data_display','?')}: {exc}")
+
+            if successi > 0:
+                n_da_spostare = sum(1 for _, st_, _ in analisi if st_ == "da_spostare")
+                n_prov        = sum(1 for _, st_, _ in analisi if st_ == "provvisoria")
+
+                st.success(f"✅ {successi} partite importate.")
+                col_a, col_b = st.columns(2)
+                if n_prov:
+                    col_a.info(f"🕐 {n_prov} **provvisorie** — da confermare")
+                if n_da_spostare:
+                    col_b.warning(f"⚠️ {n_da_spostare} **da spostare** — conflitti o fuori DOA")
+                if n_da_spostare:
+                    st.info("Vai a **📋 Gestione Calendario FIP** per gestirle.")
+
+                st.session_state["import_riepilogo"] = {
+                    "squadra": squadra_sel, "partite": riepilogo_partite,
+                }
+                # Notifiche email allenatori
+                df_all = leggi_allenatori()
+                for p, _, _ in analisi:
+                    notifica_nuova_partita(
+                        squadra_sel, p["data_display"], p["giorno"],
+                        p["ora"], p["luogo"], p["casa_fuori"], df_all,
+                    )
+                invalida_cache()
+                del st.session_state["partite_pdf"]
+                st.balloons()
+            else:
+                st.error("❌ Nessuna partita importata.")
+            if errori:
+                st.warning(f"⚠️ {errori} partite non importate.")
+
+    # ════════════════════════════════════════════════════════════════════
+    # FLUSSO DEFINITIVO
+    # ════════════════════════════════════════════════════════════════════
+    else:
+        st.subheader("✅ Partite estratte — Confronto con provvisorio")
+
+        cal_prov = leggi_calendario()
+        confronto = confronta_calendari(partite, cal_prov, squadra_sel)
+
+        n_conf   = len(confronto["confermate"])
+        n_mod    = len(confronto["modificate"])
+        n_nuove  = len(confronto["nuove"])
+        n_rim    = len(confronto["rimosse"])
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("✅ Confermate",  n_conf)
+        col2.metric("🔄 Modificate",  n_mod)
+        col3.metric("🆕 Nuove",       n_nuove)
+        col4.metric("🗑️ Rimosse",     n_rim)
+
+        # Dettaglio modifiche
+        if confronto["confermate"]:
+            with st.expander(f"✅ {n_conf} partite confermate senza modifiche"):
+                for p_n, row_id in confronto["confermate"]:
+                    st.markdown(
+                        f"✅ **{squadra_sel}** — "
+                        f"{p_n.get('data_display', p_n.get('data','?'))} alle {p_n.get('ora','?')} "
+                        f"vs {p_n.get('avversario','?')}"
+                    )
+
+        if confronto["modificate"]:
+            with st.expander(f"🔄 {n_mod} partite con modifiche", expanded=True):
+                for p_n, row_id, diff in confronto["modificate"]:
+                    st.markdown(
+                        f"🔄 **{squadra_sel}** — "
+                        f"{p_n.get('data_display', p_n.get('data','?'))} vs {p_n.get('avversario','?')} "
+                        f"→ _{diff}_"
+                    )
+
+        if confronto["nuove"]:
+            with st.expander(f"🆕 {n_nuove} partite nuove (non nel provvisorio)"):
+                for p_n in confronto["nuove"]:
+                    st.markdown(
+                        f"🆕 **{squadra_sel}** — "
+                        f"{p_n.get('data_display', p_n.get('data','?'))} alle {p_n.get('ora','?')} "
+                        f"vs {p_n.get('avversario','?')}"
+                    )
+
+        if confronto["rimosse"]:
+            with st.expander(f"🗑️ {n_rim} partite nel provvisorio non più presenti"):
+                for row_id in confronto["rimosse"]:
+                    row = cal_prov.loc[row_id]
+                    st.markdown(
+                        f"🗑️ **{squadra_sel}** — "
+                        f"{row.get('Data','?')} vs {row.get('Avversario','?')}"
+                    )
+
+        st.markdown("---")
+
+        if st.button("✅ Importa Calendario Definitivo", type="primary", key="imp_btn_def"):
+            riga_sq = df_squadre[df_squadre["Categoria"] == squadra_sel]
+            minuti_risc, durata = 30, 105
+            if not riga_sq.empty:
+                try:
+                    minuti_risc = int(riga_sq.iloc[0]["Minuti Riscaldamento"])
+                    durata      = int(riga_sq.iloc[0]["Durata Partita"])
+                except Exception:
+                    pass
+
+            successi = 0
+
+            # Confermate: aggiorna stato a 'definitiva'
+            for p_n, row_id in confronto["confermate"]:
+                aggiorna_stato_partita(row_id, "definitiva")
+                successi += 1
+
+            # Modificate: aggiorna data/ora/stato
+            for p_n, row_id, diff in confronto["modificate"]:
+                try:
+                    _, ora_fine = calcola_slot(p_n["ora"], minuti_risc, durata)
+                    aggiorna_evento("calendario", row_id, {
+                        "data":        p_n["data"],
+                        "giorno":      p_n["giorno"],
+                        "ora_inizio":  p_n["ora"],
+                        "ora_fine":    ora_fine,
+                        "stato":       "definitiva",
+                        "tipo_import": "definitivo",
+                        "note":        f"Modificata dal definitivo: {diff}",
+                    })
+                    successi += 1
+                except Exception as exc:
+                    st.warning(f"Errore aggiornamento: {exc}")
+
+            # Nuove: inserisci come definitivo
+            for p_n in confronto["nuove"]:
+                try:
+                    _, ora_fine = calcola_slot(p_n["ora"], minuti_risc, durata)
+                    tipo_str = "Partita in Casa" if p_n["casa_fuori"] == "Casa" else "Partita Fuori Casa"
+                    scrivi_evento("calendario", {
+                        "data":        p_n["data"],
+                        "giorno":      p_n["giorno"],
+                        "squadra":     squadra_sel,
+                        "tipo":        tipo_str,
+                        "avversario":  p_n["avversario"],
+                        "ora_inizio":  p_n["ora"],
+                        "ora_fine":    ora_fine,
+                        "casa_fuori":  "Casa" if p_n["casa_fuori"] == "Casa" else "Fuori Casa",
+                        "palestra":    p_n["luogo"],
+                        "stato":       "definitiva",
+                        "tipo_import": "definitivo",
+                        "note":        "Nuova nel calendario definitivo",
+                    })
+                    successi += 1
+                except Exception as exc:
+                    st.warning(f"Errore inserimento nuova: {exc}")
+
+            st.success(
+                f"✅ Calendario definitivo importato! "
+                f"{successi} partite aggiornate."
+            )
             invalida_cache()
             del st.session_state["partite_pdf"]
             st.balloons()
-        else:
-            st.error("❌ Nessuna partita importata. Riprova.")
-            if log_errori:
-                with st.expander("🔍 Dettaglio errori"):
-                    for e_msg in log_errori:
-                        st.code(e_msg)
 
-    # ── Riepilogo gare importate ──────────────────────────────────────
     _render_riepilogo()
-
-    st.markdown("**Oppure importa singolarmente:**")
-    for i, p in enumerate(partite_modificate):
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            emoji = "🏠" if p["casa_fuori"] == "Casa" else "🚌"
-            st.markdown(f"{emoji} **{p['data_display']}** {p['ora']} — vs {p['avversario']} — *{p['stato']}*")
-        with col2:
-            if st.button("➕", key=f"importa_singola_{i}"):
-                riga_sq = df_squadre[df_squadre["Categoria"] == squadra_sel]
-                min_r, dur = 30, 105
-                if not riga_sq.empty:
-                    try:
-                        min_r = int(riga_sq.iloc[0]["Minuti Riscaldamento"])
-                        dur = int(riga_sq.iloc[0]["Durata Partita"])
-                    except:
-                        pass
-                _, ora_fine = calcola_slot(p["ora"], min_r, dur)
-                tipo = f"{'Partita in Casa' if p['casa_fuori'] == 'Casa' else 'Partita Fuori Casa'}"
-                if p["stato"] == "Provvisorio":
-                    tipo = f"[PROV] {tipo}"
-                if scrivi_evento("calendario", {
-                    "data": p["data"], "giorno": p["giorno"], "squadra": squadra_sel,
-                    "tipo": tipo, "avversario": p["avversario"],
-                    "ora_inizio": p["ora"], "ora_fine": ora_fine,
-                    "casa_fuori": "Casa" if p["casa_fuori"] == "Casa" else "Fuori Casa",
-                    "palestra": p["luogo"],
-                }):
-                    st.success(f"✅ Partita del {p['data_display']} importata!")
-                    df_all = leggi_allenatori()
-                    ok, err = notifica_nuova_partita(squadra_sel, p["data_display"], p["giorno"], p["ora"], p["luogo"], p["casa_fuori"], df_all)
-                    if ok:
-                        st.info("📧 Notifica inviata agli allenatori.")
-                    elif err:
-                        st.warning(f"⚠️ Email non inviata: {err}")
-                    invalida_cache()

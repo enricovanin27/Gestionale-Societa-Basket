@@ -1,0 +1,8 @@
+ UPDATE auth.users
+  SET raw_user_meta_data = '{"nome": "Enrico", "cognome": "Vanin", "ruolo": "admin"}'
+  WHERE email = 'enrico.vanin.work@gmail.com';
+
+
+git add .
+git commit -m "Migrazione Supabase + nuove funzionalità"
+git push origin master
