@@ -1,6 +1,5 @@
-streamlit>=1.55.0
-supabase>=2.3.0
-gspread>=6.0.0
-google-auth>=2.0.0
 pandas>=2.0.0
 pdfplumber>=0.11.0
+fastapi>=0.111.0
+uvicorn>=0.29.0
+python-multipart>=0.0.9

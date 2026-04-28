@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #f3f4f6;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Ensure native selects and their option lists always appear above other elements */
+select {
+  position: relative;
+  z-index: 9999;
+}
+
+/* Prevent any ancestor with overflow:hidden from clipping fixed/absolute children */
+.overflow-x-auto {
+  overflow-y: visible;
+}
+
+/* Modal overlays must always be on top */
+[class*="z-[9999]"] {
+  isolation: isolate;
+}

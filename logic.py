@@ -1140,7 +1140,15 @@ def estrai_partite_da_pdf(pdf_bytes, nome_societa="oderzo"):
                 i += 1
                 continue
 
-            casa_fuori = "Casa" if nome_lower in luogo.lower() else "Fuori"
+            # Determina casa/fuori dalla posizione nel testo squadre rispetto al trattino:
+            # ODERZO a sinistra del " - " = CASA, a destra = FUORI
+            _ts_lower = testo_squadre.lower()
+            _dash_pos = _ts_lower.find(' - ')
+            _nome_pos = _ts_lower.find(nome_lower)
+            if _dash_pos >= 0 and _nome_pos >= 0:
+                casa_fuori = "Casa" if _nome_pos < _dash_pos else "Fuori"
+            else:
+                casa_fuori = "Casa" if nome_lower in luogo.lower() else "Fuori"
 
             testo_upper = testo_squadre.upper()
             pos_calorflex = testo_upper.find("CALORFLEX ODERZO")

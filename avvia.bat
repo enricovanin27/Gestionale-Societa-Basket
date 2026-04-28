@@ -1,4 +1,3 @@
 @echo off
-cd /d D:\PYTHON\PROGETTO_ODERZO
-python -m streamlit run app.py
-pause
+start cmd /k "cd /d D:\PYTHON\PROGETTO_ODERZO && uvicorn api:app --reload --port 8000"
+start cmd /k "cd /d D:\PYTHON\PROGETTO_ODERZO\frontend && npm run dev"

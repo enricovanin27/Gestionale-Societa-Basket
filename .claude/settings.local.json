@@ -8,7 +8,17 @@
       "Bash(pip install:*)",
       "Bash(set PYTHONIOENCODING=utf-8)",
       "Bash(streamlit run:*)",
-      "Bash(curl -s http://localhost:8502/)"
+      "Bash(curl -s http://localhost:8502/)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "Bash(rm -f app.py database.py sheets.py debug_db.py migrate.py crea_primo_admin.py test_email.py credenziali.json APPUNTI.txt report_enrico_vanin.docx)",
+      "Bash(rm -rf views/ .streamlit/ __pycache__)",
+      "Bash(kill %1)",
+      "Bash(echo \"exit_code: $?\")",
+      "Bash(npx react-scripts *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
