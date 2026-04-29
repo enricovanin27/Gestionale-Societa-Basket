@@ -4,18 +4,19 @@ import { useAuth } from '../hooks/useAuth'
 
 const navItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/calendario', icon: Calendar, label: 'Calendario', staffOnly: true },
-  { to: '/allenamenti', icon: Trophy, label: 'Allenamenti', staffOnly: true },
-  { to: '/importa', icon: FileText, label: 'Import FIP', adminOnly: true },
+  { to: '/calendario', icon: Calendar, label: 'Calendario', staffOnly: true,     superAdminHidden: true },
+  { to: '/allenamenti', icon: Trophy, label: 'Allenamenti', staffOnly: true,     superAdminHidden: true },
+  { to: '/importa', icon: FileText, label: 'Import FIP', staffOnly: true,        superAdminHidden: true },
   { to: '/setup', icon: Settings, label: 'Setup', adminOnly: true },
 ]
 
 export default function BottomNav() {
-  const { isAdmin, isAllenatore } = useAuth()
+  const { isAdmin, isAllenatore, isSuperAdmin } = useAuth()
   const isStaff = isAdmin || isAllenatore
   const items = navItems.filter(item =>
     (!item.adminOnly || isAdmin) &&
-    (!item.staffOnly || isStaff)
+    (!item.staffOnly || isStaff) &&
+    (!item.superAdminHidden || !isSuperAdmin)
   )
 
   return (

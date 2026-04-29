@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useWeekEvents } from '../hooks/useWeekEvents'
 import { formatTime } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
-import GrigliaSettimanale from '../components/GrigliaSettimanale'
+import GrigliaSettimanale, { GrigliaTipo } from '../components/GrigliaSettimanale'
 
 // ─── Palette colori per squadra ───────────────────────────────────────────────
 const PALETTE = [
@@ -186,7 +186,7 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
   const { errors, warnings, palestraConflicts } = useMemo(() => checkConflicts({ ...form, allenatori: allenatoriStr }, others), [form, allenatoriStr, others])
   const palestraWarn = useMemo(() => palestraDisponibile(palestreAll, form.palestra, giornoEvento, form.ora_inizio, form.ora_fine), [palestreAll, form.palestra, giornoEvento, form.ora_inizio, form.ora_fine])
   const activeCondivisione = condivisione && palestraConflicts.length > 0
-  const canSave = (!errors.length || activeCondivisione) && !palestraWarn && !!form.palestra?.trim() && !!form.ora_inizio && !!form.ora_fine
+  const canSave = (!errors.length || activeCondivisione) && !!form.ora_inizio && !!form.ora_fine
 
   return (
     <form onSubmit={e => { e.preventDefault(); if (canSave) onSave({ ...form, allenatori: allenatoriStr, condivisione: activeCondivisione, _palestraConflicts: palestraConflicts }) }} className="space-y-4">
@@ -198,13 +198,16 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
           <input type="time" value={form.ora_fine} onChange={e => set('ora_fine', e.target.value)} className={inp} required />
         </Field>
       </div>
-      <Field label="Palestra *">
+      <Field label="Palestra">
         {palestreDisp.length === 0 ? (
           <input value={form.palestra} onChange={e => set('palestra', e.target.value)} className={inp} placeholder="es. PalaOderzo" />
         ) : (
           <select value={form.palestra} onChange={e => set('palestra', e.target.value)} className={inp}>
             <option value="">Scegli...</option>
             {palestreDisp.map(p => <option key={p} value={p}>{p}</option>)}
+            {form.palestra && !palestreDisp.includes(form.palestra) && (
+              <option value={form.palestra}>{form.palestra}</option>
+            )}
           </select>
         )}
       </Field>
@@ -255,32 +258,45 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
       {errors.length > 0 && !activeCondivisione && (
         <p className="text-center text-xs text-red-500">Risolvi i conflitti o attiva condivisione campo</p>
       )}
-      {!errors.length && !form.palestra?.trim() && (
-        <p className="text-center text-xs text-red-500">Seleziona una palestra per salvare</p>
-      )}
     </form>
   )
 }
 
 // ─── TrainingColumnCard (compact, per vista colonne) ─────────────────────────
-function TrainingColumnCard({ event, color, onEdit }) {
+function TrainingColumnCard({ event, color, onEdit, onCancel }) {
   const col = color ?? PALETTE[0]
+  const showActions = (onEdit || onCancel) && !event.annullato
   return (
-    <button
-      onClick={onEdit}
-      className={`w-full text-left rounded-lg bg-white border border-l-4 border-gray-100 ${col.border} p-2 mb-1.5 shadow-sm active:scale-95 transition-transform ${event.annullato ? 'opacity-40' : ''}`}
-    >
-      <div className={`text-xs font-semibold truncate mb-0.5 ${col.title}`}>{event.squadra}</div>
-      {event.annullato && <span className="block text-xs text-red-500">Annullato</span>}
-      {event._source === 'override' && !event.annullato && <span className="block text-xs text-orange-500">Modificato</span>}
-      {event._source === 'extra' && <span className="block text-xs text-teal-600">Extra</span>}
-      {String(event.condivisione).toUpperCase() === 'SI' && <span className="block text-xs text-violet-600">Campo cond.</span>}
-      <div className="flex items-center gap-1 mt-0.5">
-        <Clock size={10} className="text-gray-400 shrink-0" />
-        <span className="text-xs text-gray-600 font-medium">{formatTime(event.ora_inizio)}</span>
+    <div className={`rounded-lg bg-white border border-l-4 border-gray-100 ${col.border} p-2 mb-1.5 shadow-sm ${event.annullato ? 'opacity-40' : ''}`}>
+      <div className="flex items-start gap-1">
+        <div className="flex-1 min-w-0">
+          <div className={`text-xs font-semibold truncate mb-0.5 ${col.title}`}>{event.squadra}</div>
+          {event.annullato && <span className="block text-xs text-red-500">Annullato</span>}
+          {event._source === 'override' && !event.annullato && <span className="block text-xs text-orange-500">Modificato</span>}
+          {event._source === 'extra' && <span className="block text-xs text-teal-600">Extra</span>}
+          {String(event.condivisione).toUpperCase() === 'SI' && <span className="block text-xs text-violet-600">Campo cond.</span>}
+          <div className="flex items-center gap-1 mt-0.5">
+            <Clock size={10} className="text-gray-400 shrink-0" />
+            <span className="text-xs text-gray-600 font-medium">{formatTime(event.ora_inizio)}</span>
+          </div>
+          {event.palestra && <div className="text-xs text-gray-400 truncate mt-0.5">{event.palestra}</div>}
+        </div>
+        {showActions && (
+          <div className="flex gap-0.5 shrink-0">
+            {onEdit && (
+              <button onClick={onEdit} title="Modifica" className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors">
+                <Edit2 size={12} />
+              </button>
+            )}
+            {onCancel && (
+              <button onClick={onCancel} title="Annulla" className="p-1 text-red-400 hover:bg-red-50 rounded transition-colors">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      {event.palestra && <div className="text-xs text-gray-400 truncate mt-0.5">{event.palestra}</div>}
-    </button>
+    </div>
   )
 }
 
@@ -339,7 +355,7 @@ function TrainingCard({ event, color, canEdit, onEdit, onCancel }) {
 }
 
 // ─── DB mutations ─────────────────────────────────────────────────────────────
-async function markCondivisioneOnConflicts(conflicts, date) {
+async function markCondivisioneOnConflicts(conflicts, date, societaId) {
   for (const e of conflicts) {
     if (e._table === 'orario_settimana' && e.id) {
       const { error } = await supabase.from('orario_settimana').update({ condivisione: 'SI' }).eq('id', e.id)
@@ -356,7 +372,7 @@ async function markCondivisioneOnConflicts(conflicts, date) {
           data: date, squadra: e.squadra,
           ora_inizio: e.ora_inizio, ora_fine: e.ora_fine,
           palestra: e.palestra ?? '', allenatori: e.allenatori ?? '',
-          annullato: false, condivisione: 'SI',
+          annullato: false, condivisione: 'SI', societa_id: societaId,
         }])
         if (error) throw error
       }
@@ -364,7 +380,7 @@ async function markCondivisioneOnConflicts(conflicts, date) {
   }
 }
 
-async function saveToSettimana(event, formData) {
+async function saveToSettimana(event, formData, societaId) {
   const payload = {
     data: event.data, squadra: event.squadra,
     ora_inizio: formData.ora_inizio, ora_fine: formData.ora_fine,
@@ -380,7 +396,7 @@ async function saveToSettimana(event, formData) {
       const { error } = await supabase.from('orario_settimana').update(payload).eq('id', existing.id)
       if (error) throw error
     } else {
-      const { error } = await supabase.from('orario_settimana').insert([payload])
+      const { error } = await supabase.from('orario_settimana').insert([{ ...payload, societa_id: societaId }])
       if (error) throw error
     }
   } else {
@@ -389,7 +405,7 @@ async function saveToSettimana(event, formData) {
   }
 }
 
-async function cancelAllenamento(event) {
+async function cancelAllenamento(event, societaId) {
   const base = {
     data: event.data, squadra: event.squadra,
     ora_inizio: event.ora_inizio, ora_fine: event.ora_fine,
@@ -404,7 +420,7 @@ async function cancelAllenamento(event) {
       const { error } = await supabase.from('orario_settimana').update({ annullato: true }).eq('id', existing.id)
       if (error) throw error
     } else {
-      const { error } = await supabase.from('orario_settimana').insert([base])
+      const { error } = await supabase.from('orario_settimana').insert([{ ...base, societa_id: societaId }])
       if (error) throw error
     }
   } else {
@@ -419,12 +435,13 @@ const GIORNO_OFFSET = { lunedi: 0, martedi: 1, mercoledi: 2, giovedi: 3, venerdi
 
 const EMPTY_ADD = { squadra: '', giorno: 'lunedi', ora_inizio: '18:00', ora_fine: '20:00', palestra: '', allenatori: [] }
 
-function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved }) {
+function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved, squadreAllenatore = null }) {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [form, setForm] = useState(EMPTY_ADD)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const { data: squadreDisp = [] } = useQuery({
+  const { data: squadreAll = [] } = useQuery({
     queryKey: ['squadre-nomi'],
     queryFn: async () => {
       const { data } = await supabase.from('squadre').select('categoria').order('categoria')
@@ -432,6 +449,10 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved }) {
     },
     staleTime: 5 * 60 * 1000,
   })
+  const squadreDisp = useMemo(
+    () => squadreAllenatore ? squadreAll.filter(s => squadreAllenatore.includes(s)) : squadreAll,
+    [squadreAll, squadreAllenatore]
+  )
 
   const { data: palestreAll = [] } = useQuery({
     queryKey: ['palestre'],
@@ -503,10 +524,10 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved }) {
         annullato: false,
         condivisione: activeCondivisione ? 'SI' : 'NO',
       }
-      const { error } = await supabase.from('orario_settimana').insert([payload])
+      const { error } = await supabase.from('orario_settimana').insert([{ ...payload, societa_id: societaId }])
       if (error) throw error
       if (activeCondivisione && palestraConflicts.length)
-        await markCondivisioneOnConflicts(palestraConflicts, targetDate)
+        await markCondivisioneOnConflicts(palestraConflicts, targetDate, societaId)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
@@ -525,7 +546,7 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved }) {
           <Field label="Squadra *">
             <select value={form.squadra} onChange={e => handleSquadraChange(e.target.value)} className={inp}>
               <option value="">Scegli...</option>
-              {(squadreDisp.length > 0 ? squadreDisp : allSquadre).map(s => <option key={s} value={s}>{s}</option>)}
+              {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </Field>
           <Field label="Giorno *">
@@ -607,8 +628,10 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved }) {
 }
 
 // ─── SettimanaView (riusato da Tab 2 e Tab 3) ────────────────────────────────
-function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
+function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null }) {
   const qc      = useQueryClient()
+  const { societaId } = useAuth()
+  const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const weekEnd  = endOfWeek(weekStart, { weekStartsOn: 1 })
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
 
@@ -635,9 +658,9 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
 
   const saveMut = useMutation({
     mutationFn: async ({ event, formData }) => {
-      await saveToSettimana(event, formData)
+      await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
-        await markCondivisioneOnConflicts(formData._palestraConflicts, event.data)
+        await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
@@ -647,7 +670,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
   })
 
   const cancelMut = useMutation({
-    mutationFn: cancelAllenamento,
+    mutationFn: (event) => cancelAllenamento(event, societaId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['cancelled-sett'] })
@@ -762,7 +785,11 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                           key={`${ev._source}-${ev.id ?? i}`}
                           event={ev}
                           color={getColor(ev.squadra, allSquadre)}
-                          onEdit={() => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) }}
+                          onEdit={canEdit && canEditEvent(ev) ? () => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) } : undefined}
+                          onCancel={canEdit && canEditEvent(ev) && !ev.annullato ? () => {
+                            if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
+                              cancelMut.mutate(ev)
+                          } : undefined}
                         />
                       ))
                     )}
@@ -856,6 +883,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
         <AddAllenamentoModal
           weekStart={weekStart}
           allSquadre={allSquadre}
+          squadreAllenatore={squadreAllenatore}
           onClose={() => setShowAddForm(false)}
           onSaved={() => {}}
         />
@@ -865,8 +893,10 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
 }
 
 // ─── TAB 1: OGGI ─────────────────────────────────────────────────────────────
-function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
+function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null }) {
   const qc        = useQueryClient()
+  const { societaId } = useAuth()
+  const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
   const todayStr  = format(new Date(), 'yyyy-MM-dd')
   const [gridView, setGridView] = useState(false)
@@ -878,14 +908,14 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
 
   const saveMut = useMutation({
     mutationFn: async ({ event, formData }) => {
-      await saveToSettimana(event, formData)
+      await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
-        await markCondivisioneOnConflicts(formData._palestraConflicts, event.data)
+        await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
   })
   const cancelMut = useMutation({
-    mutationFn: cancelAllenamento,
+    mutationFn: (event) => cancelAllenamento(event, societaId),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['weekEvents'] }),
   })
 
@@ -938,7 +968,7 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
               key={`oggi-${i}`}
               event={ev}
               color={getColor(ev.squadra, allSquadre)}
-              canEdit={canEdit}
+              canEdit={canEdit && canEditEvent(ev)}
               onEdit={() => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) }}
               onCancel={() => {
                 if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
@@ -971,6 +1001,7 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
         <AddAllenamentoModal
           weekStart={weekStart}
           allSquadre={allSquadre}
+          squadreAllenatore={squadreAllenatore}
           onClose={() => setShowAddForm(false)}
           onSaved={() => {}}
         />
@@ -982,10 +1013,14 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
 // ─── TAB 4: SETTIMANA TIPO ────────────────────────────────────────────────────
 const EMPTY_FISSO = { giorno: 'lunedi', squadra: '', ora_inizio: '18:00', ora_fine: '20:00', palestra: '', allenatori: [] }
 
-function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
+function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const canEdit = isAdmin || isAllenatore
+  const canEditRow = (r) => isAdmin || (isAllenatore && squadreAllenatore && squadreAllenatore.includes(r.squadra))
   const [showForm,   setShowForm]   = useState(false)
   const [editingRow, setEditingRow] = useState(null)
+  const [gridView,   setGridView]   = useState(false)
   const [form, setForm]             = useState(EMPTY_FISSO)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -999,7 +1034,7 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
     },
   })
 
-  const { data: squadreDisp = [] } = useQuery({
+  const { data: squadreAll = [] } = useQuery({
     queryKey: ['squadre-nomi'],
     queryFn: async () => {
       const { data } = await supabase.from('squadre').select('categoria').order('categoria')
@@ -1007,6 +1042,10 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
     },
     staleTime: 5 * 60 * 1000,
   })
+  const squadreDisp = useMemo(
+    () => squadreAllenatore ? squadreAll.filter(s => squadreAllenatore.includes(s)) : squadreAll,
+    [squadreAll, squadreAllenatore]
+  )
 
   const { data: palestreAll = [] } = useQuery({
     queryKey: ['palestre'],
@@ -1059,7 +1098,7 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
         const { error } = await supabase.from('orario_fisso').update(p).eq('id', f.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('orario_fisso').insert([p])
+        const { error } = await supabase.from('orario_fisso').insert([{ ...p, societa_id: societaId }])
         if (error) throw error
       }
       if (f._condivisione && f._palestraConflicts?.length) {
@@ -1130,15 +1169,28 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
         </p>
       </div>
 
-      <div className="mb-3">
+      <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{fisso.length} slot configurati</p>
+        {fisso.length > 0 && (
+          <button
+            onClick={() => setGridView(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${
+              gridView ? 'bg-gray-700 text-white border-gray-700' : 'bg-white text-gray-600 border-gray-200'
+            }`}
+          >
+            {gridView ? <List size={15} /> : <LayoutGrid size={15} />}
+            {gridView ? 'Lista' : 'Griglia'}
+          </button>
+        )}
       </div>
 
-      {!fisso.length ? (
+      {gridView ? (
+        <GrigliaTipo squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />
+      ) : !fisso.length ? (
         <div className="text-center py-16 text-gray-400">
           <span className="text-5xl block mb-3">📋</span>
           <p className="text-sm">Nessun allenamento fisso configurato</p>
-          {isAdmin && <p className="text-xs mt-1">Premi ➕ per aggiungere</p>}
+          {canEdit && <p className="text-xs mt-1">Premi ➕ per aggiungere</p>}
         </div>
       ) : (
         <div className="overflow-x-auto -mx-4 px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -1172,7 +1224,7 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
                             <span className="text-xs text-gray-600 font-medium">{formatTime(r.ora_inizio)}</span>
                           </div>
                           {r.palestra && <div className="text-xs text-gray-400 truncate">{r.palestra}</div>}
-                          {isAdmin && (
+                          {canEditRow(r) && (
                             <div className="flex gap-1 mt-1.5">
                               <button
                                 onClick={() => openEdit(r)}
@@ -1199,7 +1251,7 @@ function SettimanaTipoTab({ isAdmin, squadraFilter, allenatoreFilter = '', pales
         </div>
       )}
 
-      {isAdmin && (
+      {canEdit && (
         <button
           onClick={openAdd}
           className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
@@ -1314,7 +1366,7 @@ const TABS = [
 ]
 
 export default function AllenamentiPage() {
-  const { isAdmin, isAllenatore } = useAuth()
+  const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
   const [activeTab,        setActiveTab]        = useState('oggi')
   const [squadraFilter,    setSquadraFilter]    = useState('')
   const [allenatoreFilter, setAllenatoreFilter] = useState('')
@@ -1392,14 +1444,14 @@ export default function AllenamentiPage() {
       </div>
 
       <div className="flex-1 p-4">
-        {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
+        {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />}
         {activeTab === 'corrente' && (
-          <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />
+          <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />
         )}
         {activeTab === 'prossima' && (
-          <SettimanaView weekStart={nextWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={true} showDiff={true} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />
+          <SettimanaView weekStart={nextWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={true} showDiff={true} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />
         )}
-        {activeTab === 'tipo'     && <SettimanaTipoTab isAdmin={isAdmin} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
+        {activeTab === 'tipo'     && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
       </div>
     </div>
   )

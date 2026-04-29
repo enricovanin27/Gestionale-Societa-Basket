@@ -219,7 +219,7 @@ function MonthGrid({ monthDate, events, onEventClick }) {
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 
-function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, togglingStato, conflicts = [] }) {
+function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, canModifyEvent, togglingStato, conflicts = [] }) {
   const c = COLORS[getEventColor(event)]
   const typeLabel = (event.casa_fuori ?? '').toLowerCase() === 'casa'
     ? '🏀 Partita in casa'
@@ -303,7 +303,7 @@ function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, 
         )}
 
         <div className="space-y-3 mt-6">
-          {canModify && (
+          {canModify && canModifyEvent && (
             <button
               onClick={() => onToggleStato(event)}
               disabled={togglingStato}
@@ -352,9 +352,10 @@ const EMPTY_FORM = {
   stato:      'provvisoria',
 }
 
-function EventForm({ initial, onSave, onClose, squadre, saving, saveError }) {
+function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, saving, saveError }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const squadreDisp = squadreAllenatore ? squadre.filter(s => squadreAllenatore.includes(s)) : squadre
 
   const { data: palestreList = [] } = useQuery({
     queryKey: ['palestre-nomi'],
@@ -395,7 +396,7 @@ function EventForm({ initial, onSave, onClose, squadre, saving, saveError }) {
                 <select value={form.squadra} onChange={e => set('squadra', e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                   <option value="">Scegli...</option>
-                  {squadre.map(s => <option key={s} value={s}>{s}</option>)}
+                  {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
@@ -486,7 +487,8 @@ const LEGEND = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CalendarioPage() {
-  const { isAdmin, isAllenatore } = useAuth()
+  const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
+  const canModifyEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const queryClient = useQueryClient()
 
   const [view,             setView]             = useState('settimana') // 'settimana' | 'mese'
@@ -608,7 +610,7 @@ export default function CalendarioPage() {
         const { error } = await supabase.from('calendario').update(formData).eq('id', id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('calendario').insert([formData])
+        const { error } = await supabase.from('calendario').insert([{ ...formData, societa_id: societaId }])
         if (error) throw error
       }
     },
@@ -759,13 +761,14 @@ export default function CalendarioPage() {
         ) : (
           <div className="overflow-x-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="flex gap-2" style={{ minWidth: 'max-content' }}>
-              {weekDays.map(day => {
+              {weekDays.map((day, di) => {
                 const dateStr   = format(day, 'yyyy-MM-dd')
                 const isToday   = isDateToday(dateStr)
                 const dayEvents = eventsByDate[dateStr] ?? []
+                const isLast    = di === weekDays.length - 1
 
                 return (
-                  <div key={dateStr} className="w-36 flex-shrink-0">
+                  <div key={dateStr} className={`w-36 flex-shrink-0 ${!isLast ? 'border-r border-gray-200 pr-1' : ''}`}>
                     <div className={`rounded-xl p-2 mb-2 text-center ${
                       isToday ? 'bg-blue-600' : 'bg-white border border-gray-200'
                     }`}>
@@ -843,6 +846,7 @@ export default function CalendarioPage() {
           togglingStato={toggleStatoMutation.isPending}
           isAdmin={isAdmin}
           canModify={canModify}
+          canModifyEvent={canModifyEvent(selectedEvent)}
           conflicts={conflictMap.get(selectedEvent?.id) ?? []}
         />
       )}
@@ -862,6 +866,7 @@ export default function CalendarioPage() {
             stato:      editingEvent.stato      ?? 'provvisoria',
           } : null}
           squadre={squadre}
+          squadreAllenatore={squadreAllenatore}
           saving={saveMutation.isPending}
           saveError={saveMutation.isError ? (saveMutation.error?.message ?? 'Errore sconosciuto') : null}
           onSave={(formData) => saveMutation.mutate(formData)}

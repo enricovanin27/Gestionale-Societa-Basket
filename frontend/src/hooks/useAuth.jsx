@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
   async function fetchProfile(userId) {
     try {
@@ -15,7 +16,7 @@ export function AuthProvider({ children }) {
       )
       const query = supabase
         .from('profiles')
-        .select('id, nome, cognome, ruolo, societa_id, email, squadra')
+        .select('id, nome, cognome, ruolo, societa_id, email, squadra, squadra2, squadra3')
         .eq('id', userId)
         .single()
 
@@ -43,9 +44,13 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION on mount — unica fonte di verità per l'auth state
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+        setUser(session?.user ?? null)
+        setLoading(false)
+        return
+      }
       setUser(session?.user ?? null)
       if (session?.user) {
         const p = await fetchProfile(session.user.id)
@@ -53,8 +58,6 @@ export function AuthProvider({ children }) {
       } else {
         setProfile(null)
       }
-
-
       setLoading(false)
     })
 
@@ -71,11 +74,18 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  function clearPasswordRecovery() {
+    setIsPasswordRecovery(false)
+  }
+
   const role = profile?.ruolo ?? null
   const societaId = profile?.societa_id ?? null
   const displayName = profile
     ? `${profile.nome ?? ''} ${profile.cognome ?? ''}`.trim()
     : user?.email ?? ''
+  const squadreAllenatore = (profile && role === 'allenatore')
+    ? [profile.squadra, profile.squadra2, profile.squadra3].filter(Boolean)
+    : null
   const value = {
     user,
     profile,
@@ -85,9 +95,13 @@ export function AuthProvider({ children }) {
     role,
     societaId,
     displayName,
-    isAdmin:      role === 'admin',
-    isAllenatore: role === 'allenatore',
-    isGenitore:   role === 'genitore',
+    squadreAllenatore,
+    isSuperAdmin:       role === 'super_admin',
+    isAdmin:            role === 'admin' || role === 'super_admin',
+    isAllenatore:       role === 'allenatore',
+    isGenitore:         role === 'genitore',
+    isPasswordRecovery,
+    clearPasswordRecovery,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

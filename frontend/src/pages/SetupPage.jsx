@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
-  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck,
+  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -17,7 +17,7 @@ const GIORNI_LABEL = { lunedi:'Lun', martedi:'Mar', mercoledi:'Mer', giovedi:'Gi
 const GIORNO_FULL  = { lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì', giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica' }
 const TIPO_PALESTRA = ['Principale', 'Secondaria', 'Esterna']
 const RUOLI        = ['admin', 'allenatore', 'genitore']
-const RUOLI_LABEL  = { admin: 'Admin', allenatore: 'Allenatore', genitore: 'Genitore/Giocatore' }
+const RUOLI_LABEL  = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', genitore: 'Genitore/Giocatore' }
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
@@ -96,6 +96,7 @@ const EMPTY_PAL = { nome: '', tipo: 'Principale', orari: emptyOrari() }
 
 function PalestreTab() {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState(EMPTY_PAL)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -117,7 +118,7 @@ function PalestreTab() {
         const { error } = await supabase.from('palestre').update(payload).eq('id', f.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('palestre').insert([payload])
+        const { error } = await supabase.from('palestre').insert([{ ...payload, societa_id: societaId }])
         if (error) throw error
       }
     },
@@ -281,6 +282,7 @@ const EMPTY_ALL = { nome: '', cognome: '', email: '', squadre_capo: [], squadre_
 
 function AllenatoriTab() {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [showForm,   setShowForm]   = useState(false)
   const [editingRow, setEditingRow] = useState(null)
   const [form, setForm]             = useState(EMPTY_ALL)
@@ -328,7 +330,7 @@ function AllenatoriTab() {
         const { error } = await supabase.from('allenatori').update(payload).eq('id', f.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('allenatori').insert([payload])
+        const { error } = await supabase.from('allenatori').insert([{ ...payload, societa_id: societaId }])
         if (error) throw error
       }
     },
@@ -757,9 +759,10 @@ const RUOLO_COLORS = {
 
 function UtentiTab() {
   const qc = useQueryClient()
-  const { user: me } = useAuth()
+  const { user: me, societaId, isSuperAdmin } = useAuth()
+  const [deleteErr, setDeleteErr]     = useState(null)
   const [showInvite, setShowInvite]   = useState(false)
-  const [inviteForm, setInviteForm]   = useState({ email: '', nome: '', cognome: '', ruolo: 'allenatore', password: '' })
+  const [inviteForm, setInviteForm]   = useState({ email: '', nome: '', cognome: '', ruolo: 'allenatore', password: '', squadra: '', squadra2: '', squadra3: '', societa_id: '' })
   const [inviting, setInviting]       = useState(false)
   const [inviteErr, setInviteErr]     = useState(null)
   const [inviteOk, setInviteOk]       = useState(false)
@@ -786,7 +789,7 @@ function UtentiTab() {
     queryKey: ['setup-utenti'],
     queryFn: async () => {
       const [profRes, allRes] = await Promise.all([
-        supabase.from('profiles').select('id, nome, cognome, email, ruolo, attivo, squadra').order('nome'),
+        supabase.from('profiles').select('id, nome, cognome, email, ruolo, attivo, squadra, squadra2, squadra3').order('nome'),
         supabase.from('allenatori').select('email, squadre_capo, squadre_vice'),
       ])
       if (profRes.error) throw profRes.error
@@ -810,6 +813,16 @@ function UtentiTab() {
     staleTime: 5 * 60 * 1000,
   })
 
+  const { data: societaList = [] } = useQuery({
+    queryKey: ['societa-list'],
+    enabled: isSuperAdmin,
+    queryFn: async () => {
+      const { data } = await supabase.from('societa').select('id, nome').order('nome')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const ruoloMut = useMutation({
     mutationFn: async ({ id, ruolo }) => {
       const { error } = await supabase.from('profiles').update({ ruolo }).eq('id', id)
@@ -826,9 +839,40 @@ function UtentiTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
   })
 
+  const deleteMut = useMutation({
+    mutationFn: async (u) => {
+      if (u.ruolo === 'allenatore' && u.email) {
+        await supabase.from('allenatori').delete().eq('email', u.email)
+      }
+      const { error } = await supabase.from('profiles').delete().eq('id', u.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setDeleteErr(null)
+      qc.invalidateQueries({ queryKey: ['setup-utenti'] })
+    },
+    onError: (err) => setDeleteErr(err.message),
+  })
+
   const squadraMut = useMutation({
     mutationFn: async ({ id, squadra }) => {
       const { error } = await supabase.from('profiles').update({ squadra }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  const squadra2Mut = useMutation({
+    mutationFn: async ({ id, squadra2 }) => {
+      const { error } = await supabase.from('profiles').update({ squadra2: squadra2 || null }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  const squadra3Mut = useMutation({
+    mutationFn: async ({ id, squadra3 }) => {
+      const { error } = await supabase.from('profiles').update({ squadra3: squadra3 || null }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
@@ -839,38 +883,61 @@ function UtentiTab() {
     setInviting(true)
     setInviteErr(null)
     try {
+      const targetSocietaId = (isSuperAdmin && inviteForm.ruolo === 'admin' && inviteForm.societa_id)
+        ? inviteForm.societa_id
+        : societaId
+
+      if (!targetSocietaId) {
+        throw new Error('Il tuo profilo non ha una società associata. Vai su Supabase Dashboard → Table Editor → profiles e imposta societa_id per il tuo account.')
+      }
+
       const { data: signUpData, error } = await supabase.auth.signUp({
         email: inviteForm.email,
         password: inviteForm.password,
         options: {
           data: {
-            nome:    inviteForm.nome,
-            cognome: inviteForm.cognome,
-            ruolo:   inviteForm.ruolo,
-            squadra: inviteForm.squadra || null,
+            nome:       inviteForm.nome,
+            cognome:    inviteForm.cognome,
+            ruolo:      inviteForm.ruolo,
+            societa_id: targetSocietaId,
           },
         },
       })
       if (error) throw error
 
-      // Se allenatore: crea riga in allenatori con squadre vuote
+      // Crea/aggiorna profilo (upsert per gestire sia trigger assente che già presente)
+      if (signUpData?.user?.id) {
+        const profileData = {
+          id:         signUpData.user.id,
+          email:      inviteForm.email.trim(),
+          nome:       inviteForm.nome.trim()    || null,
+          cognome:    inviteForm.cognome.trim() || null,
+          ruolo:      inviteForm.ruolo,
+          societa_id: targetSocietaId,
+          attivo:     true,
+        }
+        if (inviteForm.ruolo === 'genitore') {
+          profileData.squadra  = inviteForm.squadra  || null
+          profileData.squadra2 = inviteForm.squadra2 || null
+          profileData.squadra3 = inviteForm.squadra3 || null
+        }
+        await supabase.from('profiles').upsert([profileData], { onConflict: 'id' })
+      }
+
+      // Se allenatore: crea riga in allenatori
       if (inviteForm.ruolo === 'allenatore') {
         await supabase.from('allenatori').upsert([{
           nome: inviteForm.nome.trim(), cognome: inviteForm.cognome.trim(),
           email: inviteForm.email.trim(), squadre_capo: '', squadre_vice: '',
+          societa_id: targetSocietaId,
         }], { onConflict: 'email' })
-      }
-
-      // Se genitore con squadra: aggiorna profiles
-      if (inviteForm.ruolo === 'genitore' && inviteForm.squadra && signUpData?.user?.id) {
-        await supabase.from('profiles').update({ squadra: inviteForm.squadra }).eq('id', signUpData.user.id)
       }
 
       setInviteOk(true)
       setTimeout(() => {
         setShowInvite(false)
         setInviteOk(false)
-        setInviteForm({ email: '', nome: '', cognome: '', ruolo: 'allenatore', squadra: '', password: '' })
+        setInviteForm({ email: '', nome: '', cognome: '', ruolo: 'allenatore', squadra: '', squadra2: '', squadra3: '', password: '', societa_id: '' })
         qc.invalidateQueries({ queryKey: ['setup-utenti'] })
         qc.invalidateQueries({ queryKey: ['allenatori-tab'] })
       }, 2500)
@@ -892,6 +959,16 @@ function UtentiTab() {
 
   return (
     <div>
+      {deleteErr && (
+        <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+          <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-red-700">Errore eliminazione</p>
+            <p className="text-xs text-red-600 mt-0.5">{deleteErr}</p>
+            <p className="text-xs text-red-400 mt-1">Esegui su Supabase SQL Editor: <code>CREATE POLICY "profiles_delete" ON profiles FOR DELETE TO authenticated USING (get_my_role() IN ('admin','super_admin'));</code></p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{utenti.length} utenti registrati</p>
         <button onClick={() => setShowInvite(true)}
@@ -951,12 +1028,25 @@ function UtentiTab() {
                       </div>
                     )}
                     {u.ruolo === 'genitore' && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <span className="text-xs text-gray-400">Squadra:</span>
-                        {u.squadra
-                          ? <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
-                          : <span className="text-xs text-gray-400 italic">non assegnata</span>
-                        }
+                      <div className="mt-1 space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400">Sq 1:</span>
+                          {u.squadra
+                            ? <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
+                            : <span className="text-xs text-gray-400 italic">–</span>}
+                        </div>
+                        {u.squadra2 && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-gray-400">Sq 2:</span>
+                            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra2}</span>
+                          </div>
+                        )}
+                        {u.squadra3 && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-gray-400">Sq 3:</span>
+                            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra3}</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -970,16 +1060,32 @@ function UtentiTab() {
                       >
                         {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
                       </select>
-                      {u.ruolo === 'genitore' && squadreDisp.length > 0 && (
+                      {u.ruolo === 'genitore' && squadreDisp.length > 0 && (<>
                         <select
                           value={u.squadra ?? ''}
                           onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
                         >
-                          <option value="">– Squadra –</option>
+                          <option value="">– Squadra 1 –</option>
                           {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                      )}
+                        <select
+                          value={u.squadra2 ?? ''}
+                          onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+                        >
+                          <option value="">– Sq 2 –</option>
+                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <select
+                          value={u.squadra3 ?? ''}
+                          onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
+                        >
+                          <option value="">– Sq 3 –</option>
+                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </>)}
                       <button
                         onClick={() => disabledMut.mutate({ id: u.id, attivo: !u.attivo })}
                         className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
@@ -989,6 +1095,16 @@ function UtentiTab() {
                         }`}
                       >
                         {isDisabled ? 'Abilita' : 'Disabilita'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Eliminare ${nomeCompleto}? Questa azione non può essere annullata.`))
+                            deleteMut.mutate(u)
+                        }}
+                        className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg border border-red-100 transition-colors"
+                        title="Elimina utente"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   )}
@@ -1057,6 +1173,14 @@ function UtentiTab() {
                   {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
                 </select>
               </Field>
+              {isSuperAdmin && inviteForm.ruolo === 'admin' && (
+                <Field label="Società">
+                  <select value={inviteForm.societa_id} onChange={e => setI('societa_id', e.target.value)} className={inp}>
+                    <option value="">Scegli società...</option>
+                    {societaList.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </Field>
+              )}
               {inviteForm.ruolo === 'allenatore' && (
                 <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
                   <p className="text-xs text-blue-600">
@@ -1065,16 +1189,28 @@ function UtentiTab() {
                 </div>
               )}
               {inviteForm.ruolo === 'genitore' && (
-                <Field label="Squadra">
-                  {squadreDisp.length === 0 ? (
-                    <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
-                  ) : (
+                squadreDisp.length === 0 ? (
+                  <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
+                ) : (<>
+                  <Field label="Squadra 1">
                     <select value={inviteForm.squadra ?? ''} onChange={e => setI('squadra', e.target.value)} className={inp}>
                       <option value="">Scegli squadra...</option>
                       {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
-                  )}
-                </Field>
+                  </Field>
+                  <Field label="Squadra 2 (opzionale)">
+                    <select value={inviteForm.squadra2 ?? ''} onChange={e => setI('squadra2', e.target.value)} className={inp}>
+                      <option value="">Nessuna</option>
+                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Squadra 3 (opzionale)">
+                    <select value={inviteForm.squadra3 ?? ''} onChange={e => setI('squadra3', e.target.value)} className={inp}>
+                      <option value="">Nessuna</option>
+                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                </>)
               )}
               {inviteErr && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -1102,6 +1238,7 @@ const EMPTY_SQ = { categoria: '' }
 
 function SquadreTab() {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [showForm,   setShowForm]   = useState(false)
   const [editingRow, setEditingRow] = useState(null)
   const [form, setForm]             = useState(EMPTY_SQ)
@@ -1123,7 +1260,7 @@ function SquadreTab() {
         const { error } = await supabase.from('squadre').update(payload).eq('id', f.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('squadre').insert([payload])
+        const { error } = await supabase.from('squadre').insert([{ ...payload, societa_id: societaId }])
         if (error) throw error
       }
     },
@@ -1204,6 +1341,128 @@ function SquadreTab() {
           </form>
         </Modal>
       )}
+
+      <DoppioSection squadreList={squadre.map(s => s.categoria).filter(Boolean)} />
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DOPPIO CAMPIONATO — sezione configurazione coppie
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function DoppioSection({ squadreList }) {
+  const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm]         = useState({ squadra_a: '', squadra_b: '', note: '' })
+
+  const { data: pairs = [], isLoading } = useQuery({
+    queryKey: ['doppio-campionato'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('doppio_campionato').select('*').order('squadra_a')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async (f) => {
+      const { error } = await supabase.from('doppio_campionato').insert([{
+        squadra_a: f.squadra_a, squadra_b: f.squadra_b, note: f.note, societa_id: societaId,
+      }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['doppio-campionato'] })
+      setShowForm(false)
+      setForm({ squadra_a: '', squadra_b: '', note: '' })
+    },
+  })
+
+  const delMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('doppio_campionato').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['doppio-campionato'] }),
+  })
+
+  const canSave = !!form.squadra_a && !!form.squadra_b && form.squadra_a !== form.squadra_b
+
+  return (
+    <div className="mt-8 border-t border-gray-200 pt-5">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-semibold text-gray-700">Doppio campionato</h3>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={15} /> Aggiungi
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 mb-3">
+        Coppie di squadre con giocatori in comune. Partite nello stesso giorno generano un avviso.
+      </p>
+
+      {isLoading ? (
+        <LoadingSpinner message="Caricamento..." />
+      ) : pairs.length === 0 ? (
+        <p className="text-xs text-gray-400 text-center py-4">Nessuna coppia configurata</p>
+      ) : (
+        <div className="space-y-2">
+          {pairs.map(p => (
+            <div key={p.id} className="bg-white border border-orange-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+              <span className="text-sm font-semibold text-orange-700">{p.squadra_a}</span>
+              <span className="text-gray-400 text-sm font-bold">↔</span>
+              <span className="text-sm font-semibold text-orange-700">{p.squadra_b}</span>
+              {p.note && <span className="text-xs text-gray-400 flex-1 truncate">{p.note}</span>}
+              <button
+                onClick={() => window.confirm(`Rimuovere la coppia ${p.squadra_a} ↔ ${p.squadra_b}?`) && delMut.mutate(p.id)}
+                className="ml-auto p-1 text-red-400 hover:bg-red-50 rounded-lg shrink-0"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <Modal title="Nuova coppia doppio campionato" onClose={() => { setShowForm(false); setForm({ squadra_a: '', squadra_b: '', note: '' }) }}>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4">
+            <p className="text-xs text-orange-700">
+              Seleziona due squadre che condividono giocatori in doppio tesseramento. Le partite nello stesso giorno genereranno un avviso.
+            </p>
+          </div>
+          <form onSubmit={e => { e.preventDefault(); if (canSave) saveMut.mutateAsync(form) }} className="space-y-4">
+            <Field label="Squadra A *">
+              <select value={form.squadra_a}
+                onChange={e => setForm(f => ({ ...f, squadra_a: e.target.value }))}
+                className={inp}>
+                <option value="">Scegli...</option>
+                {squadreList.filter(s => s !== form.squadra_b).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Squadra B *">
+              <select value={form.squadra_b}
+                onChange={e => setForm(f => ({ ...f, squadra_b: e.target.value }))}
+                className={inp}>
+                <option value="">Scegli...</option>
+                {squadreList.filter(s => s !== form.squadra_a).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Note (opzionale)">
+              <input value={form.note}
+                onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                className={inp} placeholder="es. Doppio tesseramento U13/U15" />
+            </Field>
+            {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
+            <button type="submit" disabled={saveMut.isPending || !canSave}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+              {saveMut.isPending ? 'Salvataggio...' : 'Aggiungi coppia'}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -1234,6 +1493,7 @@ const DEFAULT_SQ_VINCOLO = { min_all: 2, max_all: 3, durata_slot: 6, fascia_pref
 
 function SchedulingTab() {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [generating, setGenerating] = useState(false)
   const [result, setResult]         = useState(null)   // { assegnazioni, avvisi }
   const [genError, setGenError]     = useState(null)
@@ -1294,6 +1554,7 @@ function SchedulingTab() {
         giorno: r.giorno, squadra: r.squadra,
         ora_inizio: r.ora_inizio, ora_fine: r.ora_fine,
         palestra: r.palestra ?? '', allenatori: r.allenatori ?? '',
+        societa_id: societaId,
       }))
       if (rows.length > 0) {
         const { error: insErr } = await supabase.from('orario_fisso').insert(rows)
@@ -1544,16 +1805,113 @@ function SchedulingTab() {
 // MAIN PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const TABS = [
-  { id: 'squadre',     label: 'Squadre',     icon: Users     },
-  { id: 'palestre',    label: 'Palestre',    icon: Building2 },
-  { id: 'allenatori',  label: 'Allenatori',  icon: UserCheck },
-  { id: 'utenti',      label: 'Utenti',      icon: Shield    },
-  { id: 'scheduling',  label: 'Scheduling',  icon: Calendar  },
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB — SOCIETÀ (solo super_admin)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const inp_soc = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+
+function SocietaTab() {
+  const qc = useQueryClient()
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm]         = useState({ nome: '', piano: 'free' })
+
+  const { data: societa = [], isLoading } = useQuery({
+    queryKey: ['societa-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('societa').select('id, nome, piano, created_at').order('nome')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async (f) => {
+      const { error } = await supabase.from('societa').insert([{ nome: f.nome.trim(), piano: f.piano }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['societa-list'] })
+      setShowForm(false)
+      setForm({ nome: '', piano: 'free' })
+    },
+  })
+
+  if (isLoading) return <LoadingSpinner message="Caricamento società..." />
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-gray-500">{societa.length} società registrate</p>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={15} /> Nuova società
+        </button>
+      </div>
+
+      <div className="space-y-2 mb-6">
+        {societa.map(s => (
+          <div key={s.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{s.nome}</p>
+                <p className="text-xs text-gray-400">Piano: {s.piano}</p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                s.piano === 'pro' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {s.piano === 'pro' ? '⭐ Pro' : 'Free'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-300 mt-1 font-mono truncate">{s.id}</p>
+          </div>
+        ))}
+      </div>
+
+      {showForm && (
+        <Modal title="Nuova società" onClose={() => setShowForm(false)}>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Nome società *</label>
+              <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                className={inp_soc} placeholder="es. Treviso Basket" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Piano</label>
+              <select value={form.piano} onChange={e => setForm(f => ({ ...f, piano: e.target.value }))} className={inp_soc}>
+                <option value="free">Free</option>
+                <option value="pro">Pro</option>
+              </select>
+            </div>
+            {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
+            <button
+              onClick={() => form.nome.trim() && saveMut.mutate(form)}
+              disabled={saveMut.isPending || !form.nome.trim()}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+              {saveMut.isPending ? 'Creazione...' : '✅ Crea società'}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ─── Tab list (module level, non dipende da state) ────────────────────────────
+
+const ALL_TABS = [
+  { id: 'squadre',     label: 'Squadre',     icon: Users,     superAdminOnly: false },
+  { id: 'palestre',    label: 'Palestre',    icon: Building2, superAdminOnly: false },
+  { id: 'allenatori',  label: 'Allenatori',  icon: UserCheck, superAdminOnly: false },
+  { id: 'utenti',      label: 'Utenti',      icon: Shield,    superAdminOnly: false },
+  { id: 'scheduling',  label: 'Scheduling',  icon: Calendar,  superAdminOnly: false, hidden: true },
+  { id: 'societa',     label: 'Società',     icon: Globe,     superAdminOnly: true  },
 ]
 
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState('squadre')
+  const { isSuperAdmin } = useAuth()
+  const tabs = ALL_TABS.filter(t => (!t.superAdminOnly || isSuperAdmin) && !t.hidden)
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
@@ -1562,8 +1920,8 @@ export default function SetupPage() {
           <Settings size={20} className="text-gray-700" />
           <h1 className="text-xl font-bold text-gray-900">Setup</h1>
         </div>
-        <div className="flex border-t border-gray-100">
-          {TABS.map(tab => (
+        <div className="flex border-t border-gray-100 overflow-x-auto">
+          {tabs.map(tab => (
             <TabBtn
               key={tab.id}
               label={tab.label}
@@ -1576,11 +1934,12 @@ export default function SetupPage() {
       </div>
 
       <div className="flex-1 p-4">
-        {activeTab === 'squadre'    && <SquadreTab />}
-        {activeTab === 'palestre'   && <PalestreTab />}
-        {activeTab === 'allenatori' && <AllenatoriTab />}
-        {activeTab === 'utenti'     && <UtentiTab />}
-        {activeTab === 'scheduling' && <SchedulingTab />}
+        {activeTab === 'squadre'     && <SquadreTab />}
+        {activeTab === 'palestre'    && <PalestreTab />}
+        {activeTab === 'allenatori'  && <AllenatoriTab />}
+        {activeTab === 'utenti'      && <UtentiTab />}
+        {activeTab === 'scheduling'  && <SchedulingTab />}
+        {activeTab === 'societa'     && <SocietaTab />}
       </div>
     </div>
   )
