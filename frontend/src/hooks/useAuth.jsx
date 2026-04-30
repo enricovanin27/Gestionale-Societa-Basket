@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
       )
       const query = supabase
         .from('profiles')
-        .select('id, nome, cognome, ruolo, societa_id, email, squadra, squadra2, squadra3')
+        .select('id, nome, cognome, ruolo, societa_id, email, squadra, squadra2, squadra3, societa:societa_id(nome)')
         .eq('id', userId)
         .single()
 
@@ -80,6 +80,7 @@ export function AuthProvider({ children }) {
 
   const role = profile?.ruolo ?? null
   const societaId = profile?.societa_id ?? null
+  const societaNome = profile?.societa?.nome ?? null
   const displayName = profile
     ? `${profile.nome ?? ''} ${profile.cognome ?? ''}`.trim()
     : user?.email ?? ''
@@ -94,6 +95,7 @@ export function AuthProvider({ children }) {
     logout,
     role,
     societaId,
+    societaNome,
     displayName,
     squadreAllenatore,
     isSuperAdmin:       role === 'super_admin',

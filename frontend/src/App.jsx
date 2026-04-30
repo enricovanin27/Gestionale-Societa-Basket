@@ -50,7 +50,7 @@ function NuovaPasswordPage({ onDone }) {
             <span className="text-3xl">🏀</span>
           </div>
           <h1 className="text-xl font-bold text-gray-900">Imposta nuova password</h1>
-          <p className="text-sm text-gray-500 mt-1">Oderzo Basket</p>
+          <p className="text-sm text-gray-500 mt-1">Gestionale Basket</p>
         </div>
         {ok ? (
           <div className="text-center py-6">

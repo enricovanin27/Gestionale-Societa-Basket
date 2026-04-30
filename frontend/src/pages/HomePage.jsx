@@ -30,7 +30,7 @@ function parseList(str) {
 
 // ─── DB helpers (usati dall'allenatore dalla home) ─────────────────────────────
 
-async function saveAllenamento(event, formData) {
+async function saveAllenamento(event, formData, societaId) {
   const payload = {
     data: event.data, squadra: event.squadra,
     ora_inizio: formData.ora_inizio, ora_fine: formData.ora_fine,
@@ -44,7 +44,7 @@ async function saveAllenamento(event, formData) {
       const { error } = await supabase.from('orario_settimana').update(payload).eq('id', existing.id)
       if (error) throw error
     } else {
-      const { error } = await supabase.from('orario_settimana').insert([payload])
+      const { error } = await supabase.from('orario_settimana').insert([{ ...payload, societa_id: societaId }])
       if (error) throw error
     }
   } else {
@@ -53,7 +53,7 @@ async function saveAllenamento(event, formData) {
   }
 }
 
-async function annullaAllenamento(event) {
+async function annullaAllenamento(event, societaId) {
   if (event._source === 'fisso') {
     const { data: existing } = await supabase
       .from('orario_settimana').select('id')
@@ -65,7 +65,7 @@ async function annullaAllenamento(event) {
       const { error } = await supabase.from('orario_settimana').insert([{
         data: event.data, squadra: event.squadra,
         ora_inizio: event.ora_inizio, ora_fine: event.ora_fine,
-        palestra: event.palestra ?? '', annullato: true,
+        palestra: event.palestra ?? '', annullato: true, societa_id: societaId,
       }])
       if (error) throw error
     }
@@ -158,14 +158,14 @@ function CambiaPasswordButton() {
 
 // ─── Shared header ─────────────────────────────────────────────────────────────
 
-function Header({ title, subtitle, displayName, logout }) {
+function Header({ title, subtitle, displayName, logout, societaNome }) {
   return (
     <div className="bg-blue-600 text-white px-4 pt-10 pb-6">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-2xl">🏀</span>
-            <span className="font-bold text-lg">Oderzo Basket</span>
+            <span className="font-bold text-lg">{societaNome ?? 'Gestionale Basket'}</span>
           </div>
           <p className="text-blue-100 text-base font-semibold mt-1">{title}</p>
           <p className="text-blue-200 text-sm capitalize mt-0.5">{subtitle}</p>
@@ -603,10 +603,185 @@ function AllenatoreEditModal({ event, onClose, onSave, onCancel, saving }) {
   )
 }
 
+// ─── Modal aggiungi partita (allenatore) ──────────────────────────────────────
+
+function AllenatoreAddPartitaModal({ mySquadre, onClose }) {
+  const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const [form, setForm] = useState({
+    squadra:    mySquadre[0] ?? '',
+    data:       '',
+    ora_inizio: '15:00',
+    ora_fine:   '17:00',
+    avversario: '',
+    palestra:   '',
+    casa_fuori: 'Casa',
+    stato:      'provvisoria',
+  })
+
+  const { data: palestre = [] } = useQuery({
+    queryKey: ['palestre'],
+    queryFn: async () => {
+      const { data } = await supabase.from('palestre').select('nome').order('nome')
+      return (data ?? []).map(p => p.nome)
+    },
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const { data: doppioList = [] } = useQuery({
+    queryKey: ['doppio-campionato'],
+    queryFn: async () => {
+      const { data } = await supabase.from('doppio_campionato').select('*')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: partiteGiorno = [] } = useQuery({
+    queryKey: ['calendario-date', form.data],
+    enabled: !!form.data,
+    queryFn: async () => {
+      const { data } = await supabase.from('calendario').select('squadra, ora_inizio').eq('data', form.data)
+      return data ?? []
+    },
+  })
+
+  const doppioConflicts = useMemo(() => {
+    if (!form.data || !form.squadra || !doppioList.length) return []
+    const partners = doppioList
+      .filter(d => d.squadra_a === form.squadra || d.squadra_b === form.squadra)
+      .map(d => d.squadra_a === form.squadra ? d.squadra_b : d.squadra_a)
+    return partiteGiorno.filter(p => partners.includes(p.squadra))
+  }, [form.data, form.squadra, doppioList, partiteGiorno])
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('calendario').insert([{
+        data:       form.data,
+        ora_inizio: form.ora_inizio || null,
+        ora_fine:   form.ora_fine   || null,
+        squadra:    form.squadra,
+        avversario: form.avversario || null,
+        palestra:   form.palestra   || null,
+        casa_fuori: form.casa_fuori,
+        stato:      form.stato,
+        tipo:       'partita',
+        societa_id: societaId,
+      }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      qc.invalidateQueries({ queryKey: ['admin-partite-future'] })
+      onClose()
+    },
+  })
+
+  const canSave = !!form.squadra && !!form.data
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div className="relative bg-white rounded-t-2xl w-full max-w-lg p-6 pb-10 shadow-2xl max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Aggiungi partita</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X size={20} className="text-gray-400" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Squadra *</label>
+              <select value={form.squadra} onChange={e => setForm(f => ({ ...f, squadra: e.target.value }))} className={INP}>
+                {mySquadre.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Data *</label>
+              <input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} className={INP} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Ora inizio</label>
+              <input type="time" value={form.ora_inizio} onChange={e => setForm(f => ({ ...f, ora_inizio: e.target.value }))} className={INP} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Ora fine</label>
+              <input type="time" value={form.ora_fine} onChange={e => setForm(f => ({ ...f, ora_fine: e.target.value }))} className={INP} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Avversario</label>
+            <input value={form.avversario} onChange={e => setForm(f => ({ ...f, avversario: e.target.value }))}
+              className={INP} placeholder="Nome squadra avversaria" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Casa / Trasferta</label>
+              <select value={form.casa_fuori} onChange={e => setForm(f => ({ ...f, casa_fuori: e.target.value }))} className={INP}>
+                <option value="Casa">🏠 Casa</option>
+                <option value="Fuori">✈️ Trasferta</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Stato</label>
+              <select value={form.stato} onChange={e => setForm(f => ({ ...f, stato: e.target.value }))} className={INP}>
+                <option value="provvisoria">⚠️ Provvisoria</option>
+                <option value="definitiva">✅ Definitiva</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Palestra / Luogo</label>
+            {palestre.length === 0 ? (
+              <input value={form.palestra} onChange={e => setForm(f => ({ ...f, palestra: e.target.value }))}
+                className={INP} placeholder="es. PalaOderzo" />
+            ) : (
+              <select value={form.palestra} onChange={e => setForm(f => ({ ...f, palestra: e.target.value }))} className={INP}>
+                <option value="">Scegli...</option>
+                {palestre.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+        {doppioConflicts.length > 0 && (
+          <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-3">
+            <p className="text-xs font-semibold text-orange-700 flex items-center gap-1.5 mb-1.5">
+              <AlertTriangle size={13} /> Attenzione: doppio campionato
+            </p>
+            <p className="text-xs text-orange-600 mb-1.5">
+              In questa data ha già una partita una squadra con giocatori in comune:
+            </p>
+            {doppioConflicts.map((p, i) => (
+              <div key={i} className="text-xs text-orange-700 bg-orange-100 rounded-lg px-2 py-1 mb-1">
+                <span className="font-medium">{p.squadra}</span>
+                {p.ora_inizio && <span className="ml-1 text-orange-500">· {formatTime(p.ora_inizio)}</span>}
+              </div>
+            ))}
+            <p className="text-xs text-orange-500 mt-1.5 italic">Puoi procedere comunque se è un'eccezione.</p>
+          </div>
+        )}
+        {saveMut.isError && <p className="text-xs text-red-500 mt-2">{saveMut.error?.message}</p>}
+        <button
+          onClick={() => canSave && saveMut.mutateAsync()}
+          disabled={saveMut.isPending || !canSave}
+          className="w-full mt-5 py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+          {saveMut.isPending ? 'Salvataggio...' : '✅ Aggiungi partita'}
+        </button>
+        {!canSave && <p className="text-center text-xs text-red-500 mt-2">Squadra e data sono obbligatori</p>}
+      </div>
+    </div>
+  )
+}
+
 // ─── Modal aggiungi allenamento (allenatore) ───────────────────────────────────
 
 function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
   const qc = useQueryClient()
+  const { societaId } = useAuth()
   const [form, setForm] = useState({
     squadra:    mySquadre[0] ?? '',
     giorno:     'lunedi',
@@ -639,6 +814,7 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
         ora_fine:   form.ora_fine,
         palestra:   form.palestra,
         annullato:  false,
+        societa_id: societaId,
       }])
       if (error) throw error
     },
@@ -724,7 +900,7 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
 // ADMIN HOME — toggle Partite / Da gestire
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function AdminHome({ displayName, logout }) {
+function AdminHome({ displayName, logout, societaNome }) {
   const [tab, setTab]  = useState('partite')
   const today          = new Date()
   const todayStr       = format(today, 'yyyy-MM-dd')
@@ -780,7 +956,36 @@ function AdminHome({ displayName, logout }) {
     return result
   }, [thisWeek, nextWeek])
 
-  const daGestireTot = provvisorie.length + conflictsAll.length
+  const { data: doppioList = [] } = useQuery({
+    queryKey: ['doppio-campionato'],
+    queryFn: async () => {
+      const { data } = await supabase.from('doppio_campionato').select('*')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const doppioConflictsAdmin = useMemo(() => {
+    if (!doppioList.length || !partiteFuture.length) return []
+    const byDate = {}
+    for (const p of partiteFuture) {
+      if (!byDate[p.data]) byDate[p.data] = []
+      byDate[p.data].push(p)
+    }
+    const result = []
+    for (const pair of doppioList) {
+      for (const [dateStr, partite] of Object.entries(byDate)) {
+        const partita_a = partite.find(p => p.squadra === pair.squadra_a)
+        const partita_b = partite.find(p => p.squadra === pair.squadra_b)
+        if (partita_a && partita_b) {
+          result.push({ data: dateStr, pair, partita_a, partita_b })
+        }
+      }
+    }
+    return result
+  }, [doppioList, partiteFuture])
+
+  const daGestireTot = provvisorie.length + conflictsAll.length + doppioConflictsAdmin.length
   const isLoading    = loadingP || loadingProv
 
   const partiteByDate = useMemo(() => {
@@ -799,6 +1004,7 @@ function AdminHome({ displayName, logout }) {
         subtitle={format(today, "EEEE d MMMM yyyy", { locale: it })}
         displayName={displayName}
         logout={logout}
+        societaNome={societaNome}
       />
 
       {/* Toggle tab */}
@@ -927,6 +1133,32 @@ function AdminHome({ displayName, logout }) {
               </div>
             )}
 
+            {/* Doppio campionato: partite in conflitto */}
+            {doppioConflictsAdmin.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <AlertTriangle size={12} /> Doppio campionato — stesso giorno ({doppioConflictsAdmin.length})
+                </p>
+                <div className="space-y-2">
+                  {doppioConflictsAdmin.map(({ data: dateStr, pair, partita_a, partita_b }, i) => (
+                    <div key={i} className="bg-orange-50 border border-orange-200 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-orange-700 mb-1.5">
+                        {format(parseISO(dateStr), 'EEE d MMMM', { locale: it })}
+                        {pair.note && <span className="ml-1 text-orange-400 font-normal">({pair.note})</span>}
+                      </p>
+                      {[partita_a, partita_b].map((p, j) => (
+                        <div key={j} className="flex items-center gap-2 text-xs text-orange-700 bg-orange-100 rounded-lg px-2 py-1.5 mb-1">
+                          <span className="font-medium">{p.squadra}</span>
+                          {p.avversario && <span className="text-orange-500">vs {p.avversario}</span>}
+                          {p.ora_inizio && <span className="text-orange-400 ml-auto">{formatTime(p.ora_inizio)}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </>)}
         </div>
       )}
@@ -938,16 +1170,19 @@ function AdminHome({ displayName, logout }) {
 // ALLENATORE HOME — vista settimanale/mensile con modifica allenamenti
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function AllenatoreHome({ user, displayName, logout }) {
-  const [view,          setView]          = useState('settimana')
-  const [weekOffset,    setWeekOffset]    = useState(0)
-  const [monthOffset,   setMonthOffset]   = useState(0)
-  const [editingEvent,  setEditingEvent]  = useState(null)
-  const [editingDayEvs, setEditingDayEvs] = useState([])
-  const [showAddForm,   setShowAddForm]   = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState(null)
+function AllenatoreHome({ user, displayName, logout, societaNome }) {
+  const [view,           setView]           = useState('settimana')
+  const [weekOffset,     setWeekOffset]     = useState(0)
+  const [monthOffset,    setMonthOffset]    = useState(0)
+  const [editingEvent,   setEditingEvent]   = useState(null)
+  const [editingDayEvs,  setEditingDayEvs]  = useState([])
+  const [showAddForm,    setShowAddForm]    = useState(false)
+  const [showAddPartita, setShowAddPartita] = useState(false)
+  const [fabOpen,        setFabOpen]        = useState(false)
+  const [selectedEvent,  setSelectedEvent]  = useState(null)
   const touchStartX = useRef(null)
   const qc = useQueryClient()
+  const { societaId } = useAuth()
 
   const today = new Date()
 
@@ -1019,7 +1254,7 @@ function AllenatoreHome({ user, displayName, logout }) {
   }, [monthData, mySquadre])
 
   const saveMut = useMutation({
-    mutationFn: ({ event, formData }) => saveAllenamento(event, formData),
+    mutationFn: ({ event, formData }) => saveAllenamento(event, formData, societaId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       setEditingEvent(null)
@@ -1027,7 +1262,7 @@ function AllenatoreHome({ user, displayName, logout }) {
   })
 
   const cancelMut = useMutation({
-    mutationFn: annullaAllenamento,
+    mutationFn: (event) => annullaAllenamento(event, societaId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['weekEvents'] }),
   })
 
@@ -1057,7 +1292,7 @@ function AllenatoreHome({ user, displayName, logout }) {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-2xl">🏀</span>
-                <span className="font-bold text-lg">Oderzo Basket</span>
+                <span className="font-bold text-lg">{societaNome ?? 'Gestionale Basket'}</span>
               </div>
               <p className="text-blue-100 text-base font-semibold mt-1">Ciao, {nome}! 👋</p>
               {mySquadre.length > 0 && (
@@ -1189,13 +1424,32 @@ function AllenatoreHome({ user, displayName, logout }) {
         </div>
       )}
 
-      {/* FAB aggiungi */}
+      {/* FAB menu */}
+      {fabOpen && (
+        <div className="fixed bottom-40 right-4 flex flex-col gap-2 z-20 items-end">
+          <button
+            onClick={() => { setShowAddPartita(true); setFabOpen(false) }}
+            className="flex items-center gap-2 bg-white text-gray-800 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium border border-gray-200 whitespace-nowrap active:scale-95 transition-transform"
+          >
+            🏀 Partita
+          </button>
+          <button
+            onClick={() => { setShowAddForm(true); setFabOpen(false) }}
+            className="flex items-center gap-2 bg-white text-gray-800 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium border border-gray-200 whitespace-nowrap active:scale-95 transition-transform"
+          >
+            🏋️ Allenamento
+          </button>
+        </div>
+      )}
+      {fabOpen && (
+        <div className="fixed inset-0 z-10" onClick={() => setFabOpen(false)} />
+      )}
       <button
-        onClick={() => setShowAddForm(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
-        aria-label="Aggiungi allenamento"
+        onClick={() => setFabOpen(v => !v)}
+        className={`fixed bottom-24 right-4 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-20 ${fabOpen ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+        aria-label="Aggiungi"
       >
-        <Plus size={28} />
+        {fabOpen ? <X size={24} /> : <Plus size={28} />}
       </button>
 
       {editingEvent && (
@@ -1227,6 +1481,13 @@ function AllenatoreHome({ user, displayName, logout }) {
           onClose={() => setShowAddForm(false)}
         />
       )}
+
+      {showAddPartita && (
+        <AllenatoreAddPartitaModal
+          mySquadre={mySquadre}
+          onClose={() => setShowAddPartita(false)}
+        />
+      )}
     </div>
   )
 }
@@ -1235,7 +1496,7 @@ function AllenatoreHome({ user, displayName, logout }) {
 // GENITORE / GIOCATORE HOME — vista settimanale + mensile per la propria squadra
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function GenitoreHome({ profile, displayName, logout }) {
+function GenitoreHome({ profile, displayName, logout, societaNome }) {
   const [view,          setView]          = useState('settimana')
   const [weekOffset,    setWeekOffset]    = useState(0)
   const [monthOffset,   setMonthOffset]   = useState(0)
@@ -1243,7 +1504,10 @@ function GenitoreHome({ profile, displayName, logout }) {
   const touchStartX = useRef(null)
 
   const today     = new Date()
-  const mySquadra = profile?.squadra ?? null
+  const mySquadra  = profile?.squadra  ?? null
+  const mySquadra2 = profile?.squadra2 ?? null
+  const mySquadra3 = profile?.squadra3 ?? null
+  const mySquadre  = [mySquadra, mySquadra2, mySquadra3].filter(Boolean)
 
   const startDate = useMemo(
     () => startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 }),
@@ -1272,9 +1536,9 @@ function GenitoreHome({ profile, displayName, logout }) {
   const { data: monthData, isLoading: monthLoading } = useMonthEvents(currentMonthDate, view === 'mese')
 
   const displayWeekByDate = useMemo(() => {
-    if (!weekData || !mySquadra) return {}
+    if (!weekData || !mySquadre.length) return {}
     const filtered = (weekData.events ?? []).filter(e =>
-      (e.squadra ?? '').toLowerCase() === mySquadra.toLowerCase()
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
     )
     const byDate = {}
     for (const e of filtered) {
@@ -1282,14 +1546,14 @@ function GenitoreHome({ profile, displayName, logout }) {
       byDate[e.data].push(e)
     }
     return byDate
-  }, [weekData, mySquadra])
+  }, [weekData, mySquadre])
 
   const displayMonthEvents = useMemo(() => {
-    if (!monthData || !mySquadra) return []
+    if (!monthData || !mySquadre.length) return []
     return (monthData.events ?? []).filter(e =>
-      (e.squadra ?? '').toLowerCase() === mySquadra.toLowerCase()
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
     )
-  }, [monthData, mySquadra])
+  }, [monthData, mySquadre])
 
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
   const handleTouchEnd   = (e) => {
@@ -1302,7 +1566,7 @@ function GenitoreHome({ profile, displayName, logout }) {
     touchStartX.current = null
   }
 
-  if (!mySquadra) {
+  if (!mySquadre.length) {
     return (
       <div className="pb-20">
         <Header
@@ -1310,6 +1574,7 @@ function GenitoreHome({ profile, displayName, logout }) {
           subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
           displayName={displayName}
           logout={logout}
+          societaNome={societaNome}
         />
         <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
           <p className="text-sm text-amber-700">
@@ -1334,10 +1599,14 @@ function GenitoreHome({ profile, displayName, logout }) {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-2xl">🏀</span>
-                <span className="font-bold text-lg">Oderzo Basket</span>
+                <span className="font-bold text-lg">{societaNome ?? 'Gestionale Basket'}</span>
               </div>
               <p className="text-blue-100 text-base font-semibold mt-1">Ciao, {displayName}! 👋</p>
-              <p className="text-blue-200 text-sm mt-0.5">La tua squadra: <strong>{mySquadra}</strong></p>
+              <p className="text-blue-200 text-sm mt-0.5">
+                {mySquadre.length === 1
+                  ? <>La tua squadra: <strong>{mySquadre[0]}</strong></>
+                  : <>Le tue squadre: <strong>{mySquadre.join(' · ')}</strong></>}
+              </p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
               <span className="text-xs text-blue-200 text-right max-w-[120px] truncate">{displayName}</span>
@@ -1487,10 +1756,10 @@ function GenitoreHome({ profile, displayName, logout }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function HomePage() {
-  const { user, profile, displayName, logout, isAdmin, isAllenatore } = useAuth()
+  const { user, profile, displayName, logout, isAdmin, isAllenatore, societaNome } = useAuth()
 
-  if (isAdmin)      return <AdminHome displayName={displayName} logout={logout} />
-  if (isAllenatore) return <AllenatoreHome user={user} displayName={displayName} logout={logout} />
+  if (isAdmin)      return <AdminHome displayName={displayName} logout={logout} societaNome={societaNome} />
+  if (isAllenatore) return <AllenatoreHome user={user} displayName={displayName} logout={logout} societaNome={societaNome} />
   // genitore/giocatore (e qualsiasi ruolo non riconosciuto)
-  return <GenitoreHome profile={profile} displayName={displayName} logout={logout} />
+  return <GenitoreHome profile={profile} displayName={displayName} logout={logout} societaNome={societaNome} />
 }
