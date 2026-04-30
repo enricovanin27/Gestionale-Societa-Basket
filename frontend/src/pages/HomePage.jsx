@@ -453,9 +453,52 @@ function AllenatoreMonthGrid({ monthDate, events, onEventClick }) {
 
 // ─── Event detail bottom sheet (read-only for allenatore) ─────────────────────
 
-function AllenatoreEventModal({ event, onClose }) {
+function AllenatoreEventModal({ event, onClose, showPresenza = false }) {
+  const { user, societaId } = useAuth()
+  const qc = useQueryClient()
   const isPartita = event._tipo === 'partita'
   const dotColor  = getAllenatoreEventDotColor(event)
+
+  const { data: presenzaData, isLoading: presenzaLoading } = useQuery({
+    queryKey: ['presenza-genitore', event.data, event.squadra, user?.id],
+    enabled: showPresenza && !isPartita && !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze')
+        .select('risposta')
+        .eq('data', event.data)
+        .eq('squadra', event.squadra)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      return data
+    },
+    staleTime: 30 * 1000,
+  })
+
+  const presenzaMut = useMutation({
+    mutationFn: async (risposta) => {
+      if (presenzaData?.risposta === risposta) {
+        await supabase.from('presenze')
+          .delete()
+          .eq('data', event.data)
+          .eq('squadra', event.squadra)
+          .eq('user_id', user.id)
+      } else {
+        await supabase.from('presenze').upsert(
+          {
+            societa_id: societaId ?? '',
+            data:       event.data,
+            squadra:    event.squadra,
+            user_id:    user.id,
+            risposta,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'societa_id,data,squadra,user_id' }
+        )
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presenza-genitore', event.data, event.squadra, user?.id] }),
+  })
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
@@ -518,6 +561,36 @@ function AllenatoreEventModal({ event, onClose }) {
             </span>
           )}
         </div>
+
+        {showPresenza && !isPartita && (
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">La tua presenza</p>
+            {presenzaLoading ? (
+              <div className="text-xs text-gray-400">Caricamento...</div>
+            ) : (
+              <div className="flex gap-2">
+                {[
+                  { val: 'presente', label: '✅ Ci sarò',      active: 'bg-green-600 text-white border-green-600' },
+                  { val: 'forse',    label: '❓ Forse',         active: 'bg-amber-500 text-white border-amber-500' },
+                  { val: 'assente',  label: '❌ Non ci sarò',   active: 'bg-red-500 text-white border-red-500' },
+                ].map(({ val, label, active }) => (
+                  <button
+                    key={val}
+                    disabled={presenzaMut.isPending}
+                    onClick={() => presenzaMut.mutate(val)}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-60 ${
+                      presenzaData?.risposta === val
+                        ? active
+                        : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1167,7 +1240,246 @@ function AdminHome({ displayName, logout, societaNome }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ALLENATORE HOME — vista settimanale/mensile con modifica allenamenti
+// NUOVA HOME — giocatori e allenatori (prossima gara + allenamenti settimana)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function NuovaHome({ user, profile, displayName, logout, societaNome, isAllenatore }) {
+  const today     = new Date()
+  const todayStr  = format(today, 'yyyy-MM-dd')
+  const { societaId } = useAuth()
+  const qc        = useQueryClient()
+
+  const mySquadre = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  const [selectedSquadra, setSelectedSquadra] = useState(mySquadre[0] ?? '')
+
+  const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
+
+  const { data: prossimeGare = [] } = useQuery({
+    queryKey: ['prossime-gare', selectedSquadra, todayStr, societaId],
+    enabled: !!selectedSquadra && !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('calendario').select('*')
+        .eq('squadra', selectedSquadra)
+        .eq('societa_id', societaId)
+        .gte('data', todayStr)
+        .order('data').order('ora_inizio')
+        .limit(2)
+      return data ?? []
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+
+  const { data: weekData, isLoading: weekLoading } = useWeekEvents(weekStart)
+
+  const allenamenti = useMemo(() => {
+    if (!weekData || !selectedSquadra) return []
+    return (weekData.events ?? [])
+      .filter(e =>
+        e._tipo === 'allenamento' && !e.annullato &&
+        (e.squadra ?? '').toLowerCase() === selectedSquadra.toLowerCase()
+      )
+      .sort((a, b) => (a.data + (a.ora_inizio ?? '')).localeCompare(b.data + (b.ora_inizio ?? '')))
+  }, [weekData, selectedSquadra])
+
+  const [editingEvent,   setEditingEvent]   = useState(null)
+  const [selectedEvent,  setSelectedEvent]  = useState(null)
+  const [showAddForm,    setShowAddForm]    = useState(false)
+  const [showAddPartita, setShowAddPartita] = useState(false)
+  const [fabOpen,        setFabOpen]        = useState(false)
+
+  const saveMut = useMutation({
+    mutationFn: ({ event, formData }) => saveAllenamento(event, formData, societaId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
+  })
+
+  const cancelMut = useMutation({
+    mutationFn: (event) => annullaAllenamento(event, societaId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['weekEvents'] }),
+  })
+
+  if (!mySquadre.length) {
+    return (
+      <div className="pb-20">
+        <Header
+          title="Ciao!"
+          subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
+          displayName={displayName} logout={logout} societaNome={societaNome}
+        />
+        <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-sm text-amber-700">⚠️ Nessuna squadra assegnata al tuo profilo. Contatta l'amministratore.</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
+
+      {/* Header */}
+      <div className="bg-blue-600 text-white px-4 pt-10 pb-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-2xl">🏀</span>
+              <span className="font-bold text-lg">{societaNome ?? 'Gestionale Basket'}</span>
+            </div>
+            <p className="text-blue-200 text-sm capitalize mt-0.5">
+              {format(today, 'EEEE d MMMM yyyy', { locale: it })}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="text-sm font-semibold text-white truncate max-w-[130px] text-right">{displayName}</span>
+            <div className="flex items-center gap-3">
+              <CambiaPasswordButton />
+              <button onClick={logout} className="flex items-center gap-1 text-xs text-blue-300 hover:text-white">
+                <LogOut size={13} /> Esci
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {mySquadre.length > 1 && (
+          <div className="mt-3">
+            <select
+              value={selectedSquadra}
+              onChange={e => setSelectedSquadra(e.target.value)}
+              className="w-full bg-blue-700 text-white border border-blue-400 rounded-lg px-3 py-2 text-sm"
+            >
+              {mySquadre.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Griglia due colonne */}
+      <div className="px-4 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+        {/* Prossima gara */}
+        <div>
+          <div className="bg-blue-500 text-white font-bold text-center py-3 rounded-t-xl text-sm tracking-wide">
+            PROSSIMA GARA CAMPIONATO
+          </div>
+          <div className="border-2 border-blue-500 rounded-b-xl overflow-hidden bg-white">
+            {prossimeGare.length === 0 ? (
+              <div className="p-5 text-sm text-gray-400 text-center">Nessuna gara in programma</div>
+            ) : (
+              prossimeGare.map((p, i) => (
+                <div key={p.id} className={`p-4 text-center ${i > 0 ? 'border-t border-blue-100' : ''}`}>
+                  <p className="text-sm font-semibold text-gray-800 mb-1">
+                    {format(parseISO(p.data), 'EEEE d MMMM', { locale: it }).toUpperCase()}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {(p.casa_fuori ?? '') === 'Casa' ? 'Casa' : 'Trasferta'}
+                  </p>
+                  {p.ora_inizio && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {formatTime(p.ora_inizio)}{p.palestra ? ` · ${p.palestra}` : ''}
+                    </p>
+                  )}
+                  {p.stato === 'provvisoria' && (
+                    <p className="text-xs text-yellow-600 mt-1">⚠️ Provvisoria</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Allenamenti della settimana */}
+        <div>
+          <div className="bg-orange-500 text-white font-bold text-center py-3 rounded-t-xl text-sm tracking-wide">
+            ALLENAMENTI DELLA SETTIMANA
+          </div>
+          <div className="border-2 border-orange-500 rounded-b-xl overflow-hidden bg-white">
+            {weekLoading ? (
+              <div className="p-4 flex justify-center"><LoadingSpinner /></div>
+            ) : allenamenti.length === 0 ? (
+              <div className="p-5 text-sm text-gray-400 text-center">Nessun allenamento questa settimana</div>
+            ) : (
+              allenamenti.map((e, i) => (
+                <button
+                  key={`${e._source}-${e.id ?? i}`}
+                  onClick={() => isAllenatore ? setEditingEvent(e) : setSelectedEvent(e)}
+                  className={`w-full p-4 text-center ${i > 0 ? 'border-t border-orange-100' : ''} active:bg-orange-50 transition-colors`}
+                >
+                  <p className="text-sm font-semibold text-gray-800 mb-1">
+                    {format(parseISO(e.data), 'EEEE d MMMM', { locale: it }).toUpperCase()}
+                  </p>
+                  <p className="text-sm text-gray-700">{e.squadra}</p>
+                  {e.ora_inizio && (
+                    <p className="text-sm text-gray-600 mt-0.5">
+                      {formatTime(e.ora_inizio)} – {formatTime(e.ora_fine)}{e.palestra ? ` · ${e.palestra}` : ''}
+                    </p>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* FAB allenatori */}
+      {isAllenatore && (<>
+        {fabOpen && (
+          <div className="fixed bottom-40 right-4 flex flex-col gap-2 z-20 items-end">
+            <button onClick={() => { setShowAddPartita(true); setFabOpen(false) }}
+              className="flex items-center gap-2 bg-white text-gray-800 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium border border-gray-200 whitespace-nowrap active:scale-95 transition-transform">
+              🏀 Partita
+            </button>
+            <button onClick={() => { setShowAddForm(true); setFabOpen(false) }}
+              className="flex items-center gap-2 bg-white text-gray-800 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium border border-gray-200 whitespace-nowrap active:scale-95 transition-transform">
+              🏋️ Allenamento
+            </button>
+          </div>
+        )}
+        {fabOpen && <div className="fixed inset-0 z-10" onClick={() => setFabOpen(false)} />}
+        <button
+          onClick={() => setFabOpen(v => !v)}
+          className={`fixed bottom-24 right-4 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-20 ${fabOpen ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+        >
+          {fabOpen ? <X size={24} /> : <Plus size={28} />}
+        </button>
+      </>)}
+
+      {editingEvent && (
+        <AllenatoreEditModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
+          onSave={(formData) => saveMut.mutateAsync({ event: editingEvent, formData })}
+          onCancel={() => {
+            if (window.confirm(`Annullare l'allenamento di ${editingEvent.squadra}?`)) {
+              cancelMut.mutate(editingEvent)
+              setEditingEvent(null)
+            }
+          }}
+          saving={saveMut.isPending}
+        />
+      )}
+
+      {selectedEvent && (
+        <AllenatoreEventModal
+          event={selectedEvent}
+          onClose={() => setSelectedEvent(null)}
+          showPresenza={!isAllenatore}
+        />
+      )}
+
+      {showAddForm && (
+        <AllenatoreAddModal weekStart={weekStart} mySquadre={mySquadre} onClose={() => setShowAddForm(false)} />
+      )}
+      {showAddPartita && (
+        <AllenatoreAddPartitaModal mySquadre={mySquadre} onClose={() => setShowAddPartita(false)} />
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALLENATORE HOME — VECCHIA vista settimanale/mensile (non più usata)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AllenatoreHome({ user, displayName, logout, societaNome }) {
@@ -1745,6 +2057,7 @@ function GenitoreHome({ profile, displayName, logout, societaNome }) {
         <AllenatoreEventModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          showPresenza={true}
         />
       )}
     </div>
@@ -1758,8 +2071,11 @@ function GenitoreHome({ profile, displayName, logout, societaNome }) {
 export default function HomePage() {
   const { user, profile, displayName, logout, isAdmin, isAllenatore, societaNome } = useAuth()
 
-  if (isAdmin)      return <AdminHome displayName={displayName} logout={logout} societaNome={societaNome} />
-  if (isAllenatore) return <AllenatoreHome user={user} displayName={displayName} logout={logout} societaNome={societaNome} />
-  // genitore/giocatore (e qualsiasi ruolo non riconosciuto)
-  return <GenitoreHome profile={profile} displayName={displayName} logout={logout} societaNome={societaNome} />
+  if (isAdmin) return <AdminHome displayName={displayName} logout={logout} societaNome={societaNome} />
+  return (
+    <NuovaHome
+      user={user} profile={profile} displayName={displayName}
+      logout={logout} societaNome={societaNome} isAllenatore={isAllenatore}
+    />
+  )
 }

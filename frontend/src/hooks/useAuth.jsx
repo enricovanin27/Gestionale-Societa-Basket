@@ -1,5 +1,6 @@
 ﻿import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { initPushNotifications } from './usePushNotifications'
 
 const AuthContext = createContext(null)
 
@@ -24,6 +25,12 @@ export function AuthProvider({ children }) {
       if (error) {
         console.error('Errore fetch profile:', error)
         return null
+      }
+      if (data?.ruolo === 'genitore' || data?.ruolo === 'allenatore') {
+        const squadre = data.ruolo === 'allenatore'
+          ? [data.squadra, data.squadra2, data.squadra3].filter(Boolean)
+          : [data.squadra].filter(Boolean)
+        initPushNotifications(userId, squadre, data.societa_id)
       }
       return data
     } catch (err) {
