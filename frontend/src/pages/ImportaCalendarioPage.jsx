@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Upload, FileText, Check, AlertCircle, X, Plus, ChevronDown,
   Loader2, AlertTriangle, MapPin, Clock,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -108,7 +109,7 @@ function PartitaRow({ partita, index, onChange, onImporta, importing, palestreLi
               <select value={p.casa_fuori ?? 'Casa'} onChange={e => onChange(index, 'casa_fuori', e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-2 py-1 text-sm mt-0.5">
                 <option value="Casa">🏠 Casa</option>
-                <option value="Fuori">✈️ Trasferta</option>
+                <option value="Fuori Casa">✈️ Trasferta</option>
               </select>
             </div>
             <div>
@@ -134,6 +135,7 @@ function PartitaRow({ partita, index, onChange, onImporta, importing, palestreLi
 export default function ImportaCalendarioPage() {
   const qc = useQueryClient()
   const fileRef = useRef(null)
+  const { isAdmin, isAllenatore, user, societaId } = useAuth()
 
   const [file,           setFile]           = useState(null)
   const [squadraScelta,  setSquadraScelta]  = useState('')
@@ -155,6 +157,28 @@ export default function ImportaCalendarioPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Se allenatore: carica solo le proprie squadre
+  const { data: mySquadreAll = null } = useQuery({
+    queryKey: ['my-squadre-import', user?.email],
+    enabled: isAllenatore && !!user?.email,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('allenatori')
+        .select('squadre_capo, squadre_vice')
+        .eq('email', user.email)
+        .maybeSingle()
+      if (!data) return []
+      const parse = str => (str ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      return [...new Set([...parse(data.squadre_capo), ...parse(data.squadre_vice)])]
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const squadreFiltered = useMemo(() => {
+    if (isAdmin || mySquadreAll === null) return squadreList
+    return squadreList.filter(s => mySquadreAll.includes(s))
+  }, [isAdmin, squadreList, mySquadreAll])
+
   const { data: palestreList = [] } = useQuery({
     queryKey: ['palestre-nomi'],
     queryFn: async () => {
@@ -172,12 +196,29 @@ export default function ImportaCalendarioPage() {
     },
   })
 
+  const { data: doppioList = [] } = useQuery({
+    queryKey: ['doppio-campionato'],
+    queryFn: async () => {
+      const { data } = await supabase.from('doppio_campionato').select('*')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   function checkConflitto(p) {
     if (!p.data || !p.squadra) return null
     const match = existingCalendario.find(
       e => e.data === p.data && e.squadra === p.squadra
     )
-    return match ? `${p.squadra} ha già una partita il ${formatData(p.data)}` : null
+    if (match) return `${p.squadra} ha già una partita il ${formatData(p.data)}`
+    const partners = doppioList
+      .filter(d => d.squadra_a === p.squadra || d.squadra_b === p.squadra)
+      .map(d => d.squadra_a === p.squadra ? d.squadra_b : d.squadra_a)
+    const doppioMatch = existingCalendario.find(
+      e => e.data === p.data && partners.includes(e.squadra)
+    )
+    if (doppioMatch) return `Doppio campionato: ${doppioMatch.squadra} ha già una partita il ${formatData(p.data)}`
+    return null
   }
 
   async function handleEstraiPDF() {
@@ -240,6 +281,7 @@ export default function ImportaCalendarioPage() {
       casa_fuori: p.casa_fuori ?? 'Casa',
       stato:      p.stato      ?? 'provvisoria',
       tipo:       'partita',
+      societa_id: societaId,
     }
   }
 
@@ -299,13 +341,15 @@ export default function ImportaCalendarioPage() {
           <h2 className="text-sm font-semibold text-gray-700">1. Seleziona la squadra</h2>
 
           {/* Squad selector — required first */}
-          {squadreList.length === 0 ? (
+          {squadreFiltered.length === 0 ? (
             <div className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
-              Nessuna squadra trovata. Configura le squadre nel Setup.
+              {isAllenatore
+                ? 'Nessuna squadra assegnata. Contatta un admin.'
+                : 'Nessuna squadra trovata. Configura le squadre nel Setup.'}
             </div>
           ) : (
             <div className="flex gap-1.5 flex-wrap">
-              {squadreList.map(s => (
+              {squadreFiltered.map(s => (
                 <button
                   key={s}
                   type="button"

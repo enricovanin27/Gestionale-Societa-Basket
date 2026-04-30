@@ -347,7 +347,7 @@ const EMPTY_FORM = {
   ora_fine:   '12:00',
   squadra:    '',
   avversario: '',
-  casa_fuori: 'casa',
+  casa_fuori: 'Casa',
   palestra:   '',
   stato:      'provvisoria',
 }
@@ -424,7 +424,7 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
             <div>
               <label className="text-xs font-medium text-gray-500 mb-2 block">Casa / Trasferta</label>
               <div className="flex gap-2">
-                {[{ val: 'casa', label: '🏠 Casa' }, { val: 'fuori', label: '✈️ Trasferta' }].map(({ val, label }) => (
+                {[{ val: 'Casa', label: '🏠 Casa' }, { val: 'Fuori Casa', label: '✈️ Trasferta' }].map(({ val, label }) => (
                   <button key={val} type="button" onClick={() => set('casa_fuori', val)}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                       form.casa_fuori === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
@@ -861,7 +861,7 @@ export default function CalendarioPage() {
             ora_fine:   formatTime(editingEvent.ora_fine),
             squadra:    editingEvent.squadra    ?? '',
             avversario: editingEvent.avversario ?? '',
-            casa_fuori: (editingEvent.casa_fuori ?? 'casa').toLowerCase(),
+            casa_fuori: editingEvent.casa_fuori ?? 'Casa',
             palestra:   editingEvent.palestra   ?? '',
             stato:      editingEvent.stato      ?? 'provvisoria',
           } : null}

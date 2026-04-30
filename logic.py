@@ -1023,7 +1023,7 @@ def _estrai_partite_formato_b(testo: str, nome_societa: str = "oderzo") -> tuple
             avversario = sq_fuori
             orario = _cerca_orario_squadra_b(tabella_linee, nome_lower)
         else:
-            casa_fuori = "Fuori"
+            casa_fuori = "Fuori Casa"
             avversario = sq_casa
             orario = _cerca_orario_squadra_b(tabella_linee, sq_casa.lower())
 

@@ -723,7 +723,7 @@ function AllenatoreAddPartitaModal({ mySquadre, onClose }) {
               <label className="text-xs font-medium text-gray-500 mb-1 block">Casa / Trasferta</label>
               <select value={form.casa_fuori} onChange={e => setForm(f => ({ ...f, casa_fuori: e.target.value }))} className={INP}>
                 <option value="Casa">🏠 Casa</option>
-                <option value="Fuori">✈️ Trasferta</option>
+                <option value="Fuori Casa">✈️ Trasferta</option>
               </select>
             </div>
             <div>
