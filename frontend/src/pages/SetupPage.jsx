@@ -848,6 +848,8 @@ function UtentiTab() {
       }
       const { error } = await supabase.from('profiles').delete().eq('id', u.id)
       if (error) throw error
+      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+      await fetch(`${apiBase}/api/admin/delete-user/${u.id}`, { method: 'DELETE' })
     },
     onSuccess: () => {
       setDeleteErr(null)

@@ -34,6 +34,27 @@ def health():
     return {"status": "ok"}
 
 
+@app.delete("/api/admin/delete-user/{user_id}")
+async def delete_user(user_id: str):
+    """Elimina utente da auth.users (usa service role)."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return {"error": "Backend non configurato"}
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.delete(
+            f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+            headers={
+                "apikey":        SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            },
+            timeout=15,
+        )
+    if resp.status_code not in (200, 204):
+        detail = resp.json() if resp.content else {}
+        return {"error": detail.get("message", "Errore eliminazione utente")}
+    return {"ok": True}
+
+
 @app.post("/api/admin/create-user")
 async def create_user(payload: dict):
     """Crea utente Supabase senza fare login come lui (usa service role)."""
