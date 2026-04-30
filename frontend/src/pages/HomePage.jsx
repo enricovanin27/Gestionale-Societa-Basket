@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   format, startOfWeek, addDays, addWeeks, addMonths, parseISO,
   startOfMonth, endOfMonth, eachDayOfInterval, endOfWeek, isSameMonth,
@@ -1249,8 +1249,31 @@ function NuovaHome({ user, profile, displayName, logout, societaNome, isAllenato
   const { societaId } = useAuth()
   const qc        = useQueryClient()
 
-  const mySquadre = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
-  const [selectedSquadra, setSelectedSquadra] = useState(mySquadre[0] ?? '')
+  // Per allenatori le squadre vengono dalla tabella allenatori, non dal profilo
+  const { data: allenatoreRow } = useQuery({
+    queryKey: ['my-allenatore', user?.email],
+    enabled: isAllenatore && !!user?.email,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('allenatori').select('nome, squadre_capo, squadre_vice')
+        .eq('email', user.email).maybeSingle()
+      return data
+    },
+  })
+
+  const mySquadre = useMemo(() => {
+    if (isAllenatore) {
+      if (!allenatoreRow) return []
+      return [...parseList(allenatoreRow.squadre_capo), ...parseList(allenatoreRow.squadre_vice)]
+    }
+    return [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  }, [isAllenatore, allenatoreRow, profile])
+
+  const [selectedSquadra, setSelectedSquadra] = useState('')
+
+  useEffect(() => {
+    if (mySquadre.length && !selectedSquadra) setSelectedSquadra(mySquadre[0])
+  }, [mySquadre])
 
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
 
