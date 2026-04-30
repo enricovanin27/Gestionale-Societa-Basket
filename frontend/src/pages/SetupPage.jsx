@@ -797,10 +797,12 @@ function UtentiTab() {
       for (const a of allRes.data ?? []) {
         if (a.email) allenatoriMap[a.email.toLowerCase()] = { squadre_capo: a.squadre_capo ?? '', squadre_vice: a.squadre_vice ?? '' }
       }
-      return (profRes.data ?? []).map(u => {
-        const all = allenatoriMap[u.email?.toLowerCase()] ?? {}
-        return { ...u, squadre_capo: all.squadre_capo ?? '', squadre_vice: all.squadre_vice ?? '' }
-      })
+      return (profRes.data ?? [])
+        .filter(u => u.ruolo !== 'super_admin')
+        .map(u => {
+          const all = allenatoriMap[u.email?.toLowerCase()] ?? {}
+          return { ...u, squadre_capo: all.squadre_capo ?? '', squadre_vice: all.squadre_vice ?? '' }
+        })
     },
   })
 
@@ -891,24 +893,29 @@ function UtentiTab() {
         throw new Error('Il tuo profilo non ha una società associata. Vai su Supabase Dashboard → Table Editor → profiles e imposta societa_id per il tuo account.')
       }
 
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: inviteForm.email,
-        password: inviteForm.password,
-        options: {
-          data: {
+      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+      const createRes = await fetch(`${apiBase}/api/admin/create-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:    inviteForm.email,
+          password: inviteForm.password,
+          user_metadata: {
             nome:       inviteForm.nome,
             cognome:    inviteForm.cognome,
             ruolo:      inviteForm.ruolo,
             societa_id: targetSocietaId,
           },
-        },
+        }),
       })
-      if (error) throw error
+      const createJson = await createRes.json()
+      if (createJson.error) throw new Error(createJson.error)
+      const newUserId = createJson.user?.id
+      if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
 
-      // Crea/aggiorna profilo (upsert per gestire sia trigger assente che già presente)
-      if (signUpData?.user?.id) {
+      if (newUserId) {
         const profileData = {
-          id:         signUpData.user.id,
+          id:         newUserId,
           email:      inviteForm.email.trim(),
           nome:       inviteForm.nome.trim()    || null,
           cognome:    inviteForm.cognome.trim() || null,
