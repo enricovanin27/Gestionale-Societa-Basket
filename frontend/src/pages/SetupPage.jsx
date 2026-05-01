@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
-  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe,
+  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe, UserPlus,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -16,8 +16,8 @@ const GIORNI       = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato
 const GIORNI_LABEL = { lunedi:'Lun', martedi:'Mar', mercoledi:'Mer', giovedi:'Gio', venerdi:'Ven', sabato:'Sab', domenica:'Dom' }
 const GIORNO_FULL  = { lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì', giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica' }
 const TIPO_PALESTRA = ['Principale', 'Secondaria', 'Esterna']
-const RUOLI        = ['admin', 'allenatore', 'genitore']
-const RUOLI_LABEL  = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', genitore: 'Genitore/Giocatore' }
+const RUOLI        = ['admin', 'allenatore', 'genitore', 'giocatore']
+const RUOLI_LABEL  = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', genitore: 'Genitore', giocatore: 'Giocatore' }
 
 // ─── Shared UI ────────────────────────────────────────────────────────────────
 
@@ -755,6 +755,7 @@ const RUOLO_COLORS = {
   admin:      'bg-red-100 text-red-700',
   allenatore: 'bg-blue-100 text-blue-700',
   genitore:   'bg-green-100 text-green-700',
+  giocatore:  'bg-purple-100 text-purple-700',
 }
 
 function UtentiTab() {
@@ -930,6 +931,9 @@ function UtentiTab() {
           profileData.squadra2 = inviteForm.squadra2 || null
           profileData.squadra3 = inviteForm.squadra3 || null
         }
+        if (inviteForm.ruolo === 'giocatore') {
+          profileData.squadra = inviteForm.squadra || null
+        }
         await supabase.from('profiles').upsert([profileData], { onConflict: 'id' })
       }
 
@@ -1058,6 +1062,16 @@ function UtentiTab() {
                         )}
                       </div>
                     )}
+                    {u.ruolo === 'giocatore' && (
+                      <div className="mt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400">Squadra:</span>
+                          {u.squadra
+                            ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
+                            : <span className="text-xs text-gray-400 italic">–</span>}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {u.id !== me?.id && (
@@ -1095,6 +1109,16 @@ function UtentiTab() {
                           {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </>)}
+                      {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (
+                        <select
+                          value={u.squadra ?? ''}
+                          onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                          <option value="">– Squadra –</option>
+                          {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      )}
                       <button
                         onClick={() => disabledMut.mutate({ id: u.id, attivo: !u.attivo })}
                         className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
@@ -1220,6 +1244,18 @@ function UtentiTab() {
                     </select>
                   </Field>
                 </>)
+              )}
+              {inviteForm.ruolo === 'giocatore' && (
+                squadreDisp.length === 0 ? (
+                  <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
+                ) : (
+                  <Field label="Squadra">
+                    <select value={inviteForm.squadra ?? ''} onChange={e => setI('squadra', e.target.value)} className={inp}>
+                      <option value="">Scegli squadra...</option>
+                      {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                )
               )}
               {inviteErr && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -1906,12 +1942,332 @@ function SocietaTab() {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB — GIOCATORI
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const EMPTY_GIOCATORE = { nome: '', cognome: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', attivo: true }
+
+function GiocatoriTab() {
+  const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const [showForm, setShowForm]       = useState(false)
+  const [editingRow, setEditingRow]   = useState(null)
+  const [form, setForm]               = useState(EMPTY_GIOCATORE)
+  const [accountModal, setAccountModal] = useState(null) // giocatore row
+  const [accountForm, setAccountForm] = useState({ email: '', password: '' })
+  const [accountErr, setAccountErr]   = useState(null)
+  const [accountOk, setAccountOk]     = useState(false)
+  const [creatingAcc, setCreatingAcc] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const { data: squadreDisp = [] } = useQuery({
+    queryKey: ['squadre-table'],
+    queryFn: async () => {
+      const { data } = await supabase.from('squadre').select('categoria').order('categoria')
+      return (data ?? []).map(s => s.categoria)
+    },
+  })
+
+  const { data: giocatori = [], isLoading, error } = useQuery({
+    queryKey: ['giocatori-tab'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('giocatori')
+        .select('*')
+        .order('cognome')
+        .order('nome')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async (f) => {
+      const payload = {
+        nome:           f.nome.trim(),
+        cognome:        f.cognome.trim(),
+        squadra:        f.squadra,
+        squadra2:       f.squadra2 || null,
+        squadra3:       f.squadra3 || null,
+        data_nascita:   f.data_nascita || null,
+        numero_maglia:  f.numero_maglia !== '' ? Number(f.numero_maglia) : null,
+        note:           f.note.trim() || null,
+        attivo:         f.attivo,
+      }
+      if (f.id) {
+        const { error } = await supabase.from('giocatori').update(payload).eq('id', f.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('giocatori').insert([{ ...payload, societa_id: societaId }])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['giocatori-tab'] }); closeForm() },
+  })
+
+  const delMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('giocatori').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['giocatori-tab'] }),
+  })
+
+  function openAdd()   { setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
+  function openEdit(g) { setEditingRow(g); setForm({ ...g, squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
+  function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_GIOCATORE) }
+
+  function openAccountModal(g) {
+    setAccountModal(g)
+    setAccountForm({ email: '', password: '' })
+    setAccountErr(null)
+    setAccountOk(false)
+  }
+
+  async function handleCreaAccount(e) {
+    e.preventDefault()
+    setCreatingAcc(true)
+    setAccountErr(null)
+    try {
+      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+      const res = await fetch(`${apiBase}/api/admin/create-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:    accountForm.email,
+          password: accountForm.password,
+          user_metadata: {
+            nome:       accountModal.nome,
+            cognome:    accountModal.cognome,
+            ruolo:      'giocatore',
+            societa_id: societaId,
+          },
+        }),
+      })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      const newUserId = json.user?.id
+      if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
+
+      await supabase.from('profiles').upsert([{
+        id:         newUserId,
+        email:      accountForm.email.trim(),
+        nome:       accountModal.nome,
+        cognome:    accountModal.cognome,
+        ruolo:      'giocatore',
+        societa_id: societaId,
+        squadra:    accountModal.squadra,
+        squadra2:   accountModal.squadra2 || null,
+        squadra3:   accountModal.squadra3 || null,
+        attivo:     true,
+      }], { onConflict: 'id' })
+
+      const { error: linkErr } = await supabase
+        .from('giocatori')
+        .update({ user_id: newUserId })
+        .eq('id', accountModal.id)
+      if (linkErr) throw linkErr
+
+      setAccountOk(true)
+      qc.invalidateQueries({ queryKey: ['giocatori-tab'] })
+      setTimeout(() => setAccountModal(null), 2500)
+    } catch (err) {
+      setAccountErr(err.message)
+    } finally {
+      setCreatingAcc(false)
+    }
+  }
+
+  if (isLoading) return <LoadingSpinner message="Caricamento giocatori..." />
+  if (error) return (
+    <div className="p-4 text-center">
+      <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
+      <p className="text-sm text-gray-600">Tabella <code>giocatori</code> non trovata.</p>
+      <p className="text-xs text-gray-400 mt-1">Esegui prima la migrazione SQL.</p>
+    </div>
+  )
+
+  const bySquadra = giocatori.reduce((acc, g) => {
+    const sq = g.squadra || 'Senza squadra'
+    if (!acc[sq]) acc[sq] = []
+    acc[sq].push(g)
+    return acc
+  }, {})
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-gray-500">{giocatori.length} giocatori</p>
+        <button onClick={openAdd}
+          className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={15} /> Aggiungi
+        </button>
+      </div>
+
+      {giocatori.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <Users size={40} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Nessun giocatore registrato</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(bySquadra).sort(([a],[b]) => a.localeCompare(b)).map(([squadra, list]) => (
+            <div key={squadra}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{squadra}</p>
+              <div className="space-y-2">
+                {list.map(g => (
+                  <div key={g.id} className={`bg-white border rounded-xl p-3 transition-opacity ${!g.attivo ? 'opacity-50 border-gray-100' : 'border-gray-200'}`}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm text-gray-900">{g.cognome} {g.nome}</span>
+                          {g.numero_maglia != null && (
+                            <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">#{g.numero_maglia}</span>
+                          )}
+                          {g.squadra2 && (
+                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{g.squadra2}</span>
+                          )}
+                          {g.squadra3 && (
+                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{g.squadra3}</span>
+                          )}
+                          {!g.attivo && (
+                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inattivo</span>
+                          )}
+                          {g.user_id && (
+                            <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">App</span>
+                          )}
+                        </div>
+                        {g.data_nascita && (
+                          <p className="text-xs text-gray-400 mt-0.5">Nato: {new Date(g.data_nascita).toLocaleDateString('it-IT')}</p>
+                        )}
+                        {g.note && (
+                          <p className="text-xs text-gray-400 italic mt-0.5 truncate">{g.note}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0 items-center">
+                        {!g.user_id && (
+                          <button
+                            onClick={() => openAccountModal(g)}
+                            className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg border border-purple-100"
+                            title="Crea account app"
+                          >
+                            <UserPlus size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => openEdit(g)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg">
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => window.confirm(`Eliminare ${g.nome} ${g.cognome}?`) && delMut.mutate(g.id)}
+                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && (
+        <Modal title={editingRow ? 'Modifica giocatore' : 'Nuovo giocatore'} onClose={closeForm}>
+          <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form) }} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome *">
+                <input value={form.nome} onChange={e => set('nome', e.target.value)} className={inp} placeholder="Mario" required />
+              </Field>
+              <Field label="Cognome *">
+                <input value={form.cognome} onChange={e => set('cognome', e.target.value)} className={inp} placeholder="Rossi" required />
+              </Field>
+            </div>
+            <Field label="Squadra principale *">
+              <select value={form.squadra} onChange={e => set('squadra', e.target.value)} className={inp} required>
+                <option value="">Scegli squadra...</option>
+                {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Squadra 2 (opzionale)">
+              <select value={form.squadra2} onChange={e => set('squadra2', e.target.value)} className={inp}>
+                <option value="">Nessuna</option>
+                {squadreDisp.filter(s => s !== form.squadra && s !== form.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <Field label="Squadra 3 (opzionale)">
+              <select value={form.squadra3} onChange={e => set('squadra3', e.target.value)} className={inp}>
+                <option value="">Nessuna</option>
+                {squadreDisp.filter(s => s !== form.squadra && s !== form.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Data nascita">
+                <input type="date" value={form.data_nascita} onChange={e => set('data_nascita', e.target.value)} className={inp} />
+              </Field>
+              <Field label="N. maglia">
+                <input type="number" min="0" max="99" value={form.numero_maglia} onChange={e => set('numero_maglia', e.target.value)} className={inp} placeholder="–" />
+              </Field>
+            </div>
+            <Field label="Note">
+              <input value={form.note} onChange={e => set('note', e.target.value)} className={inp} placeholder="Opzionale" />
+            </Field>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.attivo} onChange={e => set('attivo', e.target.checked)} className="rounded" />
+              <span className="text-sm text-gray-700">Giocatore attivo</span>
+            </label>
+            {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
+            <button type="submit" disabled={saveMut.isPending}
+              className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+              {saveMut.isPending ? 'Salvataggio...' : editingRow ? 'Salva modifiche' : 'Aggiungi giocatore'}
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {accountModal && (
+        <Modal title={`Crea account — ${accountModal.nome} ${accountModal.cognome}`} onClose={() => setAccountModal(null)}>
+          {accountOk ? (
+            <div className="text-center py-10">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Check size={28} className="text-green-600" />
+              </div>
+              <p className="font-semibold text-gray-800">Account creato e collegato!</p>
+              <p className="text-xs text-gray-500 mt-1">Il giocatore può ora accedere all'app.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleCreaAccount} className="space-y-4">
+              <p className="text-xs text-gray-500">Crea un account app per questo giocatore. L'account sarà collegato automaticamente al suo profilo.</p>
+              <Field label="Email *">
+                <input type="email" value={accountForm.email} onChange={e => setAccountForm(f => ({ ...f, email: e.target.value }))}
+                  className={inp} placeholder="mario@esempio.com" required />
+              </Field>
+              <Field label="Password iniziale *">
+                <input type="text" value={accountForm.password} onChange={e => setAccountForm(f => ({ ...f, password: e.target.value }))}
+                  className={inp} placeholder="Almeno 6 caratteri" required minLength={6} />
+              </Field>
+              {accountErr && <p className="text-xs text-red-500">{accountErr}</p>}
+              <button type="submit" disabled={creatingAcc}
+                className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+                {creatingAcc ? 'Creazione account...' : 'Crea account'}
+              </button>
+            </form>
+          )}
+        </Modal>
+      )}
+    </div>
+  )
+}
+
 // ─── Tab list (module level, non dipende da state) ────────────────────────────
 
 const ALL_TABS = [
   { id: 'squadre',     label: 'Squadre',     icon: Users,     superAdminOnly: false },
   { id: 'palestre',    label: 'Palestre',    icon: Building2, superAdminOnly: false },
   { id: 'allenatori',  label: 'Allenatori',  icon: UserCheck, superAdminOnly: false },
+  { id: 'giocatori',   label: 'Giocatori',   icon: UserPlus,  superAdminOnly: false },
   { id: 'utenti',      label: 'Utenti',      icon: Shield,    superAdminOnly: false },
   { id: 'scheduling',  label: 'Scheduling',  icon: Calendar,  superAdminOnly: false, hidden: true },
   { id: 'societa',     label: 'Società',     icon: Globe,     superAdminOnly: true  },
@@ -1946,6 +2302,7 @@ export default function SetupPage() {
         {activeTab === 'squadre'     && <SquadreTab />}
         {activeTab === 'palestre'    && <PalestreTab />}
         {activeTab === 'allenatori'  && <AllenatoriTab />}
+        {activeTab === 'giocatori'   && <GiocatoriTab />}
         {activeTab === 'utenti'      && <UtentiTab />}
         {activeTab === 'scheduling'  && <SchedulingTab />}
         {activeTab === 'societa'     && <SocietaTab />}

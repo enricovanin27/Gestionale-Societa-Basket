@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
         console.error('Errore fetch profile:', error)
         return null
       }
-      if (data?.ruolo === 'genitore' || data?.ruolo === 'allenatore') {
+      if (data?.ruolo === 'genitore' || data?.ruolo === 'giocatore' || data?.ruolo === 'allenatore') {
         const squadre = data.ruolo === 'allenatore'
           ? [data.squadra, data.squadra2, data.squadra3].filter(Boolean)
           : [data.squadra].filter(Boolean)
@@ -109,6 +109,7 @@ export function AuthProvider({ children }) {
     isAdmin:            role === 'admin' || role === 'super_admin',
     isAllenatore:       role === 'allenatore',
     isGenitore:         role === 'genitore',
+    isGiocatore:        role === 'giocatore',
     isPasswordRecovery,
     clearPasswordRecovery,
   }
