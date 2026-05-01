@@ -13,6 +13,8 @@ import AllenamentiPage from './pages/AllenamentiPage'
 import SetupPage from './pages/SetupPage'
 import ImportaCalendarioPage from './pages/ImportaCalendarioPage'
 import PlatformPage from './pages/PlatformPage'
+import BachecaPage from './pages/BachecaPage'
+import CalendarioFamigliaPage from './pages/CalendarioFamigliaPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +86,14 @@ function NuovaPasswordPage({ onDone }) {
   )
 }
 
+// ─── Dispatch calendario per ruolo ───────────────────────────────────────────
+
+function CalendarioDispatch() {
+  const { isAdmin, isAllenatore } = useAuth()
+  if (isAdmin || isAllenatore) return <CalendarioPage />
+  return <CalendarioFamigliaPage />
+}
+
 // ─── Shell principale ─────────────────────────────────────────────────────────
 
 function AppShell() {
@@ -125,7 +135,7 @@ function AppShell() {
           path="/calendario"
           element={
             <ProtectedRoute>
-              <CalendarioPage />
+              <CalendarioDispatch />
             </ProtectedRoute>
           }
         />
@@ -150,6 +160,14 @@ function AppShell() {
           element={
             <ProtectedRoute requiredRole="allenatore">
               <ImportaCalendarioPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bacheca"
+          element={
+            <ProtectedRoute>
+              <BachecaPage />
             </ProtectedRoute>
           }
         />

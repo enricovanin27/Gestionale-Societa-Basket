@@ -571,7 +571,6 @@ function AllenatoreEventModal({ event, onClose, showPresenza = false }) {
               <div className="flex gap-2">
                 {[
                   { val: 'presente', label: '✅ Ci sarò',      active: 'bg-green-600 text-white border-green-600' },
-                  { val: 'forse',    label: '❓ Forse',         active: 'bg-amber-500 text-white border-amber-500' },
                   { val: 'assente',  label: '❌ Non ci sarò',   active: 'bg-red-500 text-white border-red-500' },
                 ].map(({ val, label, active }) => (
                   <button
@@ -1324,48 +1323,6 @@ function NuovaHome({ user, profile, displayName, logout, societaNome, isAllenato
   const [showAddPartita, setShowAddPartita] = useState(false)
   const [fabOpen,        setFabOpen]        = useState(false)
 
-  // calendario eventi – genitori/giocatori
-  const [calView,        setCalView]        = useState('settimana')
-  const [calWeekOffset,  setCalWeekOffset]  = useState(0)
-  const [calMonthOffset, setCalMonthOffset] = useState(0)
-
-  const calWeekStart = useMemo(
-    () => startOfWeek(addWeeks(today, calWeekOffset), { weekStartsOn: 1 }),
-    [calWeekOffset]
-  )
-  const calWeekDays  = useMemo(() => getWeekDays(addWeeks(today, calWeekOffset)), [calWeekOffset])
-  const calWeekLabel = useMemo(() => {
-    const s = format(calWeekDays[0], 'd MMM', { locale: it })
-    const e = format(calWeekDays[6], 'd MMM yyyy', { locale: it })
-    return `${s} – ${e}`
-  }, [calWeekDays])
-
-  const calMonthDate  = useMemo(() => startOfMonth(addMonths(today, calMonthOffset)), [calMonthOffset])
-  const calMonthLabel = useMemo(() => format(calMonthDate, 'MMMM yyyy', { locale: it }), [calMonthDate])
-
-  const { data: calWeekData,  isLoading: calWeekLoading  } = useWeekEvents(calWeekStart)
-  const { data: calMonthData, isLoading: calMonthLoading } = useMonthEvents(calMonthDate, !isAllenatore && calView === 'mese')
-
-  const calWeekByDate = useMemo(() => {
-    if (!calWeekData) return {}
-    const filtered = (calWeekData.events ?? []).filter(e =>
-      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase()) && !e.annullato
-    )
-    const byDate = {}
-    for (const e of filtered) {
-      if (!byDate[e.data]) byDate[e.data] = []
-      byDate[e.data].push(e)
-    }
-    return byDate
-  }, [calWeekData, mySquadre])
-
-  const calMonthEvents = useMemo(() => {
-    if (!calMonthData) return []
-    return (calMonthData.events ?? []).filter(e =>
-      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
-    )
-  }, [calMonthData, mySquadre])
-
   const saveMut = useMutation({
     mutationFn: ({ event, formData }) => saveAllenamento(event, formData, societaId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
@@ -1531,116 +1488,6 @@ function NuovaHome({ user, profile, displayName, logout, societaNome, isAllenato
           )}
         </div>
       </div>
-
-      {/* Calendario eventi – solo genitori/giocatori */}
-      {!isAllenatore && (
-        <div className="px-4 pt-4 pb-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Calendario</h2>
-
-          {/* Tab settimana/mese */}
-          <div className="flex bg-gray-100 rounded-lg p-0.5 mb-3">
-            {[['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, label]) => (
-              <button key={v} onClick={() => setCalView(v)}
-                className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
-                  calView === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >{label}</button>
-            ))}
-          </div>
-
-          {/* Navigazione */}
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => calView === 'settimana' ? setCalWeekOffset(w => w - 1) : setCalMonthOffset(m => m - 1)}
-              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-            >
-              <ChevronLeft size={20} className="text-gray-600" />
-            </button>
-            <div className="text-center select-none">
-              {calView === 'settimana' ? (
-                <>
-                  <div className="text-sm font-semibold text-gray-800">{calWeekLabel}</div>
-                  {calWeekOffset === 0 && <div className="text-xs text-blue-500 font-medium">Settimana corrente</div>}
-                </>
-              ) : (
-                <>
-                  <div className="text-sm font-semibold text-gray-800 capitalize">{calMonthLabel}</div>
-                  {calMonthOffset === 0 && <div className="text-xs text-blue-500 font-medium">Mese corrente</div>}
-                </>
-              )}
-            </div>
-            <button
-              onClick={() => calView === 'settimana' ? setCalWeekOffset(w => w + 1) : setCalMonthOffset(m => m + 1)}
-              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-            >
-              <ChevronRight size={20} className="text-gray-600" />
-            </button>
-          </div>
-
-          {/* Legenda */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
-            {[
-              { cls: 'bg-indigo-400', label: 'Allenamento' },
-              { cls: 'bg-green-500',  label: 'Casa'        },
-              { cls: 'bg-blue-500',   label: 'Trasferta'   },
-              { cls: 'bg-yellow-400', label: 'Provvisoria' },
-            ].map(({ cls, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <div className={`w-2.5 h-2.5 rounded-full ${cls}`} />
-                <span className="text-xs text-gray-500">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Vista settimana */}
-          {calView === 'settimana' ? (
-            calWeekLoading ? <LoadingSpinner message="Caricamento..." /> : (
-              <div className="overflow-x-auto -mx-4 px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <div className="flex gap-2" style={{ minWidth: 'max-content' }}>
-                  {calWeekDays.map(day => {
-                    const dateStr   = format(day, 'yyyy-MM-dd')
-                    const isToday   = isDateToday(dateStr)
-                    const dayEvents = (calWeekByDate[dateStr] ?? [])
-                      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
-                    return (
-                      <div key={dateStr} className="w-36 flex-shrink-0">
-                        <div className={`rounded-xl p-2 mb-2 text-center ${isToday ? 'bg-blue-600' : 'bg-white border border-gray-200'}`}>
-                          <div className={`text-xs font-medium uppercase tracking-wide ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
-                            {format(day, 'EEE', { locale: it })}
-                          </div>
-                          <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-700'}`}>
-                            {format(day, 'd')}
-                          </div>
-                        </div>
-                        {dayEvents.length === 0 ? (
-                          <div className="text-gray-300 text-center py-6 text-sm select-none">–</div>
-                        ) : (
-                          dayEvents.map((event, i) => (
-                            <AllenatoreEventCard
-                              key={`${event._source}-${event.id ?? i}`}
-                              event={event}
-                              onClick={setSelectedEvent}
-                            />
-                          ))
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          ) : (
-            calMonthLoading ? <LoadingSpinner message="Caricamento..." /> : (
-              <AllenatoreMonthGrid
-                key={calMonthLabel}
-                monthDate={calMonthDate}
-                events={calMonthEvents}
-                onEventClick={setSelectedEvent}
-              />
-            )
-          )}
-        </div>
-      )}
 
       {/* FAB allenatori */}
       {isAllenatore && (<>
@@ -2028,7 +1875,8 @@ function AllenatoreHome({ user, displayName, logout, societaNome }) {
 // GENITORE / GIOCATORE HOME — vista settimanale + mensile per la propria squadra
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function GenitoreHome({ profile, displayName, logout, societaNome }) {
+export function GenitoreHome() {
+  const { profile, displayName, logout, societaNome } = useAuth()
   const [view,          setView]          = useState('settimana')
   const [weekOffset,    setWeekOffset]    = useState(0)
   const [monthOffset,   setMonthOffset]   = useState(0)

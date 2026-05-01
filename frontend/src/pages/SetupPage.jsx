@@ -764,7 +764,7 @@ function UtentiTab() {
   const { user: me, societaId, isSuperAdmin } = useAuth()
   const [deleteErr, setDeleteErr]     = useState(null)
   const [showInvite, setShowInvite]   = useState(false)
-  const [inviteForm, setInviteForm]   = useState({ email: '', nome: '', cognome: '', ruolo: 'allenatore', password: '', squadra: '', squadra2: '', squadra3: '', societa_id: '' })
+  const [inviteForm, setInviteForm]   = useState({ email: '', nome: '', cognome: '', ruolo: 'allenatore', password: '', squadra: '', squadra2: '', squadra3: '', societa_id: '', giocatoreId: '' })
   const [inviting, setInviting]       = useState(false)
   const [inviteErr, setInviteErr]     = useState(null)
   const [inviteOk, setInviteOk]       = useState(false)
@@ -826,6 +826,20 @@ function UtentiTab() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  const { data: giocatoriAll = [] } = useQuery({
+    queryKey: ['giocatori-for-invite'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome, squadra, squadra2, squadra3, user_id')
+        .eq('attivo', true)
+        .order('cognome').order('nome')
+      return data ?? []
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+  const giocatoriSenzaAccount = giocatoriAll.filter(g => !g.user_id)
 
   const ruoloMut = useMutation({
     mutationFn: async ({ id, ruolo }) => {
@@ -933,9 +947,18 @@ function UtentiTab() {
           profileData.squadra3 = inviteForm.squadra3 || null
         }
         if (inviteForm.ruolo === 'giocatore') {
-          profileData.squadra = inviteForm.squadra || null
+          profileData.squadra  = inviteForm.squadra  || null
+          profileData.squadra2 = inviteForm.squadra2 || null
+          profileData.squadra3 = inviteForm.squadra3 || null
         }
         await supabase.from('profiles').upsert([profileData], { onConflict: 'id' })
+      }
+
+      // Se giocatore con collegamento a un giocatore esistente: aggiorna user_id
+      if (inviteForm.ruolo === 'giocatore' && inviteForm.giocatoreId) {
+        await supabase.from('giocatori').update({ user_id: newUserId }).eq('id', inviteForm.giocatoreId)
+        qc.invalidateQueries({ queryKey: ['giocatori-tab'] })
+        qc.invalidateQueries({ queryKey: ['giocatori-for-invite'] })
       }
 
       // Se allenatore: crea riga in allenatori
@@ -951,7 +974,7 @@ function UtentiTab() {
       setTimeout(() => {
         setShowInvite(false)
         setInviteOk(false)
-        setInviteForm({ email: '', nome: '', cognome: '', ruolo: 'allenatore', squadra: '', squadra2: '', squadra3: '', password: '', societa_id: '' })
+        setInviteForm({ email: '', nome: '', cognome: '', ruolo: 'allenatore', squadra: '', squadra2: '', squadra3: '', password: '', societa_id: '', giocatoreId: '' })
         qc.invalidateQueries({ queryKey: ['setup-utenti'] })
         qc.invalidateQueries({ queryKey: ['allenatori-tab'] })
       }, 2500)
@@ -1064,13 +1087,12 @@ function UtentiTab() {
                       </div>
                     )}
                     {u.ruolo === 'giocatore' && (
-                      <div className="mt-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-400">Squadra:</span>
-                          {u.squadra
-                            ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
-                            : <span className="text-xs text-gray-400 italic">–</span>}
-                        </div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {u.squadra
+                          ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
+                          : <span className="text-xs text-gray-400 italic">–</span>}
+                        {u.squadra2 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{u.squadra2}</span>}
+                        {u.squadra3 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{u.squadra3}</span>}
                       </div>
                     )}
                   </div>
@@ -1110,16 +1132,32 @@ function UtentiTab() {
                           {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </>)}
-                      {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (
+                      {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (<>
                         <select
                           value={u.squadra ?? ''}
                           onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
                         >
-                          <option value="">– Squadra –</option>
+                          <option value="">– Squadra 1 –</option>
                           {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
-                      )}
+                        <select
+                          value={u.squadra2 ?? ''}
+                          onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                          <option value="">– Sq 2 –</option>
+                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <select
+                          value={u.squadra3 ?? ''}
+                          onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
+                        >
+                          <option value="">– Sq 3 –</option>
+                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </>)}
                       <button
                         onClick={() => disabledMut.mutate({ id: u.id, attivo: !u.attivo })}
                         className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
@@ -1222,8 +1260,34 @@ function UtentiTab() {
                   </p>
                 </div>
               )}
-              {inviteForm.ruolo === 'genitore' && (
-                squadreDisp.length === 0 ? (
+              {inviteForm.ruolo === 'genitore' && (<>
+                {giocatoriAll.length > 0 && (
+                  <Field label="Figlio/a (giocatore)">
+                    <select
+                      value={inviteForm.giocatoreId ?? ''}
+                      onChange={e => {
+                        const gId = e.target.value
+                        const g = gId ? giocatoriAll.find(x => x.id === gId) : null
+                        setInviteForm(f => ({
+                          ...f,
+                          giocatoreId: gId,
+                          squadra:  g ? (g.squadra  ?? '') : f.squadra,
+                          squadra2: g ? (g.squadra2 ?? '') : f.squadra2,
+                          squadra3: g ? (g.squadra3 ?? '') : f.squadra3,
+                        }))
+                      }}
+                      className={inp}
+                    >
+                      <option value="">-- Seleziona giocatore --</option>
+                      {giocatoriAll.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.cognome} {g.nome}{g.squadra ? ` (${g.squadra})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                {squadreDisp.length === 0 ? (
                   <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
                 ) : (<>
                   <Field label="Squadra 1">
@@ -1244,20 +1308,60 @@ function UtentiTab() {
                       {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </Field>
-                </>)
-              )}
-              {inviteForm.ruolo === 'giocatore' && (
-                squadreDisp.length === 0 ? (
+                </>)}
+              </>)}
+              {inviteForm.ruolo === 'giocatore' && (<>
+                {giocatoriSenzaAccount.length > 0 && (
+                  <Field label="Collega a giocatore esistente (opzionale)">
+                    <select
+                      value={inviteForm.giocatoreId ?? ''}
+                      onChange={e => {
+                        const gId = e.target.value
+                        const g = gId ? giocatoriSenzaAccount.find(x => x.id === gId) : null
+                        setInviteForm(f => ({
+                          ...f,
+                          giocatoreId: gId,
+                          nome:     g ? g.nome    : f.nome,
+                          cognome:  g ? g.cognome : f.cognome,
+                          squadra:  g ? (g.squadra  ?? '') : f.squadra,
+                          squadra2: g ? (g.squadra2 ?? '') : f.squadra2,
+                          squadra3: g ? (g.squadra3 ?? '') : f.squadra3,
+                        }))
+                      }}
+                      className={inp}
+                    >
+                      <option value="">-- Nessuno / crea nuovo --</option>
+                      {giocatoriSenzaAccount.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.cognome} {g.nome}{g.squadra ? ` (${g.squadra})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+                {squadreDisp.length === 0 ? (
                   <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
-                ) : (
-                  <Field label="Squadra">
+                ) : (<>
+                  <Field label="Squadra principale">
                     <select value={inviteForm.squadra ?? ''} onChange={e => setI('squadra', e.target.value)} className={inp}>
                       <option value="">Scegli squadra...</option>
                       {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </Field>
-                )
-              )}
+                  <Field label="Squadra 2 (opzionale)">
+                    <select value={inviteForm.squadra2 ?? ''} onChange={e => setI('squadra2', e.target.value)} className={inp}>
+                      <option value="">Nessuna</option>
+                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Squadra 3 (opzionale)">
+                    <select value={inviteForm.squadra3 ?? ''} onChange={e => setI('squadra3', e.target.value)} className={inp}>
+                      <option value="">Nessuna</option>
+                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </Field>
+                </>)}
+              </>)}
               {inviteErr && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                   <p className="text-xs text-red-600">{inviteErr}</p>
@@ -2016,8 +2120,8 @@ function GiocatoriTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['giocatori-tab'] }),
   })
 
-  function openAdd()   { setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
-  function openEdit(g) { setEditingRow(g); setForm({ ...g, squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
+  function openAdd()   { saveMut.reset(); setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
+  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_GIOCATORE) }
 
   function openAccountModal(g) {
