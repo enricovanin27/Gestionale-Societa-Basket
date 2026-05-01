@@ -1,0 +1,38 @@
+--CAMBIARE RUOLO
+  UPDATE profiles             
+     SET ruolo = 'super_admin'
+  WHERE email = 'enrico.vanin.work@gmail.com';
+
+
+
+----COME ARRIVANO LE NOTIFICHE---
+Flusso completo in 3 passaggi:
+
+  ---
+  1. Registrazione (una volta al login)
+
+  Quando l'utente fa login, useAuth chiama initPushNotifications. Il browser chiede il permesso per le
+  notifiche. Se l'utente accetta, il browser genera un oggetto "subscription" (un indirizzo univoco per
+  quel browser su quel dispositivo) e lo salva nella tabella push_subscriptions su Supabase, insieme
+  alla/e squadra/e dell'utente.
+
+  ---
+  2. Trigger (chi manda la notifica)
+
+  Oggi c'è un solo trigger: quando un allenatore annulla un allenamento da AllenamentiPage. In quel
+  momento il frontend chiama il tuo backend FastAPI (POST /api/notifica/allenamento) passando squadra,
+  societa_id, titolo e testo.
+
+  ---
+  3. Invio (backend ? browser)
+
+  Il backend:
+  1. Legge da push_subscriptions tutti gli utenti con quella squadra nell'array squadre
+  2. Per ognuno chiama webpush(...) con la chiave VAPID privata
+  3. Il servizio push di Google/Mozilla/Apple recapita la notifica al browser — anche se l'app è chiusa
+
+  Il service worker (sw.js) riceve il messaggio e mostra la notifica di sistema sul telefono.
+
+  ---
+  Limite attuale: il backend gira in locale, quindi le notifiche funzionano solo quando il tuo PC è
+  acceso. Appena fai il deploy su Render, funzionano sempre.

@@ -1,13 +1,14 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Trophy, Settings, FileText, Bell } from 'lucide-react'
+import { Home, Calendar, Trophy, Settings, FileText, Bell, BarChart2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
 const navItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/calendario', icon: Calendar, label: 'Calendario',                       superAdminHidden: true },
-  { to: '/allenamenti', icon: Trophy, label: 'Allenamenti', staffOnly: true,     superAdminHidden: true },
-  { to: '/bacheca', icon: Bell, label: 'Bacheca', superAdminHidden: true },
+  { to: '/allenamenti',  icon: Trophy,    label: 'Allenamenti', staffOnly: true, superAdminHidden: true },
+  { to: '/statistiche', icon: BarChart2, label: 'Statistiche', staffOnly: true, superAdminHidden: true },
+  { to: '/bacheca',     icon: Bell,      label: 'Bacheca',     superAdminHidden: true },
   { to: '/importa', icon: FileText, label: 'Import FIP', staffOnly: true,        superAdminHidden: true },
   { to: '/setup', icon: Settings, label: 'Setup', adminOnly: true },
 ]

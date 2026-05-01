@@ -1,0 +1,134 @@
+Valutazione onesta dell'app
+
+  Cos'è: un gestionale verticale per società di basket. Buona base tecnica (React + Supabase,             multi-tenant, RLS). Non è un sito generico — è un SaaS.
+                                                                                                          ---
+  Cosa manca o va migliorato
+
+  Priorità alta (blocca l'uso reale)
+
+  1. Notifiche push
+  Il genitore non sa se l'allenamento è annullato finché non apre l'app. È il caso d'uso più critico:
+  l'allenamento di giovedì è cancellato ? nessuno lo sa. Serve una notifica immediata. Si fa con
+  Firebase Cloud Messaging (gratis).
+
+  2. Vista genitore/giocatore troppo passiva
+  Il genitore vede solo "cosa c'è in programma". Non può fare niente: né confermare la presenza, né
+  segnalare assenza. Gli allenatori lavorano al buio senza sapere quanti vengono.
+
+  3. Nessuna comunicazione interna
+  Admin manda un avviso ? dove va? Da nessuna parte. Serve almeno una bacheca annunci per squadra.
+  Whatsapp non dovrebbe essere il canale ufficiale.
+
+  ---
+  Priorità media (migliora la qualità)
+
+  4. Statistiche e presenze
+  Hai gli allenamenti, hai i giocatori: mancano solo i dati di presenza. Un semplice "? / ?" per
+  giocatore per allenamento darebbe dati utilissimi (es. chi si allena poco prima di una gara).
+
+  5. Gestione infortuni / indisponibilità
+  Non c'è modo di marcare un giocatore come indisponibile. L'allenatore lo saprebbe solo via WhatsApp.
+
+  6. Esportazione PDF/iCal
+  Il calendario non si può esportare. Tutti vogliono importare le partite nel calendario del telefono.
+  Un link .ics per squadra costerebbe 2 ore di lavoro e sarebbe usatissimo.
+
+  ---
+  Priorità bassa (futuro)
+
+  7. Statistiche partite — risultati, punti, andamento stagione
+  8. Gestione quote — pagamenti mensili, ricevute
+  9. Report PDF — riepilogo settimanale/mensile per la dirigenza
+
+  ---
+  Come diventa una app mobile
+
+  Hai già il 90% fatto. Il sito React funziona già da mobile (se hai fatto un layout responsive). Per
+  diventare una vera app hai due strade:
+
+  Strada 1 — PWA (2-3 ore di lavoro)
+  Aggiungi un manifest.json e un service worker. L'utente dal telefono vede "Aggiungi alla home" e l'app
+   si installa come un'app nativa. Funziona offline (parzialmente). Zero store, zero costi.
+
+  Strada 2 — React Native (settimane di lavoro)
+  Riscrivi la UI in React Native. Accesso nativo a notifiche, fotocamera, contatti. Va su App Store e
+  Google Play. Molto più lavoro, ma se vuoi venderla a tante società è la strada giusta.
+
+  Consiglio: parti dalla PWA adesso. Costa poco, risolve subito il problema "voglio l'icona sul
+  telefono". Se il prodotto cresce, valuta React Native.
+
+  ---
+  La domanda vera: si può vendere?
+
+  Sì. Il modello è SaaS per società sportive — hai già la struttura multi-tenant. Il prezzo di mercato
+  per questo tipo di tool è €20-50/mese per società. Con 20 società sono €400-1000/mese.
+
+  Cosa manca per venderlo:
+  - Landing page pubblica con prezzi
+  - Onboarding autonomo (ora serve mettere mano al DB per creare una nuova società)
+  - Le notifiche push (senza quelle non sostituisce WhatsApp e non vinci l'adozione)
+
+  La feature più impattante in assoluto da implementare subito è: notifiche push quando un allenamento
+  viene annullato o modificato.
+
+
+Report — 2026-05-01
+                                                                                                                       Cosa abbiamo fatto
+                                                                                                                       +--------------------------------------------------------------------------------------------------------------+
+  ¦  #  ¦                           Cosa                           ¦                    File                     ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 1   ¦ Home: card "Allenamenti prossima settimana" + calendario ¦ HomePage.jsx                                ¦
+  ¦     ¦  settimanale/mensile per giocatori                       ¦                                             ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 2   ¦ Architettura giocatori: 4 tabelle DB, ruolo giocatore,   ¦ SetupPage.jsx, useAuth.jsx,                 ¦
+  ¦     ¦ tab Giocatori in Setup con CRUD + crea account           ¦ supabase_migration_giocatori.sql            ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 3   ¦ Presenze allenamento: bottone ??  sulle card, modal con    ¦ AllenamentiPage.jsx                         ¦
+  ¦     ¦ lista giocatori e toggle ?/?                           ¦                                             ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 4   ¦ Indisponibilità/infortuni: bottone arancione su ogni     ¦ SetupPage.jsx                               ¦
+  ¦     ¦ giocatore, modal con storico e form                      ¦                                             ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 5   ¦ Quote/pagamenti: tab Quote (solo admin), gestione per    ¦ SetupPage.jsx                               ¦
+  ¦     ¦ giocatore con totali e toggle pagato                     ¦                                             ¦
+  +-----+----------------------------------------------------------+---------------------------------------------¦
+  ¦ 6   ¦ Fix deploy Render: requirements.txt con httpx non era    ¦ requirements.txt                            ¦
+  ¦     ¦ mai stato committato                                     ¦                                             ¦
+  +--------------------------------------------------------------------------------------------------------------+
+
+  ---
+  Stato dell'app — Valutazione onesta
+
+  Punti di forza:
+  - Il calendario allenamenti è il modulo più maturo sul mercato per società amatoriali. Conflitti palestra,
+  condivisione campo, scheduling automatico — difficile fare meglio
+  - La struttura dati multi-tenancy con RLS è solida e scalabile. Non ci sono falle di sicurezza ovvie
+  - I ruoli sono ben separati sia nel frontend che nel DB
+
+  Punti deboli:
+
+  1. I dati vengono raccolti ma non letti. Presenze, infortuni, quote — tutto finisce nel DB ma non c'è ancora
+  nessuna pagina che li aggrega. È come comprare un taccuino e non rileggere mai gli appunti.
+
+  2. La home del giocatore è un pannello informativo, non uno strumento. Vede il prossimo allenamento. Ma non sa se è
+   in debito con le quote, non vede il suo storico presenze, non sa se è in lista per la partita.
+
+  3. Zero statistiche. Nessuna risposta a "quanto è stato presente Rossi questo mese?" o "chi ha quote arretrate?". I
+   dati ci sono, manca solo la lettura aggregata.
+
+  4. Il PDF è ancora un miraggio. Era nel piano fin dall'inizio. Chiuderebbe il loop tra raccolta dati e uso pratico:
+   l'allenatore stampa il foglio presenze, l'admin stampa la situazione pagamenti.
+
+  5. Deploy fragile. Render free va in sleep dopo 15 minuti. Le prime push notifications dopo il risveglio si
+  perdono.
+
+  6. Onboarding assente. Un nuovo admin non sa da dove iniziare. Niente wizard, niente guide contestuali.
+
+  ---
+  Priorità suggerite
+
+  1. Pagina statistiche per allenatore: presenze per giocatore per mese, chi è infortunato
+  2. Vista debiti per admin: giocatori con quote arretrate, totale per squadra
+  3. PDF foglio presenze e situazione pagamenti
+  4. iCal export — rapido e molto richiesto dai genitori
+  5. Deploy paid per eliminare il cold start

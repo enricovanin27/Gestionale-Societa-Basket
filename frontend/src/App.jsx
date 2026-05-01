@@ -15,6 +15,7 @@ import ImportaCalendarioPage from './pages/ImportaCalendarioPage'
 import PlatformPage from './pages/PlatformPage'
 import BachecaPage from './pages/BachecaPage'
 import CalendarioFamigliaPage from './pages/CalendarioFamigliaPage'
+import StatistichePage from './pages/StatistichePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -168,6 +169,14 @@ function AppShell() {
           element={
             <ProtectedRoute>
               <BachecaPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/statistiche"
+          element={
+            <ProtectedRoute requiredRole="allenatore">
+              <StatistichePage />
             </ProtectedRoute>
           }
         />
