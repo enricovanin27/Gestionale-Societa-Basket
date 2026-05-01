@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
   Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe, UserPlus,
-  Activity, CreditCard, ChevronDown, ChevronUp,
+  Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseAdmin } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
 
@@ -911,24 +911,20 @@ function UtentiTab() {
         throw new Error('Il tuo profilo non ha una società associata. Vai su Supabase Dashboard → Table Editor → profiles e imposta societa_id per il tuo account.')
       }
 
-      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-      const createRes = await fetch(`${apiBase}/api/admin/create-user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email:    inviteForm.email,
-          password: inviteForm.password,
-          user_metadata: {
-            nome:       inviteForm.nome,
-            cognome:    inviteForm.cognome,
-            ruolo:      inviteForm.ruolo,
-            societa_id: targetSocietaId,
-          },
-        }),
+      if (!supabaseAdmin) throw new Error('Service role key non configurata')
+      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email:         inviteForm.email,
+        password:      inviteForm.password,
+        email_confirm: true,
+        user_metadata: {
+          nome:       inviteForm.nome,
+          cognome:    inviteForm.cognome,
+          ruolo:      inviteForm.ruolo,
+          societa_id: targetSocietaId,
+        },
       })
-      const createJson = await createRes.json()
-      if (createJson.error) throw new Error(createJson.error)
-      const newUserId = createJson.user?.id
+      if (createErr) throw createErr
+      const newUserId = createData.user?.id
       if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
 
       if (newUserId) {
@@ -1106,32 +1102,6 @@ function UtentiTab() {
                       >
                         {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
                       </select>
-                      {u.ruolo === 'genitore' && squadreDisp.length > 0 && (<>
-                        <select
-                          value={u.squadra ?? ''}
-                          onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                        >
-                          <option value="">– Squadra 1 –</option>
-                          {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <select
-                          value={u.squadra2 ?? ''}
-                          onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                        >
-                          <option value="">– Sq 2 –</option>
-                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <select
-                          value={u.squadra3 ?? ''}
-                          onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-400"
-                        >
-                          <option value="">– Sq 3 –</option>
-                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </>)}
                       {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (<>
                         <select
                           value={u.squadra ?? ''}
@@ -1287,7 +1257,14 @@ function UtentiTab() {
                     </select>
                   </Field>
                 )}
-                {squadreDisp.length === 0 ? (
+                {inviteForm.giocatoreId ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Squadre ereditate dal giocatore:{' '}
+                    <span className="font-medium">
+                      {[inviteForm.squadra, inviteForm.squadra2, inviteForm.squadra3].filter(Boolean).join(', ') || '–'}
+                    </span>
+                  </p>
+                ) : squadreDisp.length === 0 ? (
                   <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
                 ) : (<>
                   <Field label="Squadra 1">
@@ -2051,7 +2028,7 @@ function SocietaTab() {
 // TAB — GIOCATORI
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const EMPTY_GIOCATORE = { nome: '', cognome: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', attivo: true }
+const EMPTY_GIOCATORE = { nome: '', cognome: '', email: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', attivo: true }
 
 function GiocatoriTab() {
   const qc = useQueryClient()
@@ -2075,6 +2052,15 @@ function GiocatoriTab() {
     },
   })
 
+  const { data: giocatoriAccountEmails = new Set() } = useQuery({
+    queryKey: ['giocatori-account-emails'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('email').eq('ruolo', 'giocatore')
+      return new Set((data ?? []).map(p => p.email?.toLowerCase()).filter(Boolean))
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: giocatori = [], isLoading, error } = useQuery({
     queryKey: ['giocatori-tab'],
     queryFn: async () => {
@@ -2093,6 +2079,7 @@ function GiocatoriTab() {
       const payload = {
         nome:           f.nome.trim(),
         cognome:        f.cognome.trim(),
+        email:          f.email?.trim().toLowerCase() || null,
         squadra:        f.squadra,
         squadra2:       f.squadra2 || null,
         squadra3:       f.squadra3 || null,
@@ -2121,12 +2108,12 @@ function GiocatoriTab() {
   })
 
   function openAdd()   { saveMut.reset(); setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
-  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
+  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, email: g.email ?? '', squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_GIOCATORE) }
 
   function openAccountModal(g) {
     setAccountModal(g)
-    setAccountForm({ email: '', password: '' })
+    setAccountForm({ email: g.email ?? '', password: '' })
     setAccountErr(null)
     setAccountOk(false)
   }
@@ -2136,24 +2123,21 @@ function GiocatoriTab() {
     setCreatingAcc(true)
     setAccountErr(null)
     try {
-      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-      const res = await fetch(`${apiBase}/api/admin/create-user`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email:    accountForm.email,
-          password: accountForm.password,
-          user_metadata: {
-            nome:       accountModal.nome,
-            cognome:    accountModal.cognome,
-            ruolo:      'giocatore',
-            societa_id: societaId,
-          },
-        }),
+      if (!supabaseAdmin) throw new Error('Service role key non configurata')
+
+      const { data, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email:             accountForm.email.trim(),
+        password:          accountForm.password,
+        email_confirm:     true,
+        user_metadata: {
+          nome:       accountModal.nome,
+          cognome:    accountModal.cognome,
+          ruolo:      'giocatore',
+          societa_id: societaId,
+        },
       })
-      const json = await res.json()
-      if (json.error) throw new Error(json.error)
-      const newUserId = json.user?.id
+      if (createErr) throw createErr
+      const newUserId = data.user?.id
       if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
 
       await supabase.from('profiles').upsert([{
@@ -2177,6 +2161,7 @@ function GiocatoriTab() {
 
       setAccountOk(true)
       qc.invalidateQueries({ queryKey: ['giocatori-tab'] })
+      qc.invalidateQueries({ queryKey: ['giocatori-account-emails'] })
       setTimeout(() => setAccountModal(null), 2500)
     } catch (err) {
       setAccountErr(err.message)
@@ -2222,7 +2207,9 @@ function GiocatoriTab() {
             <div key={squadra}>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{squadra}</p>
               <div className="space-y-2">
-                {list.map(g => (
+                {list.map(g => {
+                  const hasAccount = !!(g.email && giocatoriAccountEmails.has(g.email.toLowerCase()))
+                  return (
                   <div key={g.id} className={`bg-white border rounded-xl p-3 transition-opacity ${!g.attivo ? 'opacity-50 border-gray-100' : 'border-gray-200'}`}>
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
@@ -2240,9 +2227,11 @@ function GiocatoriTab() {
                           {!g.attivo && (
                             <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inattivo</span>
                           )}
-                          {g.user_id && (
-                            <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">App</span>
-                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            hasAccount ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {hasAccount ? 'Ha account' : 'Senza account'}
+                          </span>
                         </div>
                         {g.data_nascita && (
                           <p className="text-xs text-gray-400 mt-0.5">Nato: {new Date(g.data_nascita).toLocaleDateString('it-IT')}</p>
@@ -2252,7 +2241,7 @@ function GiocatoriTab() {
                         )}
                       </div>
                       <div className="flex gap-1 shrink-0 items-center">
-                        {!g.user_id && (
+                        {!hasAccount && g.email && (
                           <button
                             onClick={() => openAccountModal(g)}
                             className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg border border-purple-100"
@@ -2280,7 +2269,8 @@ function GiocatoriTab() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ))}
@@ -2298,6 +2288,9 @@ function GiocatoriTab() {
                 <input value={form.cognome} onChange={e => set('cognome', e.target.value)} className={inp} placeholder="Rossi" required />
               </Field>
             </div>
+            <Field label="Email">
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inp} placeholder="mario@esempio.com" />
+            </Field>
             <Field label="Squadra principale *">
               <select value={form.squadra} onChange={e => set('squadra', e.target.value)} className={inp} required>
                 <option value="">Scegli squadra...</option>
@@ -2353,9 +2346,9 @@ function GiocatoriTab() {
           ) : (
             <form onSubmit={handleCreaAccount} className="space-y-4">
               <p className="text-xs text-gray-500">Crea un account app per questo giocatore. L'account sarà collegato automaticamente al suo profilo.</p>
-              <Field label="Email *">
-                <input type="email" value={accountForm.email} onChange={e => setAccountForm(f => ({ ...f, email: e.target.value }))}
-                  className={inp} placeholder="mario@esempio.com" required />
+              <Field label="Email">
+                <input type="email" value={accountForm.email} readOnly
+                  className={`${inp} bg-gray-50 text-gray-500 cursor-default`} />
               </Field>
               <Field label="Password iniziale *">
                 <input type="text" value={accountForm.password} onChange={e => setAccountForm(f => ({ ...f, password: e.target.value }))}
@@ -2748,6 +2741,85 @@ function QuoteGiocatoreModal({ giocatore, societaId, onClose }) {
   )
 }
 
+// ─── GuidaRapida ─────────────────────────────────────────────────────────────
+
+function GuidaRapida({ setActiveTab }) {
+  const { societaId } = useAuth()
+  const [open, setOpen] = useState(null) // null = auto da dati
+
+  const { data: counts } = useQuery({
+    queryKey: ['guida-rapida', societaId],
+    queryFn: async () => {
+      const [sq, al, gi, ut] = await Promise.all([
+        supabase.from('squadre').select('id', { count: 'exact', head: true }),
+        supabase.from('allenatori').select('id', { count: 'exact', head: true }),
+        supabase.from('giocatori').select('id', { count: 'exact', head: true }),
+        supabase.from('profiles').select('id', { count: 'exact', head: true })
+          .in('ruolo', ['allenatore', 'genitore', 'giocatore']),
+      ])
+      return { squadre: sq.count ?? 0, allenatori: al.count ?? 0, giocatori: gi.count ?? 0, utenti: ut.count ?? 0 }
+    },
+    staleTime: 30 * 1000,
+    enabled: !!societaId,
+  })
+
+  const isOpen = open !== null ? open : (counts != null && counts.squadre === 0)
+
+  const steps = counts ? [
+    { id: 'squadre',    label: 'Crea le squadre',          done: counts.squadre > 0,    desc: 'Aggiungi le categorie (es. U13, U15, Senior)' },
+    { id: 'palestre',   label: 'Aggiungi le palestre',     done: false,                  desc: 'Registra i campi dove vi allenate' },
+    { id: 'allenatori', label: 'Aggiungi gli allenatori',  done: counts.allenatori > 0, desc: 'Inserisci lo staff tecnico e le loro squadre' },
+    { id: 'utenti',     label: 'Invita utenti',            done: counts.utenti > 0,     desc: 'Crea account per genitori e giocatori' },
+  ] : []
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-700 mb-3"
+      >
+        <HelpCircle size={13} /> Guida rapida
+      </button>
+    )
+  }
+
+  return (
+    <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <h3 className="font-semibold text-blue-900 text-sm">Guida rapida — Primi passi</h3>
+          <p className="text-xs text-blue-600 mt-0.5">Configura l'app seguendo questi passaggi</p>
+        </div>
+        <button onClick={() => setOpen(false)} className="text-blue-400 hover:text-blue-600 p-0.5">
+          <X size={15} />
+        </button>
+      </div>
+      <div className="space-y-2">
+        {steps.map((step, i) => (
+          <button
+            key={step.id}
+            onClick={() => { setActiveTab(step.id); setOpen(false) }}
+            className="w-full flex items-center gap-3 bg-white rounded-lg p-2.5 border border-blue-100 hover:border-blue-300 active:scale-[0.98] transition-all text-left"
+          >
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+              step.done ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+            }`}>
+              {step.done ? <Check size={12} /> : i + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-medium ${step.done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                {step.label}
+              </p>
+              <p className="text-xs text-gray-400">{step.desc}</p>
+            </div>
+            {!step.done && <ChevronRight size={14} className="text-blue-300 shrink-0" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const ALL_TABS = [
   { id: 'squadre',     label: 'Squadre',     icon: Users,     superAdminOnly: false },
   { id: 'palestre',    label: 'Palestre',    icon: Building2, superAdminOnly: false },
@@ -2785,6 +2857,7 @@ export default function SetupPage() {
       </div>
 
       <div className="flex-1 p-4">
+        {isAdmin && !isSuperAdmin && <GuidaRapida setActiveTab={setActiveTab} />}
         {activeTab === 'squadre'     && <SquadreTab />}
         {activeTab === 'palestre'    && <PalestreTab />}
         {activeTab === 'allenatori'  && <AllenatoriTab />}

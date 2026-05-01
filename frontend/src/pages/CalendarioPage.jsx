@@ -7,9 +7,10 @@ import {
 import { it } from 'date-fns/locale'
 import {
   ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2,
-  MapPin, Clock, Users, AlertCircle, RefreshCw, AlertTriangle,
+  MapPin, Clock, Users, AlertCircle, RefreshCw, AlertTriangle, Download,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import { useAuth } from '../hooks/useAuth'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
@@ -499,6 +500,7 @@ export default function CalendarioPage() {
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
+  const [exportingICS,     setExportingICS]     = useState(false)
 
   const touchStartX = useRef(null)
 
@@ -660,13 +662,49 @@ export default function CalendarioPage() {
 
   const canModify = isAdmin || isAllenatore
 
+  async function handleExportICS() {
+    setExportingICS(true)
+    try {
+      const today   = format(new Date(), 'yyyy-MM-dd')
+      const endDate = format(addMonths(new Date(), 3), 'yyyy-MM-dd')
+      const [{ data: partite }, { data: allMents }] = await Promise.all([
+        supabase.from('calendario').select('*')
+          .eq('stato', 'definitiva').gte('data', today).lte('data', endDate).order('data'),
+        supabase.from('orario_settimana').select('*')
+          .gte('data', today).lte('data', endDate).neq('annullato', true).order('data'),
+      ])
+      const filtered = (events) => {
+        if (!squadreAllenatore) return events ?? []
+        return (events ?? []).filter(e => squadreAllenatore.includes(e.squadra))
+      }
+      const icsEvents = [
+        ...filtered(partite).map(partitaToEvent),
+        ...filtered(allMents).map(allenamentoToEvent),
+      ]
+      downloadICS(generateICS(icsEvents))
+    } finally {
+      setExportingICS(false)
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
 
       {/* ── Sticky header ── */}
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="px-4 pt-4 pb-2 space-y-2">
-          <h1 className="text-xl font-bold text-gray-900">🏀 Calendario Partite</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900">🏀 Calendario Partite</h1>
+            <button
+              onClick={handleExportICS}
+              disabled={exportingICS}
+              title="Esporta calendario (.ics)"
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-2 py-1 hover:border-blue-300 transition-colors disabled:opacity-50"
+            >
+              <Download size={13} />
+              {exportingICS ? '…' : '.ics'}
+            </button>
+          </div>
 
           {/* View toggle */}
           <div className="flex bg-gray-100 rounded-lg p-0.5">

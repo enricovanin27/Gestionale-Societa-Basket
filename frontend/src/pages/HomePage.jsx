@@ -6,13 +6,14 @@ import {
 import { it } from 'date-fns/locale'
 import {
   CheckCircle2, LogOut, AlertTriangle, Clock, MapPin, AlertCircle,
-  ChevronLeft, ChevronRight, X, Plus, Lock,
+  ChevronLeft, ChevronRight, X, Plus, Lock, Download,
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useWeekEvents, useMonthEvents } from '../hooks/useWeekEvents'
 import { getWeekDays, formatDate, formatTime, isDateToday } from '../lib/utils'
+import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1881,6 +1882,7 @@ export function GenitoreHome() {
   const [weekOffset,    setWeekOffset]    = useState(0)
   const [monthOffset,   setMonthOffset]   = useState(0)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [exportingICS,  setExportingICS]  = useState(false)
   const touchStartX = useRef(null)
 
   const today     = new Date()
@@ -1946,6 +1948,28 @@ export function GenitoreHome() {
     touchStartX.current = null
   }
 
+  async function handleExportICS() {
+    setExportingICS(true)
+    try {
+      const today   = format(new Date(), 'yyyy-MM-dd')
+      const endDate = format(addMonths(new Date(), 3), 'yyyy-MM-dd')
+      const [{ data: partite }, { data: allMents }] = await Promise.all([
+        supabase.from('calendario').select('*')
+          .eq('stato', 'definitiva').gte('data', today).lte('data', endDate).order('data'),
+        supabase.from('orario_settimana').select('*')
+          .gte('data', today).lte('data', endDate).neq('annullato', true).order('data'),
+      ])
+      const inMySq = (e) => mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+      const icsEvents = [
+        ...(partite ?? []).filter(inMySq).map(partitaToEvent),
+        ...(allMents ?? []).filter(inMySq).map(allenamentoToEvent),
+      ]
+      downloadICS(generateICS(icsEvents))
+    } finally {
+      setExportingICS(false)
+    }
+  }
+
   if (!mySquadre.length) {
     return (
       <div className="pb-20">
@@ -1991,6 +2015,14 @@ export function GenitoreHome() {
             <div className="flex flex-col items-end gap-1.5">
               <span className="text-xs text-blue-200 text-right max-w-[120px] truncate">{displayName}</span>
               <div className="flex items-center gap-3">
+                <button
+                  onClick={handleExportICS}
+                  disabled={exportingICS}
+                  title="Esporta calendario (.ics)"
+                  className="flex items-center gap-1 text-xs text-blue-300 hover:text-white disabled:opacity-50"
+                >
+                  <Download size={13} /> .ics
+                </button>
                 <CambiaPasswordButton />
                 <button onClick={logout} className="flex items-center gap-1 text-xs text-blue-300 hover:text-white">
                   <LogOut size={13} /> Esci
