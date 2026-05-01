@@ -5,11 +5,27 @@ import { it } from 'date-fns/locale'
 import {
   Edit2, X, Plus, Users, MapPin, Clock,
   CheckCircle, XCircle, AlertTriangle, MessageCircle, Info,
-  LayoutGrid, List,
+  LayoutGrid, List, ClipboardList,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useWeekEvents } from '../hooks/useWeekEvents'
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+function inviaNotificaAnnullamento(squadra, societaId, data) {
+  fetch(`${API_BASE}/api/notifica/allenamento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      squadra,
+      societa_id: societaId,
+      data,
+      titolo: 'Allenamento annullato',
+      corpo: `L'allenamento di ${squadra} è stato annullato.`,
+    }),
+  }).catch(() => {})
+}
 import { formatTime } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
 import GrigliaSettimanale, { GrigliaTipo } from '../components/GrigliaSettimanale'
@@ -263,9 +279,9 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
 }
 
 // ─── TrainingColumnCard (compact, per vista colonne) ─────────────────────────
-function TrainingColumnCard({ event, color, onEdit, onCancel }) {
+function TrainingColumnCard({ event, color, onEdit, onCancel, onPresenze, presAl }) {
   const col = color ?? PALETTE[0]
-  const showActions = (onEdit || onCancel) && !event.annullato
+  const showActions = (onEdit || onCancel || onPresenze) && !event.annullato
   return (
     <div className={`rounded-lg bg-white border border-l-4 border-gray-100 ${col.border} p-2 mb-1.5 shadow-sm ${event.annullato ? 'opacity-40' : ''}`}>
       <div className="flex items-start gap-1">
@@ -280,9 +296,17 @@ function TrainingColumnCard({ event, color, onEdit, onCancel }) {
             <span className="text-xs text-gray-600 font-medium">{formatTime(event.ora_inizio)}</span>
           </div>
           {event.palestra && <div className="text-xs text-gray-400 truncate mt-0.5">{event.palestra}</div>}
+          {presAl?.total > 0 && (
+            <div className="text-xs text-gray-400 mt-0.5">✅{presAl.presente} ❌{presAl.assente}</div>
+          )}
         </div>
         {showActions && (
           <div className="flex gap-0.5 shrink-0">
+            {onPresenze && (
+              <button onClick={onPresenze} title="Segna presenze" className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
+                <ClipboardList size={12} />
+              </button>
+            )}
             {onEdit && (
               <button onClick={onEdit} title="Modifica" className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors">
                 <Edit2 size={12} />
@@ -301,8 +325,9 @@ function TrainingColumnCard({ event, color, onEdit, onCancel }) {
 }
 
 // ─── TrainingCard ─────────────────────────────────────────────────────────────
-function TrainingCard({ event, color, canEdit, onEdit, onCancel }) {
+function TrainingCard({ event, color, canEdit, onEdit, onCancel, onPresenze, presenze, presAl }) {
   const col = color ?? PALETTE[0]
+  const showPresenze = presenze && (presenze.presente > 0 || presenze.assente > 0 || presenze.forse > 0)
   return (
     <div className={`rounded-xl bg-white border border-l-4 border-gray-100 ${col.border} p-3 shadow-sm ${event.annullato ? 'opacity-40' : ''}`}>
       <div className="flex items-start gap-2">
@@ -338,9 +363,28 @@ function TrainingCard({ event, color, canEdit, onEdit, onCancel }) {
               </div>
             )}
           </div>
+          {showPresenze && (
+            <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-gray-100">
+              {presenze.presente > 0 && <span className="text-xs text-green-600 font-medium">✅ {presenze.presente}</span>}
+              {presenze.forse    > 0 && <span className="text-xs text-amber-500 font-medium">❓ {presenze.forse}</span>}
+              {presenze.assente  > 0 && <span className="text-xs text-red-500 font-medium">❌ {presenze.assente}</span>}
+            </div>
+          )}
+          {presAl?.total > 0 && (
+            <div className="flex items-center gap-2 mt-1 pt-1 border-t border-gray-100">
+              <ClipboardList size={11} className="text-emerald-500" />
+              <span className="text-xs text-emerald-600 font-medium">✅ {presAl.presente}</span>
+              <span className="text-xs text-red-500 font-medium">❌ {presAl.assente}</span>
+            </div>
+          )}
         </div>
         {canEdit && !event.annullato && (
           <div className="flex gap-0.5 shrink-0">
+            {onPresenze && (
+              <button onClick={onPresenze} title="Segna presenze" className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
+                <ClipboardList size={14} />
+              </button>
+            )}
             <button onClick={onEdit}   title="Modifica" className="p-1.5 text-blue-500 hover:bg-blue-100 rounded-lg transition-colors">
               <Edit2 size={14} />
             </button>
@@ -628,6 +672,98 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved, squadreA
 }
 
 // ─── SettimanaView (riusato da Tab 2 e Tab 3) ────────────────────────────────
+// ─── PresenzeAllenamentoModal ─────────────────────────────────────────────────
+function PresenzeAllenamentoModal({ event, onClose }) {
+  const { societaId } = useAuth()
+  const qc = useQueryClient()
+
+  const { data: giocatori = [], isLoading } = useQuery({
+    queryKey: ['giocatori-presenze-modal', event.squadra],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome')
+        .or(`squadra.eq.${event.squadra},squadra2.eq.${event.squadra},squadra3.eq.${event.squadra}`)
+        .eq('attivo', true)
+        .order('cognome')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const { data: existing = [] } = useQuery({
+    queryKey: ['presenze-al-modal', event.data, event.squadra],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze_allenamento')
+        .select('giocatore_id, presente')
+        .eq('data', event.data)
+        .eq('squadra', event.squadra)
+      return data ?? []
+    },
+  })
+
+  const presenzaMap = useMemo(
+    () => Object.fromEntries(existing.map(p => [p.giocatore_id, p.presente])),
+    [existing]
+  )
+
+  const toggleMut = useMutation({
+    mutationFn: async ({ giocatoreId, presente }) => {
+      const { error } = await supabase
+        .from('presenze_allenamento')
+        .upsert([{ societa_id: societaId, giocatore_id: giocatoreId, data: event.data, squadra: event.squadra, presente }],
+          { onConflict: 'giocatore_id,data' })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presenze-al-modal', event.data, event.squadra] }),
+  })
+
+  const presenti = existing.filter(p => p.presente).length
+  const assenti  = existing.filter(p => !p.presente).length
+  const dataLabel = new Date(event.data + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  return (
+    <Modal title="Presenze allenamento" subtitle={`${event.squadra} — ${dataLabel}`} onClose={onClose}>
+      <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+        <span className="text-sm text-gray-500">{giocatori.length} giocatori</span>
+        {existing.length > 0 && (
+          <>
+            <span className="text-xs text-emerald-600 font-medium">✅ {presenti} presenti</span>
+            <span className="text-xs text-red-500 font-medium">❌ {assenti} assenti</span>
+          </>
+        )}
+      </div>
+      {isLoading ? <LoadingSpinner message="Caricamento giocatori..." /> : giocatori.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">
+          Nessun giocatore in questa squadra.<br />
+          <span className="text-xs">Aggiungili dalla tab Giocatori in Setup.</span>
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {giocatori.map(g => {
+            const recorded = g.id in presenzaMap
+            const presente = presenzaMap[g.id]
+            return (
+              <div key={g.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                <span className="flex-1 text-sm text-gray-800 font-medium">{g.cognome} {g.nome}</span>
+                <button
+                  onClick={() => toggleMut.mutate({ giocatoreId: g.id, presente: true })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${recorded && presente ? 'bg-emerald-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-emerald-400'}`}
+                >✅</button>
+                <button
+                  onClick={() => toggleMut.mutate({ giocatoreId: g.id, presente: false })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${recorded && !presente ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-red-400'}`}
+                >❌</button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null }) {
   const qc      = useQueryClient()
   const { societaId } = useAuth()
@@ -671,11 +807,57 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
 
   const cancelMut = useMutation({
     mutationFn: (event) => cancelAllenamento(event, societaId),
-    onSuccess: () => {
+    onSuccess: (_, event) => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['cancelled-sett'] })
+      inviaNotificaAnnullamento(event.squadra, societaId, event.data)
     },
   })
+
+  const { data: presenzeWeek = [] } = useQuery({
+    queryKey: ['presenze-sett', format(weekStart, 'yyyy-MM-dd'), societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze')
+        .select('data, squadra, risposta')
+        .gte('data', format(weekStart, 'yyyy-MM-dd'))
+        .lte('data', format(weekEnd, 'yyyy-MM-dd'))
+        .eq('societa_id', societaId)
+      return data ?? []
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const { data: presenzeAlWeek = [] } = useQuery({
+    queryKey: ['presenze-al-sett', format(weekStart, 'yyyy-MM-dd'), societaId],
+    enabled: !!societaId && canEdit,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze_allenamento')
+        .select('data, squadra, presente')
+        .gte('data', format(weekStart, 'yyyy-MM-dd'))
+        .lte('data', format(weekEnd, 'yyyy-MM-dd'))
+      return data ?? []
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const [presenzeAlEvent, setPresenzeAlEvent] = useState(null)
+
+  function getPresenzeCount(data, squadra) {
+    const rows = presenzeWeek.filter((p) => p.data === data && p.squadra === squadra)
+    return {
+      presente: rows.filter((r) => r.risposta === 'presente').length,
+      assente:  rows.filter((r) => r.risposta === 'assente').length,
+      forse:    rows.filter((r) => r.risposta === 'forse').length,
+    }
+  }
+
+  function getPresenzeAlCount(data, squadra) {
+    const rows = presenzeAlWeek.filter((p) => p.data === data && p.squadra === squadra)
+    return { presente: rows.filter(r => r.presente).length, assente: rows.filter(r => !r.presente).length, total: rows.length }
+  }
 
   const diffs = useMemo(() => {
     if (!showDiff || !weekData) return []
@@ -785,11 +967,14 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                           key={`${ev._source}-${ev.id ?? i}`}
                           event={ev}
                           color={getColor(ev.squadra, allSquadre)}
+                          presenze={getPresenzeCount(ev.data, ev.squadra)}
+                          presAl={getPresenzeAlCount(ev.data, ev.squadra)}
                           onEdit={canEdit && canEditEvent(ev) ? () => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) } : undefined}
                           onCancel={canEdit && canEditEvent(ev) && !ev.annullato ? () => {
                             if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
                               cancelMut.mutate(ev)
                           } : undefined}
+                          onPresenze={canEdit && canEditEvent(ev) ? () => setPresenzeAlEvent(ev) : undefined}
                         />
                       ))
                     )}
@@ -888,6 +1073,9 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
           onSaved={() => {}}
         />
       )}
+      {presenzeAlEvent && (
+        <PresenzeAllenamentoModal event={presenzeAlEvent} onClose={() => setPresenzeAlEvent(null)} />
+      )}
     </div>
   )
 }
@@ -916,8 +1104,54 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
   })
   const cancelMut = useMutation({
     mutationFn: (event) => cancelAllenamento(event, societaId),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ['weekEvents'] }),
+    onSuccess: (_, event) => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      inviaNotificaAnnullamento(event.squadra, societaId, event.data)
+    },
   })
+
+  const { data: presenzeOggi = [] } = useQuery({
+    queryKey: ['presenze-oggi', todayStr, societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze')
+        .select('squadra, risposta')
+        .eq('data', todayStr)
+        .eq('societa_id', societaId)
+      return data ?? []
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const { data: presenzeAlOggi = [] } = useQuery({
+    queryKey: ['presenze-al-oggi', todayStr, societaId],
+    enabled: !!societaId && canEdit,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze_allenamento')
+        .select('squadra, presente')
+        .eq('data', todayStr)
+      return data ?? []
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const [presenzeAlEvent, setPresenzeAlEvent] = useState(null)
+
+  function getPresenzeOggiCount(squadra) {
+    const rows = presenzeOggi.filter((p) => p.squadra === squadra)
+    return {
+      presente: rows.filter((r) => r.risposta === 'presente').length,
+      assente:  rows.filter((r) => r.risposta === 'assente').length,
+      forse:    rows.filter((r) => r.risposta === 'forse').length,
+    }
+  }
+
+  function getPresenzeAlOggiCount(squadra) {
+    const rows = presenzeAlOggi.filter(p => p.squadra === squadra)
+    return { presente: rows.filter(r => r.presente).length, assente: rows.filter(r => !r.presente).length, total: rows.length }
+  }
 
   const todayTrainings = useMemo(() =>
     (weekData?.eventsByDate?.[todayStr] ?? [])
@@ -969,11 +1203,14 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
               event={ev}
               color={getColor(ev.squadra, allSquadre)}
               canEdit={canEdit && canEditEvent(ev)}
+              presenze={getPresenzeOggiCount(ev.squadra)}
+              presAl={getPresenzeAlOggiCount(ev.squadra)}
               onEdit={() => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) }}
               onCancel={() => {
                 if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
                   cancelMut.mutate(ev)
               }}
+              onPresenze={canEdit && canEditEvent(ev) ? () => setPresenzeAlEvent(ev) : undefined}
             />
           ))}
         </div>
@@ -1005,6 +1242,9 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
           onClose={() => setShowAddForm(false)}
           onSaved={() => {}}
         />
+      )}
+      {presenzeAlEvent && (
+        <PresenzeAllenamentoModal event={presenzeAlEvent} onClose={() => setPresenzeAlEvent(null)} />
       )}
     </>
   )

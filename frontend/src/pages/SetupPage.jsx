@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
   Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe, UserPlus,
+  Activity, CreditCard, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -1954,11 +1955,12 @@ function GiocatoriTab() {
   const [showForm, setShowForm]       = useState(false)
   const [editingRow, setEditingRow]   = useState(null)
   const [form, setForm]               = useState(EMPTY_GIOCATORE)
-  const [accountModal, setAccountModal] = useState(null) // giocatore row
+  const [accountModal, setAccountModal] = useState(null)
   const [accountForm, setAccountForm] = useState({ email: '', password: '' })
   const [accountErr, setAccountErr]   = useState(null)
   const [accountOk, setAccountOk]     = useState(false)
   const [creatingAcc, setCreatingAcc] = useState(false)
+  const [indispModal, setIndispModal] = useState(null) // giocatore row
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const { data: squadreDisp = [] } = useQuery({
@@ -2155,6 +2157,13 @@ function GiocatoriTab() {
                             <UserPlus size={14} />
                           </button>
                         )}
+                        <button
+                          onClick={() => setIndispModal(g)}
+                          className="p-1.5 text-orange-500 hover:bg-orange-50 rounded-lg border border-orange-100"
+                          title="Infortuni / Indisponibilità"
+                        >
+                          <Activity size={14} />
+                        </button>
                         <button onClick={() => openEdit(g)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg">
                           <Edit2 size={14} />
                         </button>
@@ -2257,17 +2266,390 @@ function GiocatoriTab() {
           )}
         </Modal>
       )}
+
+      {indispModal && (
+        <IndisponibilitaModal giocatore={indispModal} societaId={societaId} onClose={() => setIndispModal(null)} />
+      )}
     </div>
   )
 }
 
+// ─── IndisponibilitaModal ─────────────────────────────────────────────────────
+
+const TIPO_LABELS = { infortunio: 'Infortunio', sospeso: 'Sospeso', altro: 'Altro' }
+const EMPTY_INDISP = { data_inizio: '', data_fine: '', tipo: 'infortunio', note: '' }
+
+function IndisponibilitaModal({ giocatore, societaId, onClose }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState(EMPTY_INDISP)
+  const [showForm, setShowForm] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const { data: lista = [], isLoading } = useQuery({
+    queryKey: ['indisponibilita', giocatore.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('indisponibilita')
+        .select('*')
+        .eq('giocatore_id', giocatore.id)
+        .order('data_inizio', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async (f) => {
+      const { error } = await supabase.from('indisponibilita').insert([{
+        societa_id:  societaId,
+        giocatore_id: giocatore.id,
+        data_inizio: f.data_inizio,
+        data_fine:   f.data_fine || null,
+        tipo:        f.tipo,
+        note:        f.note.trim() || null,
+      }])
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['indisponibilita', giocatore.id] })
+      setForm(EMPTY_INDISP)
+      setShowForm(false)
+    },
+  })
+
+  const delMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('indisponibilita').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['indisponibilita', giocatore.id] }),
+  })
+
+  const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '...'
+
+  return (
+    <Modal title={`Indisponibilità — ${giocatore.nome} ${giocatore.cognome}`} onClose={onClose}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-gray-500">{lista.length} voci</span>
+        <button onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={14} /> Aggiungi
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form) }} className="bg-orange-50 border border-orange-100 rounded-xl p-3 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Inizio *">
+              <input type="date" value={form.data_inizio} onChange={e => set('data_inizio', e.target.value)} className={inp} required />
+            </Field>
+            <Field label="Fine (opzionale)">
+              <input type="date" value={form.data_fine} onChange={e => set('data_fine', e.target.value)} className={inp} />
+            </Field>
+          </div>
+          <Field label="Tipo">
+            <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={inp}>
+              {Object.entries(TIPO_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Field>
+          <Field label="Note">
+            <input value={form.note} onChange={e => set('note', e.target.value)} className={inp} placeholder="Opzionale" />
+          </Field>
+          {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
+          <button type="submit" disabled={saveMut.isPending}
+            className="w-full py-2 bg-orange-500 text-white rounded-xl text-sm font-medium disabled:opacity-60">
+            {saveMut.isPending ? 'Salvataggio...' : 'Salva'}
+          </button>
+        </form>
+      )}
+
+      {isLoading ? <LoadingSpinner message="Caricamento..." /> : lista.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-6">Nessuna indisponibilità registrata</p>
+      ) : (
+        <div className="space-y-2">
+          {lista.map(r => (
+            <div key={r.id} className="flex items-start gap-2 bg-gray-50 rounded-xl p-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    r.tipo === 'infortunio' ? 'bg-red-100 text-red-700' :
+                    r.tipo === 'sospeso'   ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{TIPO_LABELS[r.tipo]}</span>
+                  <span className="text-xs text-gray-600">{fmtDate(r.data_inizio)} → {fmtDate(r.data_fine)}</span>
+                </div>
+                {r.note && <p className="text-xs text-gray-400 italic mt-0.5">{r.note}</p>}
+              </div>
+              <button onClick={() => delMut.mutate(r.id)} className="p-1 text-red-400 hover:bg-red-50 rounded-lg shrink-0">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 // ─── Tab list (module level, non dipende da state) ────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB — QUOTE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const TIPO_QUOTA_LABELS = { mensile: 'Mensile', iscrizione: 'Iscrizione', altro: 'Altro' }
+const EMPTY_QUOTA = { tipo: 'mensile', descrizione: '', importo: '', data_scadenza: '', pagato: false, data_pagamento: '', note: '' }
+
+function QuoteTab() {
+  const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const [squadraFilter, setSquadraFilter] = useState('')
+  const [quoteModal, setQuoteModal]       = useState(null) // giocatore row
+
+  const { data: squadreDisp = [] } = useQuery({
+    queryKey: ['squadre-table'],
+    queryFn: async () => {
+      const { data } = await supabase.from('squadre').select('categoria').order('categoria')
+      return (data ?? []).map(s => s.categoria)
+    },
+  })
+
+  const { data: giocatori = [], isLoading } = useQuery({
+    queryKey: ['giocatori-quote', squadraFilter],
+    queryFn: async () => {
+      let q = supabase.from('giocatori').select('id, nome, cognome, squadra').eq('attivo', true).order('cognome')
+      if (squadraFilter) q = q.or(`squadra.eq.${squadraFilter},squadra2.eq.${squadraFilter},squadra3.eq.${squadraFilter}`)
+      const { data, error } = await q
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const { data: tutteQuote = [] } = useQuery({
+    queryKey: ['quote-tab', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('quote').select('giocatore_id, pagato')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  function getCountQuote(giocatoreId) {
+    const mine = tutteQuote.filter(q => q.giocatore_id === giocatoreId)
+    return { totali: mine.length, pagate: mine.filter(q => q.pagato).length, arretrate: mine.filter(q => !q.pagato).length }
+  }
+
+  if (isLoading) return <LoadingSpinner message="Caricamento..." />
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">Tutte le squadre</option>
+          {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {giocatori.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <CreditCard size={40} className="mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Nessun giocatore trovato</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {giocatori.map(g => {
+            const counts = getCountQuote(g.id)
+            return (
+              <button key={g.id} onClick={() => setQuoteModal(g)}
+                className="w-full text-left bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3 active:scale-95 transition-transform">
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm text-gray-900">{g.cognome} {g.nome}</span>
+                  <span className="text-xs text-gray-400 ml-2">{g.squadra}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {counts.arretrate > 0 && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{counts.arretrate} da pagare</span>
+                  )}
+                  {counts.pagate > 0 && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{counts.pagate} pagate</span>
+                  )}
+                  {counts.totali === 0 && (
+                    <span className="text-xs text-gray-300">–</span>
+                  )}
+                  <ChevronDown size={14} className="text-gray-400" />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {quoteModal && (
+        <QuoteGiocatoreModal giocatore={quoteModal} societaId={societaId} onClose={() => { setQuoteModal(null); qc.invalidateQueries({ queryKey: ['quote-tab', societaId] }) }} />
+      )}
+    </div>
+  )
+}
+
+function QuoteGiocatoreModal({ giocatore, societaId, onClose }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState(EMPTY_QUOTA)
+  const [showForm, setShowForm] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const { data: quote = [], isLoading } = useQuery({
+    queryKey: ['quote-giocatore', giocatore.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quote').select('*').eq('giocatore_id', giocatore.id)
+        .order('data_scadenza', { ascending: false })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+
+  const saveMut = useMutation({
+    mutationFn: async (f) => {
+      const { error } = await supabase.from('quote').insert([{
+        societa_id:      societaId,
+        giocatore_id:    giocatore.id,
+        tipo:            f.tipo,
+        descrizione:     f.descrizione.trim() || null,
+        importo:         f.importo !== '' ? Number(f.importo) : null,
+        data_scadenza:   f.data_scadenza || null,
+        pagato:          f.pagato,
+        data_pagamento:  f.pagato && f.data_pagamento ? f.data_pagamento : null,
+        note:            f.note.trim() || null,
+      }])
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['quote-giocatore', giocatore.id] }); setForm(EMPTY_QUOTA); setShowForm(false) },
+  })
+
+  const pagatoMut = useMutation({
+    mutationFn: async ({ id, pagato }) => {
+      const { error } = await supabase.from('quote').update({ pagato, data_pagamento: pagato ? new Date().toISOString().slice(0,10) : null }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quote-giocatore', giocatore.id] }),
+  })
+
+  const delMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('quote').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quote-giocatore', giocatore.id] }),
+  })
+
+  const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) : '–'
+  const totale  = quote.reduce((s, q) => s + (q.importo ?? 0), 0)
+  const restante = quote.filter(q => !q.pagato).reduce((s, q) => s + (q.importo ?? 0), 0)
+
+  return (
+    <Modal title={`Quote — ${giocatore.nome} ${giocatore.cognome}`} onClose={onClose}>
+      {quote.length > 0 && (
+        <div className="flex gap-4 mb-4 pb-3 border-b border-gray-100">
+          <div className="text-center">
+            <p className="text-xs text-gray-400">Totale</p>
+            <p className="text-sm font-semibold text-gray-800">€ {totale.toFixed(2)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-gray-400">Da pagare</p>
+            <p className={`text-sm font-semibold ${restante > 0 ? 'text-red-600' : 'text-gray-400'}`}>€ {restante.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm text-gray-500">{quote.length} quote</span>
+        <button onClick={() => setShowForm(v => !v)}
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={14} /> Aggiungi
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form) }} className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tipo">
+              <select value={form.tipo} onChange={e => set('tipo', e.target.value)} className={inp}>
+                {Object.entries(TIPO_QUOTA_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Importo (€)">
+              <input type="number" step="0.01" min="0" value={form.importo} onChange={e => set('importo', e.target.value)} className={inp} placeholder="0.00" />
+            </Field>
+          </div>
+          <Field label="Descrizione">
+            <input value={form.descrizione} onChange={e => set('descrizione', e.target.value)} className={inp} placeholder="es. Quota ottobre" />
+          </Field>
+          <Field label="Scadenza">
+            <input type="date" value={form.data_scadenza} onChange={e => set('data_scadenza', e.target.value)} className={inp} />
+          </Field>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.pagato} onChange={e => set('pagato', e.target.checked)} className="rounded" />
+            <span className="text-sm text-gray-700">Già pagato</span>
+          </label>
+          {form.pagato && (
+            <Field label="Data pagamento">
+              <input type="date" value={form.data_pagamento} onChange={e => set('data_pagamento', e.target.value)} className={inp} />
+            </Field>
+          )}
+          {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
+          <button type="submit" disabled={saveMut.isPending}
+            className="w-full py-2 bg-blue-600 text-white rounded-xl text-sm font-medium disabled:opacity-60">
+            {saveMut.isPending ? 'Salvataggio...' : 'Salva quota'}
+          </button>
+        </form>
+      )}
+
+      {isLoading ? <LoadingSpinner message="Caricamento..." /> : quote.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-6">Nessuna quota registrata</p>
+      ) : (
+        <div className="space-y-2">
+          {quote.map(q => (
+            <div key={q.id} className={`flex items-start gap-2 rounded-xl p-3 border ${q.pagato ? 'bg-green-50 border-green-100' : 'bg-white border-gray-200'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-medium text-gray-700">{TIPO_QUOTA_LABELS[q.tipo]}</span>
+                  {q.descrizione && <span className="text-xs text-gray-500">{q.descrizione}</span>}
+                  {q.importo != null && <span className="text-xs font-semibold text-gray-800">€ {Number(q.importo).toFixed(2)}</span>}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {q.data_scadenza && <span className="text-xs text-gray-400">Scad: {fmtDate(q.data_scadenza)}</span>}
+                  {q.pagato
+                    ? <span className="text-xs text-green-600 font-medium">✅ Pagato {q.data_pagamento ? fmtDate(q.data_pagamento) : ''}</span>
+                    : <span className="text-xs text-red-500 font-medium">⏳ Da pagare</span>
+                  }
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button
+                  onClick={() => pagatoMut.mutate({ id: q.id, pagato: !q.pagato })}
+                  className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${q.pagato ? 'text-gray-500 border-gray-200' : 'text-green-600 border-green-200 bg-green-50'}`}
+                >{q.pagato ? 'Annulla' : '✅ Paga'}</button>
+                <button onClick={() => window.confirm('Eliminare questa quota?') && delMut.mutate(q.id)}
+                  className="p-1 text-red-400 hover:bg-red-50 rounded-lg border border-red-100">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
+}
 
 const ALL_TABS = [
   { id: 'squadre',     label: 'Squadre',     icon: Users,     superAdminOnly: false },
   { id: 'palestre',    label: 'Palestre',    icon: Building2, superAdminOnly: false },
   { id: 'allenatori',  label: 'Allenatori',  icon: UserCheck, superAdminOnly: false },
   { id: 'giocatori',   label: 'Giocatori',   icon: UserPlus,  superAdminOnly: false },
+  { id: 'quote',       label: 'Quote',       icon: CreditCard, superAdminOnly: false, adminOnly: true },
   { id: 'utenti',      label: 'Utenti',      icon: Shield,    superAdminOnly: false },
   { id: 'scheduling',  label: 'Scheduling',  icon: Calendar,  superAdminOnly: false, hidden: true },
   { id: 'societa',     label: 'Società',     icon: Globe,     superAdminOnly: true  },
@@ -2275,8 +2657,8 @@ const ALL_TABS = [
 
 export default function SetupPage() {
   const [activeTab, setActiveTab] = useState('squadre')
-  const { isSuperAdmin } = useAuth()
-  const tabs = ALL_TABS.filter(t => (!t.superAdminOnly || isSuperAdmin) && !t.hidden)
+  const { isSuperAdmin, isAdmin } = useAuth()
+  const tabs = ALL_TABS.filter(t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && !t.hidden)
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
@@ -2303,6 +2685,7 @@ export default function SetupPage() {
         {activeTab === 'palestre'    && <PalestreTab />}
         {activeTab === 'allenatori'  && <AllenatoriTab />}
         {activeTab === 'giocatori'   && <GiocatoriTab />}
+        {activeTab === 'quote'       && <QuoteTab />}
         {activeTab === 'utenti'      && <UtentiTab />}
         {activeTab === 'scheduling'  && <SchedulingTab />}
         {activeTab === 'societa'     && <SocietaTab />}
