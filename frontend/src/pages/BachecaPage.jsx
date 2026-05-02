@@ -38,9 +38,10 @@ export function useUnreadAnnunci(societaId) {
 }
 
 // ─── Form nuovo annuncio ──────────────────────────────────────────────────────
-function NuovoAnnuncioModal({ onClose, squadre, societaId, autorId, autoreNome }) {
+function NuovoAnnuncioModal({ onClose, squadre, isAllenatore, societaId, autorId, autoreNome }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ titolo: '', testo: '', squadra: '', pinned: false })
+  const defaultSquadra = isAllenatore && squadre.length > 0 ? squadre[0] : ''
+  const [form, setForm] = useState({ titolo: '', testo: '', squadra: defaultSquadra, pinned: false })
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const saveMut = useMutation({
@@ -104,7 +105,7 @@ function NuovoAnnuncioModal({ onClose, squadre, societaId, autorId, autoreNome }
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">Squadra destinataria</label>
             <select value={form.squadra} onChange={(e) => set('squadra', e.target.value)} className={inp}>
-              <option value="">Tutte le squadre</option>
+              {!isAllenatore && <option value="">Tutte le squadre</option>}
               {squadre.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -328,7 +329,8 @@ export default function BachecaPage() {
       {showForm && (
         <NuovoAnnuncioModal
           onClose={() => setShowForm(false)}
-          squadre={squadre}
+          squadre={isAllenatore ? mySquadre : squadre}
+          isAllenatore={isAllenatore}
           societaId={societaId}
           autorId={user?.id}
           autoreNome={displayName}

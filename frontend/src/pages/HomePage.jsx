@@ -855,6 +855,7 @@ function AllenatoreAddPartitaModal({ mySquadre, onClose }) {
 function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const [nextWeek, setNextWeek] = useState(false)
   const [form, setForm] = useState({
     squadra:    mySquadre[0] ?? '',
     giorno:     'lunedi',
@@ -862,6 +863,11 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
     ora_fine:   '20:00',
     palestra:   '',
   })
+
+  const effectiveWeekStart = useMemo(
+    () => nextWeek ? addWeeks(weekStart, 1) : weekStart,
+    [weekStart, nextWeek]
+  )
 
   const { data: palestre = [] } = useQuery({
     queryKey: ['palestre'],
@@ -873,10 +879,10 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
   })
 
   const targetDate = useMemo(() => {
-    const d = new Date(weekStart)
+    const d = new Date(effectiveWeekStart)
     d.setDate(d.getDate() + (GIORNO_OFFSET_W[form.giorno] ?? 0))
     return format(d, 'yyyy-MM-dd')
-  }, [weekStart, form.giorno])
+  }, [effectiveWeekStart, form.giorno])
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -910,6 +916,19 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
             <X size={20} className="text-gray-400" />
           </button>
         </div>
+
+        <div className="flex bg-gray-100 rounded-lg p-0.5 mb-4">
+          {[false, true].map(isNext => (
+            <button key={String(isNext)} type="button"
+              onClick={() => setNextWeek(isNext)}
+              className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
+                nextWeek === isNext ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+              }`}>
+              {isNext ? 'Prossima settimana' : 'Settimana corrente'}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>

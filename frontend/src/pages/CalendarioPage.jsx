@@ -12,6 +12,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import { useAuth } from '../hooks/useAuth'
+import ImportaCalendarioPage from './ImportaCalendarioPage'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -343,6 +344,7 @@ function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, 
 // ─── Add / Edit form ──────────────────────────────────────────────────────────
 
 const EMPTY_FORM = {
+  tipo:       'partita',
   data:       format(new Date(), 'yyyy-MM-dd'),
   ora_inizio: '10:00',
   ora_fine:   '12:00',
@@ -356,7 +358,7 @@ const EMPTY_FORM = {
 function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, saving, saveError }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const squadreDisp = squadreAllenatore ? squadre.filter(s => squadreAllenatore.includes(s)) : squadre
+  const squadreDisp = squadreAllenatore?.length ? squadreAllenatore : squadre
 
   const { data: palestreList = [] } = useQuery({
     queryKey: ['palestre-nomi'],
@@ -385,7 +387,13 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 pb-2">
-          <form id="event-form" onSubmit={e => { e.preventDefault(); onSave(form) }} className="space-y-4">
+          <form id="event-form" onSubmit={e => {
+          e.preventDefault()
+          const saveData = form.casa_fuori === 'Fuori Casa'
+            ? { ...form, palestra: form.avversario || '' }
+            : form
+          onSave(saveData)
+        }} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Data *</label>
@@ -436,20 +444,22 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Palestra / Luogo</label>
-              {palestreList.length > 0 ? (
-                <select value={form.palestra} onChange={e => set('palestra', e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Scegli palestra...</option>
-                  {palestreList.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              ) : (
-                <input value={form.palestra} onChange={e => set('palestra', e.target.value)}
-                  placeholder="es. PalaOderzo"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              )}
-            </div>
+            {form.casa_fuori === 'Casa' && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Palestra / Luogo</label>
+                {palestreList.length > 0 ? (
+                  <select value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Scegli palestra...</option>
+                    {palestreList.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                    placeholder="es. PalaOderzo"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                )}
+              </div>
+            )}
 
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Stato</label>
@@ -492,9 +502,11 @@ export default function CalendarioPage() {
   const canModifyEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const queryClient = useQueryClient()
 
+  const [calTab,           setCalTab]           = useState('calendario') // 'calendario' | 'importa'
   const [view,             setView]             = useState('settimana') // 'settimana' | 'mese'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [monthOffset,      setMonthOffset]      = useState(0)
+  const [mySquadreOnly,    setMySquadreOnly]    = useState(true)
   const [squadraFilter,    setSquadraFilter]    = useState('')
   const [allenatoreFilter, setAllenatoreFilter] = useState('')
   const [selectedEvent,    setSelectedEvent]    = useState(null)
@@ -539,9 +551,13 @@ export default function CalendarioPage() {
   })
 
   // Only partite, filtered by squad/allenatore
+  const scopeFilter = mySquadreOnly && squadreAllenatore?.length
+    ? (e) => squadreAllenatore.includes(e.squadra)
+    : () => true
+
   const displayEvents = useMemo(() => {
     if (!data) return []
-    let events = data.events.filter(e => e._tipo === 'partita')
+    let events = data.events.filter(e => e._tipo === 'partita').filter(scopeFilter)
     if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
     if (allenatoreFilter) {
       events = events.filter(e => {
@@ -550,10 +566,10 @@ export default function CalendarioPage() {
       })
     }
     return events
-  }, [data, squadraFilter, allenatoreFilter])
+  }, [data, squadraFilter, allenatoreFilter, scopeFilter])
 
   const displayMonthEvents = useMemo(() => {
-    let events = monthPartite
+    let events = monthPartite.filter(scopeFilter)
     if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
     if (allenatoreFilter) {
       events = events.filter(e => {
@@ -562,7 +578,7 @@ export default function CalendarioPage() {
       })
     }
     return events
-  }, [monthPartite, squadraFilter, allenatoreFilter])
+  }, [monthPartite, squadraFilter, allenatoreFilter, scopeFilter])
 
   // All non-cancelled trainings — used only for conflict detection
   const allTrainings = useMemo(() =>
@@ -695,97 +711,130 @@ export default function CalendarioPage() {
         <div className="px-4 pt-4 pb-2 space-y-2">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold text-gray-900">🏀 Calendario Partite</h1>
-            <button
-              onClick={handleExportICS}
-              disabled={exportingICS}
-              title="Esporta calendario (.ics)"
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-2 py-1 hover:border-blue-300 transition-colors disabled:opacity-50"
-            >
-              <Download size={13} />
-              {exportingICS ? '…' : '.ics'}
-            </button>
+            {calTab === 'calendario' && (
+              <button
+                onClick={handleExportICS}
+                disabled={exportingICS}
+                title="Esporta calendario (.ics)"
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-2 py-1 hover:border-blue-300 transition-colors disabled:opacity-50"
+              >
+                <Download size={13} />
+                {exportingICS ? '…' : '.ics'}
+              </button>
+            )}
           </div>
 
-          {/* View toggle */}
+          {/* Tab switcher (solo staff) */}
           <div className="flex bg-gray-100 rounded-lg p-0.5">
-            {[['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, label]) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
+            {[['calendario', 'Calendario'], ['importa', 'Import FIP']].map(([v, label]) => (
+              <button key={v} onClick={() => setCalTab(v)}
                 className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
-                  view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >
+                  calTab === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                }`}>
                 {label}
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Tutte le squadre</option>
-              {squadre.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={allenatoreFilter} onChange={e => setAllenatoreFilter(e.target.value)}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Tutti gli allenatori</option>
-              {allenatoriList.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
+          {calTab === 'calendario' && <>
+            {/* Scope select — solo per allenatori */}
+            {isAllenatore && (
+              <select
+                value={mySquadreOnly ? 'mine' : 'all'}
+                onChange={e => { setMySquadreOnly(e.target.value === 'mine'); setSquadraFilter('') }}
+                className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="mine">Le mie squadre</option>
+                <option value="all">Tutti gli allenatori</option>
+              </select>
+            )}
+
+            {/* View toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              {[['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
+                    view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">{mySquadreOnly && squadreAllenatore?.length ? 'Tutte le mie' : 'Tutte le squadre'}</option>
+                {(mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : squadre).map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={allenatoreFilter} onChange={e => setAllenatoreFilter(e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Tutti gli allenatori</option>
+                {allenatoriList.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </>}
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between px-2 pb-2"
-          onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-          <button
-            onClick={() => view === 'settimana' ? setWeekOffset(w => w - 1) : setMonthOffset(m => m - 1)}
-            className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
-            <ChevronLeft size={20} className="text-gray-600" />
-          </button>
-          <div className="text-center select-none">
-            {view === 'settimana' ? (
-              <>
-                <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
-                {weekOffset === 0 && (
-                  <div className="text-xs text-blue-500 font-medium">Settimana corrente</div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="text-sm font-semibold text-gray-800 capitalize">{monthLabel}</div>
-                {monthOffset === 0 && (
-                  <div className="text-xs text-blue-500 font-medium">Mese corrente</div>
-                )}
-              </>
+        {calTab === 'calendario' && <>
+          <div className="flex items-center justify-between px-2 pb-2"
+            onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            <button
+              onClick={() => view === 'settimana' ? setWeekOffset(w => w - 1) : setMonthOffset(m => m - 1)}
+              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
+              <ChevronLeft size={20} className="text-gray-600" />
+            </button>
+            <div className="text-center select-none">
+              {view === 'settimana' ? (
+                <>
+                  <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
+                  {weekOffset === 0 && (
+                    <div className="text-xs text-blue-500 font-medium">Settimana corrente</div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="text-sm font-semibold text-gray-800 capitalize">{monthLabel}</div>
+                  {monthOffset === 0 && (
+                    <div className="text-xs text-blue-500 font-medium">Mese corrente</div>
+                  )}
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => view === 'settimana' ? setWeekOffset(w => w + 1) : setMonthOffset(m => m + 1)}
+              className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
+              <ChevronRight size={20} className="text-gray-600" />
+            </button>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-2">
+            {LEGEND.map(({ color, label }) => (
+              <div key={color} className="flex items-center gap-1.5">
+                <div className={`w-2.5 h-2.5 rounded-full ${COLORS[color].dot}`} />
+                <span className="text-xs text-gray-500">{label}</span>
+              </div>
+            ))}
+            {view === 'settimana' && (
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle size={10} className="text-red-500" />
+                <span className="text-xs text-gray-500">All. da spostare</span>
+              </div>
             )}
           </div>
-          <button
-            onClick={() => view === 'settimana' ? setWeekOffset(w => w + 1) : setMonthOffset(m => m + 1)}
-            className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
-            <ChevronRight size={20} className="text-gray-600" />
-          </button>
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-2">
-          {LEGEND.map(({ color, label }) => (
-            <div key={color} className="flex items-center gap-1.5">
-              <div className={`w-2.5 h-2.5 rounded-full ${COLORS[color].dot}`} />
-              <span className="text-xs text-gray-500">{label}</span>
-            </div>
-          ))}
-          {view === 'settimana' && (
-            <div className="flex items-center gap-1.5">
-              <AlertTriangle size={10} className="text-red-500" />
-              <span className="text-xs text-gray-500">All. da spostare</span>
-            </div>
-          )}
-        </div>
+        </>}
       </div>
 
+      {/* ── Import FIP tab ── */}
+      {calTab === 'importa' && <ImportaCalendarioPage embedded />}
+
       {/* ── Content ── */}
-      {view === 'settimana' ? (
+      {calTab === 'calendario' && (view === 'settimana' ? (
         isLoading ? (
           <LoadingSpinner message="Caricamento calendario..." />
         ) : error ? (
@@ -860,7 +909,7 @@ export default function CalendarioPage() {
             />
           </div>
         )
-      )}
+      ))}
 
       {/* ── FAB ── */}
       {canModify && (

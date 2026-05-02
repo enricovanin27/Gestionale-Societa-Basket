@@ -18,7 +18,18 @@
       "Bash(kill %1)",
       "Bash(echo \"exit_code: $?\")",
       "Bash(npx react-scripts *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(uvicorn api:app --port 8000 --timeout-keep-alive 3)",
+      "Bash(curl -s http://localhost:8000/api/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(dir D:\\\\PYTHON\\\\PROGETTO_ODERZO\\\\frontend\\\\public *)",
+      "Bash(git commit *)",
+      "Bash(grep -v \"import\\\\|//\")"
     ]
   }
 }

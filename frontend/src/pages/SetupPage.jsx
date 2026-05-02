@@ -284,9 +284,14 @@ const EMPTY_ALL = { nome: '', cognome: '', email: '', squadre_capo: [], squadre_
 function AllenatoriTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
-  const [showForm,   setShowForm]   = useState(false)
-  const [editingRow, setEditingRow] = useState(null)
-  const [form, setForm]             = useState(EMPTY_ALL)
+  const [showForm,      setShowForm]      = useState(false)
+  const [editingRow,    setEditingRow]    = useState(null)
+  const [form,          setForm]          = useState(EMPTY_ALL)
+  const [accountModal,  setAccountModal]  = useState(null)
+  const [accountForm,   setAccountForm]   = useState({ email: '', password: '' })
+  const [accountErr,    setAccountErr]    = useState(null)
+  const [accountOk,     setAccountOk]     = useState(false)
+  const [creatingAcc,   setCreatingAcc]   = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const { data: allenatori = [], isLoading, error } = useQuery({
@@ -361,6 +366,49 @@ function AllenatoriTab() {
   }
   function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_ALL) }
 
+  function openAccountModal(al) {
+    setAccountModal(al)
+    setAccountForm({ email: al.email ?? '', password: '' })
+    setAccountErr(null)
+    setAccountOk(false)
+  }
+
+  async function handleCreaAccountAllenatore(e) {
+    e.preventDefault()
+    setCreatingAcc(true)
+    setAccountErr(null)
+    try {
+      if (!supabaseAdmin) throw new Error('Service role key non configurata. Riavvia il dev server e verifica VITE_SUPABASE_SERVICE_ROLE_KEY in frontend/.env')
+      const capoList = (accountModal.squadre_capo ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const viceList = (accountModal.squadre_vice ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const { data, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email:         accountForm.email.trim(),
+        password:      accountForm.password,
+        email_confirm: true,
+        user_metadata: { nome: accountModal.nome, cognome: accountModal.cognome, ruolo: 'allenatore', societa_id: societaId },
+      })
+      if (createErr) throw createErr
+      const newUserId = data.user?.id
+      if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
+      await supabase.from('profiles').upsert([{
+        id: newUserId, email: accountForm.email.trim(),
+        nome: accountModal.nome, cognome: accountModal.cognome,
+        ruolo: 'allenatore', societa_id: societaId,
+        squadra:  capoList[0] || viceList[0] || null,
+        squadra2: capoList[1] || viceList[1] || null,
+        squadra3: capoList[2] || viceList[2] || null,
+        attivo: true,
+      }], { onConflict: 'id' })
+      setAccountOk(true)
+      qc.invalidateQueries({ queryKey: ['allenatori-account-emails'] })
+      setTimeout(() => setAccountModal(null), 2500)
+    } catch (err) {
+      setAccountErr(err.message)
+    } finally {
+      setCreatingAcc(false)
+    }
+  }
+
   const toggleCapo = sq => set('squadre_capo',
     form.squadre_capo.includes(sq) ? form.squadre_capo.filter(s => s !== sq) : [...form.squadre_capo, sq]
   )
@@ -424,6 +472,12 @@ function AllenatoriTab() {
                     )}
                   </div>
                   <div className="flex gap-1 shrink-0">
+                    {al.email && !hasAccount && (
+                      <button onClick={() => openAccountModal(al)} title="Crea account"
+                        className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg">
+                        <UserPlus size={14} />
+                      </button>
+                    )}
                     <button onClick={() => openEdit(al)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg">
                       <Edit2 size={14} />
                     </button>
@@ -439,6 +493,38 @@ function AllenatoriTab() {
             )
           })}
         </div>
+      )}
+
+      {accountModal && (
+        <Modal title="Crea account allenatore" onClose={() => setAccountModal(null)}>
+          {accountOk ? (
+            <div className="text-center py-6">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Check size={28} className="text-green-600" />
+              </div>
+              <p className="font-semibold text-gray-800">Account creato!</p>
+              <p className="text-xs text-gray-500 mt-1">L'allenatore può ora accedere all'app.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleCreaAccountAllenatore} className="space-y-4">
+              <p className="text-xs text-gray-500">Crea un account per {accountModal.nome} {accountModal.cognome}. Le squadre verranno impostate automaticamente.</p>
+              <Field label="Email">
+                <input type="email" value={accountForm.email} readOnly
+                  className={`${inp} bg-gray-50 text-gray-500 cursor-default`} />
+              </Field>
+              <Field label="Password iniziale *">
+                <input type="text" value={accountForm.password}
+                  onChange={e => setAccountForm(f => ({ ...f, password: e.target.value }))}
+                  className={inp} placeholder="Almeno 6 caratteri" required minLength={6} />
+              </Field>
+              {accountErr && <p className="text-xs text-red-500">{accountErr}</p>}
+              <button type="submit" disabled={creatingAcc}
+                className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+                {creatingAcc ? 'Creazione...' : 'Crea account'}
+              </button>
+            </form>
+          )}
+        </Modal>
       )}
 
       {showForm && (
@@ -911,7 +997,7 @@ function UtentiTab() {
         throw new Error('Il tuo profilo non ha una società associata. Vai su Supabase Dashboard → Table Editor → profiles e imposta societa_id per il tuo account.')
       }
 
-      if (!supabaseAdmin) throw new Error('Service role key non configurata')
+      if (!supabaseAdmin) throw new Error('Service role key non configurata. Riavvia il dev server e verifica VITE_SUPABASE_SERVICE_ROLE_KEY in frontend/.env')
       const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email:         inviteForm.email,
         password:      inviteForm.password,
@@ -2123,7 +2209,7 @@ function GiocatoriTab() {
     setCreatingAcc(true)
     setAccountErr(null)
     try {
-      if (!supabaseAdmin) throw new Error('Service role key non configurata')
+      if (!supabaseAdmin) throw new Error('Service role key non configurata. Riavvia il dev server e verifica VITE_SUPABASE_SERVICE_ROLE_KEY in frontend/.env')
 
       const { data, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email:             accountForm.email.trim(),

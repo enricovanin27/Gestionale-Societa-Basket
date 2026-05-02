@@ -10,6 +10,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useWeekEvents } from '../hooks/useWeekEvents'
+import StatistichePage from './StatistichePage'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -764,10 +765,11 @@ function PresenzeAllenamentoModal({ event, onClose }) {
   )
 }
 
-function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null }) {
+function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null, onlySquadre = null }) {
   const qc      = useQueryClient()
   const { societaId } = useAuth()
   const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
+  const inScope = (ev) => !onlySquadre || onlySquadre.includes(ev.squadra)
   const weekEnd  = endOfWeek(weekStart, { weekStartsOn: 1 })
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd })
 
@@ -911,6 +913,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
   if (error)     return <div className="py-8 text-center text-sm text-gray-500">{error.message}</div>
 
   const trainings = (weekData?.events?.filter(e => e._tipo === 'allenamento') ?? [])
+    .filter(e => inScope(e))
     .filter(e => !squadraFilter || e.squadra === squadraFilter)
     .filter(e => !allenatoreFilter || (e.allenatori ?? '').split(',').some(a => a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase())))
     .filter(e => !palestraFilter || e.palestra === palestraFilter)
@@ -1081,10 +1084,11 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
 }
 
 // ─── TAB 1: OGGI ─────────────────────────────────────────────────────────────
-function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null }) {
+function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null, onlySquadre = null }) {
   const qc        = useQueryClient()
   const { societaId } = useAuth()
   const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
+  const inScope = (ev) => !onlySquadre || onlySquadre.includes(ev.squadra)
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
   const todayStr  = format(new Date(), 'yyyy-MM-dd')
   const [gridView, setGridView] = useState(false)
@@ -1156,11 +1160,12 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
   const todayTrainings = useMemo(() =>
     (weekData?.eventsByDate?.[todayStr] ?? [])
       .filter(e => e._tipo === 'allenamento'
+        && inScope(e)
         && (!squadraFilter || e.squadra === squadraFilter)
         && (!allenatoreFilter || (e.allenatori ?? '').split(',').some(a => a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase())))
         && (!palestraFilter || e.palestra === palestraFilter))
-      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? '')),
-    [weekData, todayStr, squadraFilter, allenatoreFilter, palestraFilter])
+      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(a.ora_inizio ?? '')),
+    [weekData, todayStr, squadraFilter, allenatoreFilter, palestraFilter, inScope])
 
   if (isLoading) return <LoadingSpinner message="Caricamento..." />
 
@@ -1599,19 +1604,25 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'oggi',     label: 'Oggi'      },
-  { id: 'corrente', label: 'Settimana' },
-  { id: 'prossima', label: 'Prossima'  },
-  { id: 'tipo',     label: 'Tipo'      },
+  { id: 'oggi',        label: 'Oggi'        },
+  { id: 'corrente',    label: 'Settimana'   },
+  { id: 'prossima',    label: 'Prossima'    },
+  { id: 'tipo',        label: 'Tipo'        },
+  { id: 'statistiche', label: 'Statistiche' },
 ]
 
 export default function AllenamentiPage() {
   const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
   const [activeTab,        setActiveTab]        = useState('oggi')
+  const [mySquadreOnly,    setMySquadreOnly]    = useState(!!squadreAllenatore?.length)
   const [squadraFilter,    setSquadraFilter]    = useState('')
   const [allenatoreFilter, setAllenatoreFilter] = useState('')
   const [palestraFilter,   setPalestraFilter]   = useState('')
   const canEdit = isAdmin || isAllenatore
+
+  const squadraFilterEffective = mySquadreOnly && squadreAllenatore?.length && !squadraFilter
+    ? null  // handled per-event via squadreAllenatore prop
+    : squadraFilter
 
   const currentWeekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
   const nextWeekStart    = useMemo(() => addWeeks(currentWeekStart, 1), [currentWeekStart])
@@ -1652,10 +1663,25 @@ export default function AllenamentiPage() {
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="px-4 pt-4 pb-2">
           <h1 className="text-xl font-bold text-gray-900 mb-2">Allenamenti</h1>
+
+          {isAllenatore && (
+            <div className="flex bg-gray-100 rounded-lg p-0.5 mb-2">
+              {[['mine', 'Le mie squadre'], ['all', 'Tutte le squadre']].map(([v, label]) => (
+                <button key={v}
+                  onClick={() => { setMySquadreOnly(v === 'mine'); setSquadraFilter('') }}
+                  className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
+                    (v === 'mine') === mySquadreOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Tutte le squadre</option>
-            {allSquadre.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="">{mySquadreOnly && squadreAllenatore?.length ? 'Tutte le mie' : 'Tutte le squadre'}</option>
+            {(mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : allSquadre).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-2">
             <select value={allenatoreFilter} onChange={e => setAllenatoreFilter(e.target.value)}
@@ -1684,14 +1710,15 @@ export default function AllenamentiPage() {
       </div>
 
       <div className="flex-1 p-4">
-        {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />}
+        {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />}
         {activeTab === 'corrente' && (
-          <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />
+          <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />
         )}
         {activeTab === 'prossima' && (
-          <SettimanaView weekStart={nextWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={true} showDiff={true} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} />
+          <SettimanaView weekStart={nextWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={true} showDiff={true} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />
         )}
-        {activeTab === 'tipo'     && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
+        {activeTab === 'tipo'        && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
+        {activeTab === 'statistiche' && <StatistichePage embedded />}
       </div>
     </div>
   )

@@ -132,7 +132,7 @@ function PartitaRow({ partita, index, onChange, onImporta, importing, palestreLi
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function ImportaCalendarioPage() {
+export default function ImportaCalendarioPage({ embedded = false }) {
   const qc = useQueryClient()
   const fileRef = useRef(null)
   const { isAdmin, isAllenatore, user, societaId } = useAuth()
@@ -325,17 +325,8 @@ export default function ImportaCalendarioPage() {
   const nImportabili = partite.filter((p, i) => p.squadra && p.data && !imported.has(i)).length
   const canEstrai    = !!file && !!squadraScelta && !loading
 
-  return (
-    <div className="flex flex-col min-h-screen pb-24 bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-30 shadow-sm px-4 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          <FileText size={20} className="text-blue-600" />
-          <h1 className="text-xl font-bold text-gray-900">Importa Calendario FIP</h1>
-        </div>
-      </div>
-
-      <div className="p-4 space-y-4">
+  const inner = (
+    <div className="space-y-4">
         {/* Upload card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
           <h2 className="text-sm font-semibold text-gray-700">1. Seleziona la squadra</h2>
@@ -500,7 +491,19 @@ export default function ImportaCalendarioPage() {
             ))}
           </div>
         )}
+    </div>
+  )
+
+  if (embedded) return <div className="pb-4">{inner}</div>
+  return (
+    <div className="flex flex-col min-h-screen pb-24 bg-gray-50">
+      <div className="bg-white border-b sticky top-0 z-30 shadow-sm px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2">
+          <FileText size={20} className="text-blue-600" />
+          <h1 className="text-xl font-bold text-gray-900">Importa Calendario FIP</h1>
+        </div>
       </div>
+      <div className="p-4">{inner}</div>
     </div>
   )
 }
