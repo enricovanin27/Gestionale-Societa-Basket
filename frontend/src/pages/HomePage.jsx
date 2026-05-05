@@ -15,6 +15,8 @@ import { useWeekEvents, useMonthEvents } from '../hooks/useWeekEvents'
 import { getWeekDays, formatDate, formatTime, isDateToday } from '../lib/utils'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { GIORNI as GIORNI_W, GIORNO_FULL as GIORNI_LABEL_W } from '../lib/constants'
+import { saveAllenamento, annullaAllenamento } from '../hooks/useAllenamenti'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,57 +31,6 @@ function parseList(str) {
   return (str ?? '').split(',').map(s => s.trim()).filter(Boolean)
 }
 
-// ─── DB helpers (usati dall'allenatore dalla home) ─────────────────────────────
-
-async function saveAllenamento(event, formData, societaId) {
-  const payload = {
-    data: event.data, squadra: event.squadra,
-    ora_inizio: formData.ora_inizio, ora_fine: formData.ora_fine,
-    palestra: formData.palestra, annullato: false,
-  }
-  if (event._source === 'fisso') {
-    const { data: existing } = await supabase
-      .from('orario_settimana').select('id')
-      .eq('data', event.data).eq('squadra', event.squadra).maybeSingle()
-    if (existing) {
-      const { error } = await supabase.from('orario_settimana').update(payload).eq('id', existing.id)
-      if (error) throw error
-    } else {
-      const { error } = await supabase.from('orario_settimana').insert([{ ...payload, societa_id: societaId }])
-      if (error) throw error
-    }
-  } else {
-    const { error } = await supabase.from('orario_settimana').update(payload).eq('id', event.id)
-    if (error) throw error
-  }
-}
-
-async function annullaAllenamento(event, societaId) {
-  if (event._source === 'fisso') {
-    const { data: existing } = await supabase
-      .from('orario_settimana').select('id')
-      .eq('data', event.data).eq('squadra', event.squadra).maybeSingle()
-    if (existing) {
-      const { error } = await supabase.from('orario_settimana').update({ annullato: true }).eq('id', existing.id)
-      if (error) throw error
-    } else {
-      const { error } = await supabase.from('orario_settimana').insert([{
-        data: event.data, squadra: event.squadra,
-        ora_inizio: event.ora_inizio, ora_fine: event.ora_fine,
-        palestra: event.palestra ?? '', annullato: true, societa_id: societaId,
-      }])
-      if (error) throw error
-    }
-  } else {
-    const { error } = await supabase.from('orario_settimana').update({ annullato: true }).eq('id', event.id)
-    if (error) throw error
-  }
-}
-
-// ─── Costanti giorni (usate dai modal allenatore) ──────────────────────────────
-
-const GIORNI_W       = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato','domenica']
-const GIORNI_LABEL_W = { lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì', giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica' }
 const GIORNO_OFFSET_W = { lunedi:0, martedi:1, mercoledi:2, giovedi:3, venerdi:4, sabato:5, domenica:6 }
 
 // ─── Cambia password (usato in tutti gli header) ──────────────────────────────

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Building2, Users, LogOut, Plus, X, Check, AlertCircle,
+  Building2, Users, LogOut, Plus, Check, AlertCircle,
   Trash2, Globe, Shield, Edit2, Crown, BarChart3,
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -9,6 +9,7 @@ import { it } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { Modal, Field, inp } from '../components/ui'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,39 +20,6 @@ function toSlug(nome) {
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
-}
-
-// ─── Shared UI ────────────────────────────────────────────────────────────────
-
-const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>
-      {children}
-    </div>
-  )
-}
-
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div
-        className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 pb-10 max-h-[92vh] overflow-y-auto shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
-            <X size={20} className="text-gray-400" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
 }
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────

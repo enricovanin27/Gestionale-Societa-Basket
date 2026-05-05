@@ -5,23 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useWeekEvents } from '../hooks/useWeekEvents'
 import LoadingSpinner from './LoadingSpinner'
-
-const PALETTE = [
-  { bg: 'bg-blue-50',   title: 'text-blue-900'   },
-  { bg: 'bg-green-50',  title: 'text-green-900'  },
-  { bg: 'bg-purple-50', title: 'text-purple-900' },
-  { bg: 'bg-orange-50', title: 'text-orange-900' },
-  { bg: 'bg-teal-50',   title: 'text-teal-900'   },
-  { bg: 'bg-rose-50',   title: 'text-rose-900'   },
-  { bg: 'bg-indigo-50', title: 'text-indigo-900' },
-  { bg: 'bg-amber-50',  title: 'text-amber-900'  },
-]
-
-const GIORNI = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato','domenica']
-const GIORNI_LABEL = {
-  lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì',
-  giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica',
-}
+import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 
 const NO_PAL = '—'
 const SEP_TH = 'bg-gray-300 border-gray-300'

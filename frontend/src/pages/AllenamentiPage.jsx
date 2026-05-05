@@ -11,43 +11,12 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useWeekEvents } from '../hooks/useWeekEvents'
 import StatistichePage from './StatistichePage'
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
-function inviaNotificaAnnullamento(squadra, societaId, data) {
-  fetch(`${API_BASE}/api/notifica/allenamento`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      squadra,
-      societa_id: societaId,
-      data,
-      titolo: 'Allenamento annullato',
-      corpo: `L'allenamento di ${squadra} è stato annullato.`,
-    }),
-  }).catch(() => {})
-}
 import { formatTime } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
 import GrigliaSettimanale, { GrigliaTipo } from '../components/GrigliaSettimanale'
-
-// ─── Palette colori per squadra ───────────────────────────────────────────────
-const PALETTE = [
-  { border: 'border-l-blue-500',   bg: 'bg-blue-50',   title: 'text-blue-900'   },
-  { border: 'border-l-green-500',  bg: 'bg-green-50',  title: 'text-green-900'  },
-  { border: 'border-l-purple-500', bg: 'bg-purple-50', title: 'text-purple-900' },
-  { border: 'border-l-orange-500', bg: 'bg-orange-50', title: 'text-orange-900' },
-  { border: 'border-l-teal-500',   bg: 'bg-teal-50',   title: 'text-teal-900'   },
-  { border: 'border-l-rose-500',   bg: 'bg-rose-50',   title: 'text-rose-900'   },
-  { border: 'border-l-indigo-500', bg: 'bg-indigo-50', title: 'text-indigo-900' },
-  { border: 'border-l-amber-500',  bg: 'bg-amber-50',  title: 'text-amber-900'  },
-]
-
-const GIORNI = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato','domenica']
-const GIORNI_LABEL = {
-  lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì',
-  giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica',
-}
+import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
+import { Modal, Field, inp } from '../components/ui'
+import { inviaNotificaAnnullamento } from '../hooks/useAllenamenti'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getColor(squadra, allSquadre) {
@@ -57,16 +26,6 @@ function getColor(squadra, allSquadre) {
 
 // evita lo shift UTC per date 'yyyy-MM-dd'
 function safeDate(dateStr) { return new Date(dateStr + 'T12:00:00') }
-
-const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>
-      {children}
-    </div>
-  )
-}
 
 // ─── Conflict checker ─────────────────────────────────────────────────────────
 function timesOverlap(as, ae, bs, be) {
@@ -129,28 +88,6 @@ function ConflictIndicator({ errors, warnings }) {
           <AlertTriangle size={13} className="mt-0.5 shrink-0" /> ⚠️ {m}
         </div>
       ))}
-    </div>
-  )
-}
-
-// ─── Modal ────────────────────────────────────────────────────────────────────
-function Modal({ title, subtitle, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div
-        className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 pb-10 max-h-[92vh] overflow-y-auto shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
-            <X size={20} className="text-gray-400" />
-          </button>
-        </div>
-        {subtitle && <p className="text-sm text-blue-600 font-medium mb-4">{subtitle}</p>}
-        {children}
-      </div>
     </div>
   )
 }

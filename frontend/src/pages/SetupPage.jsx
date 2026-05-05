@@ -8,74 +8,8 @@ import {
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const GIORNI       = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato','domenica']
-const GIORNI_LABEL = { lunedi:'Lun', martedi:'Mar', mercoledi:'Mer', giovedi:'Gio', venerdi:'Ven', sabato:'Sab', domenica:'Dom' }
-const GIORNO_FULL  = { lunedi:'Lunedì', martedi:'Martedì', mercoledi:'Mercoledì', giovedi:'Giovedì', venerdi:'Venerdì', sabato:'Sabato', domenica:'Domenica' }
-const TIPO_PALESTRA = ['Principale', 'Secondaria', 'Esterna']
-const RUOLI        = ['admin', 'allenatore', 'genitore', 'giocatore']
-const RUOLI_LABEL  = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', genitore: 'Genitore', giocatore: 'Giocatore' }
-
-// ─── Shared UI ────────────────────────────────────────────────────────────────
-
-function TabBtn({ label, icon: Icon, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-medium transition-colors border-b-2 ${
-        active ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
-      }`}
-    >
-      <Icon size={16} />
-      {label}
-    </button>
-  )
-}
-
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
-      <div
-        className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 pb-10 max-h-[92vh] overflow-y-auto shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
-            <X size={20} className="text-gray-400" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>
-      {children}
-    </div>
-  )
-}
-
-const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-
-function ErrorBox({ error }) {
-  return (
-    <div className="p-6 text-center">
-      <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
-      <p className="text-sm text-gray-600">Errore nel caricamento</p>
-      <p className="text-xs text-gray-400 mt-1">{error?.message}</p>
-    </div>
-  )
-}
+import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL } from '../lib/constants'
+import { Modal, Field, TabBtn, inp, ErrorBox } from '../components/ui'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB 1 — PALESTRE
@@ -1684,7 +1618,7 @@ function DoppioSection({ squadreList }) {
 // TAB 4 — SCHEDULING
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const GIORNI_SCHED    = ['lunedi','martedi','mercoledi','giovedi','venerdi','sabato','domenica']
+const GIORNI_SCHED    = GIORNI
 const FASCE_ORARIE    = ['Pomeriggio presto','Pomeriggio tardi','Serata','Mattina']
 const SLOT_BASE       = 15 * 60   // 15:00 in minuti
 const SLOT_SZ         = 15        // minuti per slot
