@@ -18,6 +18,10 @@ import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { saveAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import GrigliaSettimanale from '../components/GrigliaSettimanale'
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -48,36 +52,47 @@ function timesOverlap(as, ae, bs, be) {
 
 // ─── Mini card (week grid cell) ───────────────────────────────────────────────
 
+const MINI_CARD_STYLE = {
+  green:  { bg: 'bg-green-100 border-green-300',  title: 'text-green-900',  sub: 'text-green-700'  },
+  blue:   { bg: 'bg-blue-100 border-blue-300',    title: 'text-blue-900',   sub: 'text-blue-700'   },
+  yellow: { bg: 'bg-yellow-100 border-yellow-300', title: 'text-yellow-900', sub: 'text-yellow-700' },
+}
+
 function MiniEventCard({ event, conflicts = [], onClick }) {
-  const c = COLORS[getEventColor(event)]
+  const color = getEventColor(event)
+  const s = MINI_CARD_STYLE[color]
+
   return (
     <button
       onClick={() => onClick(event)}
-      className={`w-full text-left rounded-lg p-2 mb-1 shadow-sm active:scale-95 transition-transform ${c.card}`}
+      className={`w-full text-left mb-1.5 rounded-xl border p-2 shadow-sm active:scale-95 transition-transform ${s.bg} ${event.annullato ? 'opacity-50' : ''}`}
     >
       {event.annullato && (
-        <span className="text-xs text-gray-400 line-through block">Annullato</span>
+        <span className={`text-xs line-through block ${s.sub}`}>Annullato</span>
       )}
-      <div className={`text-xs font-semibold truncate ${c.title}`}>
+      <div className={`text-xs font-bold truncate leading-tight ${s.title}`}>
         {event.avversario ? `vs ${event.avversario}` : 'Partita'}
       </div>
       {event.squadra && (
-        <div className="text-xs text-gray-500 truncate">{event.squadra}</div>
+        <div className={`text-xs font-medium truncate ${s.sub}`}>{event.squadra}</div>
       )}
-      <div className="flex items-center gap-1 mt-0.5">
-        <Clock size={10} className="text-gray-400 flex-shrink-0" />
-        <span className="text-xs text-gray-500">{formatTime(event.ora_inizio)}</span>
+      <div className={`flex items-center gap-1 mt-0.5 ${s.sub}`}>
+        <Clock size={10} className="flex-shrink-0" />
+        <span className="text-xs">{formatTime(event.ora_inizio)}</span>
       </div>
       {event.palestra && (
-        <div className="text-xs text-gray-400 truncate">{event.palestra}</div>
+        <div className={`text-xs truncate ${s.sub}`}>{event.palestra}</div>
       )}
       {event.stato === 'provvisoria' && (
-        <AlertCircle size={12} className="text-yellow-500 mt-0.5" />
+        <div className="flex items-center gap-1 mt-1">
+          <AlertCircle size={10} className="text-yellow-700" />
+          <span className="text-xs text-yellow-800 font-medium">Provvisoria</span>
+        </div>
       )}
       {conflicts.length > 0 && (
-        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-red-200">
-          <AlertTriangle size={10} className="text-red-500 flex-shrink-0" />
-          <span className="text-xs text-red-600 font-medium leading-tight">
+        <div className="flex items-center gap-1 mt-1 pt-1 border-t border-red-300">
+          <AlertTriangle size={10} className="text-red-700 flex-shrink-0" />
+          <span className="text-xs text-red-800 font-semibold">
             {conflicts.length} all. da spostare
           </span>
         </div>
@@ -316,33 +331,24 @@ function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, 
 
         <div className="space-y-3 mt-6">
           {canModify && canModifyEvent && (
-            <button
+            <Button
+              variant={event.stato === 'provvisoria' ? 'success' : 'secondary'}
+              className="w-full"
               onClick={() => onToggleStato(event)}
               disabled={togglingStato}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform ${
-                event.stato === 'provvisoria'
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-yellow-50 text-yellow-700'
-              }`}
             >
               <RefreshCw size={15} />
               {event.stato === 'provvisoria' ? 'Segna come definitiva' : 'Segna come provvisoria'}
-            </button>
+            </Button>
           )}
           {isAdmin && (
             <div className="flex gap-3">
-              <button
-                onClick={() => onEdit(event)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-700 rounded-xl font-medium text-sm"
-              >
+              <Button variant="outline" className="flex-1" onClick={() => onEdit(event)}>
                 <Edit2 size={15} /> Modifica
-              </button>
-              <button
-                onClick={() => onDelete(event)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-700 rounded-xl font-medium text-sm"
-              >
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={() => onDelete(event)}>
                 <Trash2 size={15} /> Elimina
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -565,12 +571,14 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
               <p className="text-xs text-red-700">❌ {saveError}</p>
             </div>
           )}
-          <button
+          <Button
             type="submit" form="event-form"
+            className="w-full"
+            size="lg"
             disabled={saving || (conflictCheck.hasConflicts && !forceInsert)}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+          >
             {saving ? 'Salvataggio...' : (initial?.id ? 'Salva modifiche' : 'Aggiungi partita')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -793,13 +801,14 @@ function TrainingEditModal({ training, onClose, onSaved }) {
             <p className="text-xs text-red-600">Errore: {saveMut.error?.message}</p>
           )}
 
-          <button
+          <Button
+            className="w-full"
+            size="lg"
             onClick={() => saveMut.mutate()}
             disabled={saveMut.isPending || !form.ora_inizio || !form.ora_fine}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
           >
             {saveMut.isPending ? 'Salvataggio...' : 'Salva modifica'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -834,6 +843,7 @@ export default function CalendarioPage() {
   const [editingEvent,     setEditingEvent]     = useState(null)
   const [editingTraining,  setEditingTraining]  = useState(null)
   const [exportingICS,     setExportingICS]     = useState(false)
+  const [settimanaView,    setSettimanaView]    = useState('colonne') // 'colonne' | 'griglia'
 
   const touchStartX = useRef(null)
 
@@ -1094,11 +1104,13 @@ export default function CalendarioPage() {
           </div>
 
           {/* Tab switcher */}
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
+          <div className="flex bg-secondary rounded-xl p-1 gap-1">
             {[['partite', 'Partite'], ['settimana', 'Settimana'], ['importa', 'Import FIP']].map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
-                className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
-                  calTab === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
+                  calTab === v
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}>
                 {label}
               </button>
@@ -1119,13 +1131,13 @@ export default function CalendarioPage() {
             )}
 
             {/* View toggle */}
-            <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <div className="flex bg-secondary rounded-xl p-1 gap-1">
               {[['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, label]) => (
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
-                    view === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                  className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
+                    view === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {label}
@@ -1181,18 +1193,32 @@ export default function CalendarioPage() {
             </button>
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 pb-2">
-            {LEGEND.map(({ color, label }) => (
-              <div key={color} className="flex items-center gap-1.5">
-                <div className={`w-2.5 h-2.5 rounded-full ${COLORS[color].dot}`} />
-                <span className="text-xs text-gray-500">{label}</span>
-              </div>
-            ))}
-            {view === 'settimana' && (
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle size={10} className="text-red-500" />
-                <span className="text-xs text-gray-500">All. da spostare</span>
+          {/* Legend + vista toggle */}
+          <div className="flex items-center justify-between px-4 pb-2">
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {LEGEND.map(({ color, label }) => (
+                <div key={color} className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${COLORS[color].dot}`} />
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                </div>
+              ))}
+              {calTab === 'settimana' && (
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle size={9} className="text-red-500" />
+                  <span className="text-xs text-muted-foreground">All. da spostare</span>
+                </div>
+              )}
+            </div>
+            {calTab === 'settimana' && (
+              <div className="flex bg-secondary rounded-lg p-0.5 gap-0.5 shrink-0">
+                {[['colonne','☰'],['griglia','⊞']].map(([v, icon]) => (
+                  <button key={v} onClick={() => setSettimanaView(v)}
+                    className={`px-2 py-0.5 rounded-md text-sm transition-all ${
+                      settimanaView === v ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'
+                    }`}>
+                    {icon}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -1206,6 +1232,10 @@ export default function CalendarioPage() {
       {calTab === 'settimana' && (
         isLoading ? (
           <LoadingSpinner message="Caricamento..." />
+        ) : settimanaView === 'griglia' ? (
+          <div className="px-4 pt-2">
+            <GrigliaSettimanale weekStart={startDate} allSquadre={squadre} />
+          </div>
         ) : (
           <VistaSettimanaleCompleta
             weekDays={weekDays}

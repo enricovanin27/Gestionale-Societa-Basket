@@ -17,7 +17,10 @@ import { getWeekDays, formatDate, formatTime, isDateToday } from '../lib/utils'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { GIORNI as GIORNI_W, GIORNO_FULL as GIORNI_LABEL_W } from '../lib/constants'
-import { saveAllenamento, annullaAllenamento } from '../hooks/useAllenamenti'
+import { saveAllenamento, annullaAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -163,43 +166,48 @@ function EventRow({ event }) {
     else bk = 'partita_trasferta'
   }
 
+  const accentBar = {
+    allenamento:       'border-l-indigo-400',
+    partita_casa:      'border-l-green-500',
+    partita_trasferta: 'border-l-blue-500',
+    partita_prov:      'border-l-yellow-400',
+  }[bk]
+
+  const badgeEl = isPartita && (
+    event.stato === 'provvisoria'
+      ? <Badge variant="warning">⚠ Provvisoria</Badge>
+      : (event.casa_fuori ?? '').toLowerCase() === 'casa'
+        ? <Badge variant="success">Casa</Badge>
+        : <Badge variant="default">Trasferta</Badge>
+  )
+
   return (
-    <div className={`bg-white rounded-xl border border-gray-100 border-l-4 ${BORDER_COLOR[bk]} p-3 shadow-sm`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">
-            {isPartita
-              ? `${event.squadra}${event.avversario ? ` vs ${event.avversario}` : ''}`
-              : event.squadra}
-          </p>
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-500">
-            {event.ora_inizio && (
-              <span className="flex items-center gap-1 font-medium text-gray-700">
-                <Clock size={11} /> {formatTime(event.ora_inizio)}–{formatTime(event.ora_fine)}
-              </span>
-            )}
-            {event.palestra && (
-              <span className="flex items-center gap-1">
-                <MapPin size={11} /> {event.palestra}
-              </span>
-            )}
+    <Card className={`border-l-4 ${accentBar}`}>
+      <CardContent className="px-4 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {isPartita
+                ? `${event.squadra}${event.avversario ? ` vs ${event.avversario}` : ''}`
+                : event.squadra}
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
+              {event.ora_inizio && (
+                <span className="flex items-center gap-1 font-medium text-foreground/80">
+                  <Clock size={11} /> {formatTime(event.ora_inizio)}–{formatTime(event.ora_fine)}
+                </span>
+              )}
+              {event.palestra && (
+                <span className="flex items-center gap-1">
+                  <MapPin size={11} /> {event.palestra}
+                </span>
+              )}
+            </div>
           </div>
+          {badgeEl}
         </div>
-        {isPartita && (
-          <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
-            event.stato === 'provvisoria'
-              ? 'bg-yellow-100 text-yellow-700'
-              : (event.casa_fuori ?? '').toLowerCase() === 'casa'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-blue-100 text-blue-700'
-          }`}>
-            {event.stato === 'provvisoria'
-              ? '⚠️ Prov.'
-              : (event.casa_fuori ?? '').toLowerCase() === 'casa' ? 'Casa' : 'Trasferta'}
-          </span>
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -940,13 +948,102 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
   )
 }
 
+// ─── Quick edit allenamento (usato in Da gestire) ─────────────────────────────
+
+function QuickEditAllenamentoModal({ training, onClose, onSaved }) {
+  const { societaId } = useAuth()
+  const qc = useQueryClient()
+  const [form, setForm] = useState({
+    ora_inizio: String(training.ora_inizio ?? '').slice(0, 5),
+    ora_fine:   String(training.ora_fine   ?? '').slice(0, 5),
+    palestra:   training.palestra ?? '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const { data: palestreList = [] } = useQuery({
+    queryKey: ['palestre'],
+    queryFn: async () => {
+      const { data } = await supabase.from('palestre').select('nome').order('nome')
+      return (data ?? []).map(p => p.nome).filter(Boolean)
+    },
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const saveMut = useMutation({
+    mutationFn: () => saveAllenamento(training, form, societaId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      inviaNotificaModifica(
+        training.squadra, societaId, training.data,
+        `${form.ora_inizio}–${form.ora_fine}${form.palestra ? ` @ ${form.palestra}` : ''}`
+      )
+      onSaved()
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div className="relative bg-white rounded-t-2xl w-full max-w-lg p-6 pb-10 shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-base font-semibold text-foreground">Modifica allenamento</h2>
+          <button onClick={onClose} className="p-1 hover:bg-secondary rounded-full">
+            <X size={18} className="text-muted-foreground" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          {training.squadra} · {formatDate(training.data, 'EEE d MMM')}
+        </p>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Ora inizio</label>
+              <input type="time" value={form.ora_inizio} onChange={e => set('ora_inizio', e.target.value)}
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-input focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Ora fine</label>
+              <input type="time" value={form.ora_fine} onChange={e => set('ora_fine', e.target.value)}
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-input focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Palestra</label>
+            {palestreList.length > 0 ? (
+              <select value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-input focus:outline-none focus:ring-2 focus:ring-ring">
+                <option value="">Scegli palestra...</option>
+                {palestreList.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            ) : (
+              <input value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm bg-input focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="es. PalaOderzo" />
+            )}
+          </div>
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Modifica solo questa data — la settimana tipo rimane invariata.
+          </p>
+          {saveMut.isError && <p className="text-xs text-destructive">{saveMut.error?.message}</p>}
+          <Button className="w-full" size="lg" onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending || !form.ora_inizio || !form.ora_fine}>
+            {saveMut.isPending ? 'Salvataggio...' : 'Salva modifica'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN HOME — toggle Partite / Da gestire
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AdminHome({ displayName, logout, societaNome }) {
-  const [tab, setTab]  = useState('partite')
-  const navigate       = useNavigate()
+  const [tab, setTab]                             = useState('partite')
+  const [editingConflictTraining, setEditingConflictTraining] = useState(null)
+  const navigate                                  = useNavigate()
   const today          = new Date()
   const todayStr       = format(today, 'yyyy-MM-dd')
   const endStr         = format(addDays(today, 14), 'yyyy-MM-dd')
@@ -1066,24 +1163,29 @@ function AdminHome({ displayName, logout, societaNome }) {
 
       {/* Toggle tab */}
       <div className="px-4 pt-4 pb-3">
-        <div className="flex bg-gray-100 rounded-xl p-1">
+        <div className="flex bg-secondary rounded-xl p-1 gap-1">
           <button
             onClick={() => setTab('partite')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'partite' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              tab === 'partite'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Partite ({partiteFuture.length})
+            Partite
+            <span className="ml-1.5 text-xs text-muted-foreground">({partiteFuture.length})</span>
           </button>
           <button
             onClick={() => setTab('gestire')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'gestire' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              tab === 'gestire'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Da gestire
             {daGestireTot > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs rounded-full leading-none">
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold rounded-full px-1">
                 {daGestireTot}
               </span>
             )}
@@ -1096,16 +1198,18 @@ function AdminHome({ displayName, logout, societaNome }) {
       ) : tab === 'partite' ? (
 
         /* ── Partite ── */
-        <div className="px-4 space-y-5">
+        <div className="px-4 space-y-4">
           {partiteFuture.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-xl py-4 px-3">
-              <CheckCircle2 size={16} />
-              <span>Nessuna partita nei prossimi 14 giorni</span>
-            </div>
+            <Card>
+              <CardContent className="flex items-center gap-2 py-5 text-sm text-green-600">
+                <CheckCircle2 size={16} />
+                <span>Nessuna partita nei prossimi 14 giorni</span>
+              </CardContent>
+            </Card>
           ) : (
             Object.entries(partiteByDate).map(([dateStr, partite]) => (
               <div key={dateStr}>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 capitalize">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 capitalize px-1">
                   {format(parseISO(dateStr), 'EEEE d MMMM', { locale: it })}
                 </p>
                 <div className="space-y-2">
@@ -1121,38 +1225,42 @@ function AdminHome({ displayName, logout, societaNome }) {
       ) : (
 
         /* ── Da gestire ── */
-        <div className="px-4 space-y-5">
+        <div className="px-4 space-y-4">
           {daGestireTot === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-xl py-4 px-3">
-              <CheckCircle2 size={16} />
-              <span>Tutto in ordine! Nessuna azione richiesta ✅</span>
-            </div>
+            <Card>
+              <CardContent className="flex items-center gap-2 py-5 text-sm text-green-600">
+                <CheckCircle2 size={16} />
+                <span>Tutto in ordine! Nessuna azione richiesta</span>
+              </CardContent>
+            </Card>
           ) : (<>
 
             {/* Provvisorie da confermare */}
             {provvisorie.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
                   <AlertCircle size={12} /> Partite da confermare ({provvisorie.length})
                 </p>
                 <div className="space-y-2">
                   {provvisorie.map(p => (
-                    <div key={p.id} className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                      <p className="text-sm font-semibold text-yellow-900">
-                        {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-yellow-700">
-                        <span className="flex items-center gap-1">
-                          <Clock size={11} />
-                          {format(parseISO(p.data), 'EEE d MMM', { locale: it })} · {formatTime(p.ora_inizio)}
-                        </span>
-                        {p.palestra && (
+                    <Card key={p.id} className="border-l-4 border-l-yellow-400">
+                      <CardContent className="px-4 py-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <MapPin size={11} /> {p.palestra}
+                            <Clock size={11} />
+                            {format(parseISO(p.data), 'EEE d MMM', { locale: it })} · {formatTime(p.ora_inizio)}
                           </span>
-                        )}
-                      </div>
-                    </div>
+                          {p.palestra && (
+                            <span className="flex items-center gap-1">
+                              <MapPin size={11} /> {p.palestra}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -1161,38 +1269,48 @@ function AdminHome({ displayName, logout, societaNome }) {
             {/* Allenamenti da spostare */}
             {conflictsAll.length > 0 && (
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-xs font-semibold text-destructive uppercase tracking-wider flex items-center gap-1.5">
                     <AlertTriangle size={12} /> Allenamenti da spostare ({conflictsAll.length})
                   </p>
-                  <button
-                    onClick={() => navigate('/calendario')}
-                    className="flex items-center gap-1 text-xs text-red-600 font-medium hover:text-red-800 active:opacity-70"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/calendario')}
+                    className="text-destructive hover:text-destructive hover:bg-red-50 h-auto py-1 px-2">
                     Gestisci <ArrowRight size={12} />
-                  </button>
+                  </Button>
                 </div>
                 <div className="space-y-2">
                   {conflictsAll.map(({ partita, allenamenti }, i) => (
-                    <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3">
-                      <p className="text-sm font-semibold text-red-900">
-                        {partita.squadra}{partita.avversario ? ` vs ${partita.avversario}` : ''} — Partita definitiva
-                      </p>
-                      <p className="text-xs text-red-600 mt-0.5">
-                        {format(parseISO(partita.data), 'EEE d MMM', { locale: it })} · {formatTime(partita.ora_inizio)}–{formatTime(partita.ora_fine)}
-                        {partita.palestra ? ` · ${partita.palestra}` : ''}
-                      </p>
-                      <div className="mt-2 space-y-1">
-                        {allenamenti.map((t, j) => (
-                          <div key={j} className="flex items-center gap-2 text-xs text-red-700 bg-red-100 rounded-lg px-2 py-1.5">
-                            <AlertTriangle size={10} className="shrink-0" />
-                            <span className="font-medium">{t.squadra}</span>
-                            <span>{formatTime(t.ora_inizio)}–{formatTime(t.ora_fine)}</span>
-                            {t.palestra && <span className="text-red-400 truncate">{t.palestra}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <Card key={i} className="border-l-4 border-l-destructive">
+                      <CardContent className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {partita.squadra}{partita.avversario ? ` vs ${partita.avversario}` : ''}
+                          </p>
+                          <Badge variant="destructive">Definitiva</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {format(parseISO(partita.data), 'EEE d MMM', { locale: it })} · {formatTime(partita.ora_inizio)}–{formatTime(partita.ora_fine)}
+                          {partita.palestra ? ` · ${partita.palestra}` : ''}
+                        </p>
+                        <div className="space-y-1.5">
+                          {allenamenti.map((t, j) => (
+                            <div key={j} className="flex items-center gap-2 text-xs bg-red-50 rounded-lg px-2 py-1.5">
+                              <AlertTriangle size={10} className="shrink-0 text-destructive" />
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium text-foreground">{t.squadra}</span>
+                                <span className="text-muted-foreground ml-2">{formatTime(t.ora_inizio)}–{formatTime(t.ora_fine)}</span>
+                                {t.palestra && <span className="text-muted-foreground ml-1 truncate">· {t.palestra}</span>}
+                              </div>
+                              <Button variant="ghost" size="sm"
+                                className="h-auto py-0.5 px-2 text-xs text-primary hover:bg-blue-50 shrink-0"
+                                onClick={() => setEditingConflictTraining(t)}>
+                                Modifica
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -1201,24 +1319,30 @@ function AdminHome({ displayName, logout, societaNome }) {
             {/* Doppio campionato: partite in conflitto */}
             {doppioConflictsAdmin.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
                   <AlertTriangle size={12} /> Doppio campionato — stesso giorno ({doppioConflictsAdmin.length})
                 </p>
                 <div className="space-y-2">
                   {doppioConflictsAdmin.map(({ data: dateStr, pair, partita_a, partita_b }, i) => (
-                    <div key={i} className="bg-orange-50 border border-orange-200 rounded-xl p-3">
-                      <p className="text-xs font-semibold text-orange-700 mb-1.5">
-                        {format(parseISO(dateStr), 'EEE d MMMM', { locale: it })}
-                        {pair.note && <span className="ml-1 text-orange-400 font-normal">({pair.note})</span>}
-                      </p>
-                      {[partita_a, partita_b].map((p, j) => (
-                        <div key={j} className="flex items-center gap-2 text-xs text-orange-700 bg-orange-100 rounded-lg px-2 py-1.5 mb-1">
-                          <span className="font-medium">{p.squadra}</span>
-                          {p.avversario && <span className="text-orange-500">vs {p.avversario}</span>}
-                          {p.ora_inizio && <span className="text-orange-400 ml-auto">{formatTime(p.ora_inizio)}</span>}
+                    <Card key={i} className="border-l-4 border-l-orange-400">
+                      <CardContent className="px-4 py-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold text-muted-foreground capitalize">
+                            {format(parseISO(dateStr), 'EEE d MMMM', { locale: it })}
+                          </p>
+                          {pair.note && <Badge variant="orange">{pair.note}</Badge>}
                         </div>
-                      ))}
-                    </div>
+                        <div className="space-y-1">
+                          {[partita_a, partita_b].map((p, j) => (
+                            <div key={j} className="flex items-center gap-2 text-xs bg-orange-50 rounded-lg px-2 py-1.5">
+                              <span className="font-medium text-foreground">{p.squadra}</span>
+                              {p.avversario && <span className="text-muted-foreground">vs {p.avversario}</span>}
+                              {p.ora_inizio && <span className="text-muted-foreground ml-auto">{formatTime(p.ora_inizio)}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -1226,6 +1350,14 @@ function AdminHome({ displayName, logout, societaNome }) {
 
           </>)}
         </div>
+      )}
+
+      {editingConflictTraining && (
+        <QuickEditAllenamentoModal
+          training={editingConflictTraining}
+          onClose={() => setEditingConflictTraining(null)}
+          onSaved={() => setEditingConflictTraining(null)}
+        />
       )}
     </div>
   )

@@ -1,4 +1,10 @@
+import { clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday, parseISO } from 'date-fns'
+
+export function cn(...inputs) {
+  return twMerge(clsx(inputs))
+}
 import { it } from 'date-fns/locale'
 
 export function formatDate(date, fmt = 'dd/MM/yyyy') {

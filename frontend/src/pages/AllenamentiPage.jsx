@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
+import { format, endOfWeek, eachDayOfInterval } from 'date-fns'
 import { it } from 'date-fns/locale'
 import {
   Edit2, X, Plus, Users, MapPin, Clock,
@@ -1542,7 +1542,6 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
 // ─── Main ─────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'oggi',        label: 'Oggi'        },
-  { id: 'corrente',    label: 'Settimana'   },
   { id: 'tipo',        label: 'Tipo'        },
   { id: 'statistiche', label: 'Statistiche' },
 ]
@@ -1560,7 +1559,6 @@ export default function AllenamentiPage() {
     ? null  // handled per-event via squadreAllenatore prop
     : squadraFilter
 
-  const currentWeekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
 
   const { data: allSquadre = [] } = useQuery({
     queryKey: ['squadre'],
@@ -1597,7 +1595,16 @@ export default function AllenamentiPage() {
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="px-4 pt-4 pb-2">
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Allenamenti</h1>
+          <div className="flex items-start justify-between mb-1">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Allenamenti</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Presenze · Annullamenti · Settimana tipo</p>
+            </div>
+            <a href="/calendario"
+              className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-1 hover:underline">
+              Pianificazione →
+            </a>
+          </div>
 
           {isAllenatore && (
             <div className="flex bg-gray-100 rounded-lg p-0.5 mb-2">
@@ -1646,9 +1653,7 @@ export default function AllenamentiPage() {
 
       <div className="flex-1 p-4">
         {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />}
-        {activeTab === 'corrente' && (
-          <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />
-        )}
+
 {activeTab === 'tipo'        && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
         {activeTab === 'statistiche' && <StatistichePage embedded />}
       </div>
