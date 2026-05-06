@@ -6,8 +6,9 @@ import {
 import { it } from 'date-fns/locale'
 import {
   CheckCircle2, LogOut, AlertTriangle, Clock, MapPin, AlertCircle,
-  ChevronLeft, ChevronRight, X, Plus, Lock, Download,
+  ChevronLeft, ChevronRight, X, Plus, Lock, Download, ArrowRight,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -945,11 +946,13 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
 
 function AdminHome({ displayName, logout, societaNome }) {
   const [tab, setTab]  = useState('partite')
+  const navigate       = useNavigate()
   const today          = new Date()
   const todayStr       = format(today, 'yyyy-MM-dd')
   const endStr         = format(addDays(today, 14), 'yyyy-MM-dd')
   const weekStart      = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
   const nextWeekStart  = useMemo(() => addWeeks(weekStart, 1), [weekStart])
+  const week2Start     = useMemo(() => addWeeks(weekStart, 2), [weekStart])
 
   // Partite dei prossimi 14 giorni
   const { data: partiteFuture = [], isLoading: loadingP } = useQuery({
@@ -979,25 +982,36 @@ function AdminHome({ displayName, logout, societaNome }) {
     staleTime: 2 * 60 * 1000,
   })
 
-  // Dati settimana corrente + prossima per rilevare conflitti
+  // Dati settimana corrente + 2 settimane successive per coprire il range 14gg di partiteFuture
   const { data: thisWeek }  = useWeekEvents(weekStart)
   const { data: nextWeek }  = useWeekEvents(nextWeekStart)
+  const { data: week2 }     = useWeekEvents(week2Start)
 
   const conflictsAll = useMemo(() => {
-    const allEvents    = [...(thisWeek?.events ?? []), ...(nextWeek?.events ?? [])]
-    const partite      = allEvents.filter(e => e._tipo === 'partita' && e.stato === 'definitiva')
-    const allenamenti  = allEvents.filter(e => e._tipo === 'allenamento' && !e.annullato)
+    const allEvents   = [...(thisWeek?.events ?? []), ...(nextWeek?.events ?? []), ...(week2?.events ?? [])]
+    const partite     = allEvents.filter(e => e._tipo === 'partita' && e.stato === 'definitiva' && e.data >= todayStr)
+    const allenamenti = allEvents.filter(e => e._tipo === 'allenamento' && !e.annullato)
     const result = []
     for (const p of partite) {
-      const conf = allenamenti.filter(t =>
-        t.data === p.data &&
-        (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase() &&
-        timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine)
-      )
+      const conf = allenamenti.filter(t => {
+        if (t.data !== p.data) return false
+        if (!timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine)) return false
+        const sameSquadra = (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase()
+        const samePalestra = p.casa_fuori === 'Casa' &&
+          p.palestra?.trim() && t.palestra?.trim() &&
+          p.palestra.trim().toLowerCase() === t.palestra.trim().toLowerCase()
+        return sameSquadra || samePalestra
+      })
       if (conf.length) result.push({ partita: p, allenamenti: conf })
     }
-    return result
-  }, [thisWeek, nextWeek])
+    // Deduplica per partita (stessa partita può apparire in più settimane)
+    const seen = new Set()
+    return result.filter(r => {
+      if (seen.has(r.partita.id)) return false
+      seen.add(r.partita.id)
+      return true
+    })
+  }, [thisWeek, nextWeek, week2, todayStr])
 
   const { data: doppioList = [] } = useQuery({
     queryKey: ['doppio-campionato'],
@@ -1147,9 +1161,17 @@ function AdminHome({ displayName, logout, societaNome }) {
             {/* Allenamenti da spostare */}
             {conflictsAll.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                  <AlertTriangle size={12} /> Allenamenti da spostare ({conflictsAll.length})
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wide flex items-center gap-1.5">
+                    <AlertTriangle size={12} /> Allenamenti da spostare ({conflictsAll.length})
+                  </p>
+                  <button
+                    onClick={() => navigate('/calendario')}
+                    className="flex items-center gap-1 text-xs text-red-600 font-medium hover:text-red-800 active:opacity-70"
+                  >
+                    Gestisci <ArrowRight size={12} />
+                  </button>
+                </div>
                 <div className="space-y-2">
                   {conflictsAll.map(({ partita, allenamenti }, i) => (
                     <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-3">

@@ -5,7 +5,7 @@ import { useUnreadAnnunci } from '../pages/BachecaPage'
 
 const navItems = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/calendario', icon: Calendar, label: 'Calendario', superAdminHidden: true },
+  { to: '/calendario', icon: Calendar, label: 'Pianificazione', superAdminHidden: true },
   { to: '/allenamenti', icon: Trophy,  label: 'Allenamenti', staffOnly: true, superAdminHidden: true },
   { to: '/bacheca',     icon: Bell,    label: 'Bacheca',     superAdminHidden: true },
   { to: '/setup', icon: Settings, label: 'Setup', adminOnly: true },

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, addWeeks, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
+import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
 import { it } from 'date-fns/locale'
 import {
   Edit2, X, Plus, Users, MapPin, Clock,
@@ -1543,7 +1543,6 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
 const TABS = [
   { id: 'oggi',        label: 'Oggi'        },
   { id: 'corrente',    label: 'Settimana'   },
-  { id: 'prossima',    label: 'Prossima'    },
   { id: 'tipo',        label: 'Tipo'        },
   { id: 'statistiche', label: 'Statistiche' },
 ]
@@ -1562,7 +1561,6 @@ export default function AllenamentiPage() {
     : squadraFilter
 
   const currentWeekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
-  const nextWeekStart    = useMemo(() => addWeeks(currentWeekStart, 1), [currentWeekStart])
 
   const { data: allSquadre = [] } = useQuery({
     queryKey: ['squadre'],
@@ -1651,10 +1649,7 @@ export default function AllenamentiPage() {
         {activeTab === 'corrente' && (
           <SettimanaView weekStart={currentWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={false} showDiff={false} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />
         )}
-        {activeTab === 'prossima' && (
-          <SettimanaView weekStart={nextWeekStart} allSquadre={allSquadre} canEdit={canEdit} showWhatsApp={true} showDiff={true} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : null} />
-        )}
-        {activeTab === 'tipo'        && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
+{activeTab === 'tipo'        && <SettimanaTipoTab isAdmin={isAdmin} isAllenatore={isAllenatore} squadreAllenatore={squadreAllenatore} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} />}
         {activeTab === 'statistiche' && <StatistichePage embedded />}
       </div>
     </div>

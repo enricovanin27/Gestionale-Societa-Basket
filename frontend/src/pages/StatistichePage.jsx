@@ -35,29 +35,17 @@ export default function StatistichePage({ embedded = false }) {
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: presenze = [] } = useQuery({
-    queryKey: ['stat-presenze', societaId, monthStart, monthEnd],
+  // Fonte unica: presenze_allenamento per il mese selezionato.
+  // allenamentiPerSquadra = distinct (squadra, data) → quante sedute coperte da registro presenze.
+  // presenzePerGiocatore  = conteggio righe con presente=true.
+  const { data: presenzeAl = [] } = useQuery({
+    queryKey: ['stat-presenze-al', societaId, monthStart, monthEnd],
     queryFn: async () => {
       const { data } = await supabase
         .from('presenze_allenamento')
-        .select('giocatore_id')
+        .select('giocatore_id, squadra, data, presente')
         .gte('data', monthStart)
         .lte('data', monthEnd)
-        .eq('presente', true)
-      return data ?? []
-    },
-    enabled: !!societaId,
-  })
-
-  const { data: allenamenti = [] } = useQuery({
-    queryKey: ['stat-allenamenti', societaId, monthStart, monthEnd],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('orario_settimana')
-        .select('squadra, data')
-        .gte('data', monthStart)
-        .lte('data', monthEnd)
-        .neq('annullato', true)
       return data ?? []
     },
     enabled: !!societaId,
@@ -84,23 +72,25 @@ export default function StatistichePage({ embedded = false }) {
     )
   }, [giocatori, isAdmin, squadreAllenatore])
 
-  // { squadra: Set<data> } → count of distinct training dates per team
   const allenamentiPerSquadra = useMemo(() => {
-    const counts = {}
-    for (const a of allenamenti) {
-      if (!counts[a.squadra]) counts[a.squadra] = new Set()
-      counts[a.squadra].add(a.data)
+    const map = {}
+    const seen = new Set()
+    for (const a of presenzeAl) {
+      const key = `${a.squadra}|${a.data}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      map[a.squadra] = (map[a.squadra] ?? 0) + 1
     }
-    return Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, v.size]))
-  }, [allenamenti])
+    return map
+  }, [presenzeAl])
 
   const presenzePerGiocatore = useMemo(() => {
     const counts = {}
-    for (const p of presenze) {
-      counts[p.giocatore_id] = (counts[p.giocatore_id] ?? 0) + 1
+    for (const p of presenzeAl) {
+      if (p.presente) counts[p.giocatore_id] = (counts[p.giocatore_id] ?? 0) + 1
     }
     return counts
-  }, [presenze])
+  }, [presenzeAl])
 
   const giocatoriPerSquadra = useMemo(() => {
     const groups = {}
@@ -179,7 +169,7 @@ export default function StatistichePage({ embedded = false }) {
               </div>
               {totAl === 0 ? (
                 <p className="text-xs text-gray-400 italic px-1">
-                  Nessun allenamento registrato per questo mese.
+                  Nessuna presenza registrata in questo mese (apri l'allenamento e registra le presenze).
                 </p>
               ) : (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

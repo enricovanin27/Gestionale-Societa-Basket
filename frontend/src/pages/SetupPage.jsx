@@ -27,7 +27,7 @@ function parseOrari(raw) {
   return base
 }
 
-const EMPTY_PAL = { nome: '', tipo: 'Principale', orari: emptyOrari() }
+const EMPTY_PAL = { nome: '', tipo: 'Principale', solo_allenamento: false, orari: emptyOrari() }
 
 function PalestreTab() {
   const qc = useQueryClient()
@@ -48,7 +48,7 @@ function PalestreTab() {
 
   const saveMut = useMutation({
     mutationFn: async (f) => {
-      const payload = { nome: f.nome, tipo: f.tipo, orari: f.orari }
+      const payload = { nome: f.nome, tipo: f.tipo, solo_allenamento: f.solo_allenamento ?? false, orari: f.orari }
       if (f.id) {
         const { error } = await supabase.from('palestre').update(payload).eq('id', f.id)
         if (error) throw error
@@ -103,6 +103,9 @@ function PalestreTab() {
                       p.tipo === 'Secondaria' ? 'bg-purple-100 text-purple-700' :
                                                 'bg-gray-100 text-gray-600'
                     }`}>{p.tipo}</span>
+                    {p.solo_allenamento && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Solo All.</span>
+                    )}
                   </div>
                   {GIORNI.filter(g => p.orari?.[g]?.attivo).length === 0 ? (
                     <p className="text-xs text-gray-400 mt-1">Nessun giorno configurato</p>
@@ -185,6 +188,24 @@ function PalestreTab() {
                         : 'bg-white text-gray-600 border-gray-200'
                     }`}>
                     {t}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Uso">
+              <div className="flex gap-2 mt-1">
+                {[
+                  { val: false, label: '🏀 Gara + Allenamento' },
+                  { val: true,  label: '🏃 Solo Allenamento' },
+                ].map(({ val, label }) => (
+                  <button key={String(val)} type="button" onClick={() => set('solo_allenamento', val)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      (form.solo_allenamento ?? false) === val
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-600 border-gray-200'
+                    }`}>
+                    {label}
                   </button>
                 ))}
               </div>

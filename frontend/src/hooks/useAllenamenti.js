@@ -59,3 +59,17 @@ export function inviaNotificaAnnullamento(squadra, societaId, data) {
     }),
   }).catch(() => {})
 }
+
+export function inviaNotificaModifica(squadra, societaId, data, dettagli) {
+  fetch(`${API_BASE}/api/notifica/allenamento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      squadra,
+      societa_id: societaId,
+      data,
+      titolo: 'Allenamento modificato',
+      corpo: `L'allenamento di ${squadra} del ${data} è stato modificato${dettagli ? ': ' + dettagli : '.'}`,
+    }),
+  }).catch(() => {})
+}

@@ -7,8 +7,9 @@ import {
 import { it } from 'date-fns/locale'
 import {
   ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2,
-  MapPin, Clock, Users, AlertCircle, RefreshCw, AlertTriangle, Download,
+  MapPin, Clock, Users, AlertCircle, RefreshCw, AlertTriangle, Download, CheckCircle,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import { useAuth } from '../hooks/useAuth'
@@ -16,6 +17,7 @@ import ImportaCalendarioPage from './ImportaCalendarioPage'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { saveAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -221,7 +223,7 @@ function MonthGrid({ monthDate, events, onEventClick }) {
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 
-function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, canModifyEvent, togglingStato, conflicts = [] }) {
+function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, canModifyEvent, togglingStato, conflicts = [], onNavigateAllenamenti }) {
   const c = COLORS[getEventColor(event)]
   const typeLabel = (event.casa_fuori ?? '').toLowerCase() === 'casa'
     ? '🏀 Partita in casa'
@@ -301,6 +303,14 @@ function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, 
                 </div>
               ))}
             </div>
+            {onNavigateAllenamenti && (
+              <button
+                onClick={onNavigateAllenamenti}
+                className="mt-2 w-full flex items-center justify-center gap-2 py-2 bg-red-100 text-red-700 rounded-xl text-xs font-semibold active:scale-95 transition-transform"
+              >
+                Gestisci allenamenti →
+              </button>
+            )}
           </div>
         )}
 
@@ -360,14 +370,67 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const squadreDisp = squadreAllenatore?.length ? squadreAllenatore : squadre
 
+  // Solo palestre abilitate alle gare (solo_allenamento = false)
   const { data: palestreList = [] } = useQuery({
-    queryKey: ['palestre-nomi'],
+    queryKey: ['palestre-gara'],
     queryFn: async () => {
-      const { data } = await supabase.from('palestre').select('nome').order('nome')
-      return (data ?? []).map(r => r.nome).filter(Boolean)
+      const { data } = await supabase.from('palestre').select('nome, solo_allenamento').order('nome')
+      return (data ?? []).filter(p => !p.solo_allenamento).map(p => p.nome).filter(Boolean)
     },
     staleTime: 10 * 60 * 1000,
   })
+
+  // Evento conflitti sul giorno selezionato (fisso + settimana + calendario)
+  const GIORNO_BY_JS_DAY_F = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato']
+  const { data: conflictEvents = [] } = useQuery({
+    queryKey: ['conflict-events', form.data],
+    queryFn: async () => {
+      if (!form.data) return []
+      const giorno = GIORNO_BY_JS_DAY_F[new Date(form.data + 'T12:00:00').getDay()]
+      const [fissoRes, settRes, calRes] = await Promise.all([
+        supabase.from('orario_fisso').select('squadra, palestra, ora_inizio, ora_fine').eq('giorno', giorno),
+        supabase.from('orario_settimana').select('squadra, palestra, ora_inizio, ora_fine, annullato').eq('data', form.data),
+        supabase.from('calendario').select('id, squadra, palestra, ora_inizio, ora_fine').eq('data', form.data),
+      ])
+      const settMap = new Map((settRes.data ?? []).map(s => [s.squadra?.toLowerCase().trim(), s]))
+      const trainings = []
+      for (const f of (fissoRes.data ?? [])) {
+        const key = f.squadra?.toLowerCase().trim()
+        const ov = settMap.get(key)
+        if (ov) { if (!ov.annullato) trainings.push({ ...f, ...ov, _tipo: 'allenamento' }) }
+        else trainings.push({ ...f, _tipo: 'allenamento' })
+      }
+      for (const s of (settRes.data ?? [])) {
+        if (s.annullato) continue
+        const hasFisso = (fissoRes.data ?? []).some(f => f.squadra?.toLowerCase().trim() === s.squadra?.toLowerCase().trim())
+        if (!hasFisso) trainings.push({ ...s, _tipo: 'allenamento' })
+      }
+      const partite = (calRes.data ?? []).map(p => ({ ...p, _tipo: 'partita' }))
+      return [...trainings, ...partite]
+    },
+    enabled: !!form.data,
+    staleTime: 30 * 1000,
+  })
+
+  const [forceInsert, setForceInsert] = useState(false)
+
+  const conflictCheck = useMemo(() => {
+    const errors = []
+    if (!form.ora_inizio || !form.ora_fine || !form.data || !form.squadra) return { errors, hasConflicts: false }
+    const others = conflictEvents.filter(e => !(e._tipo === 'partita' && e.id === form.id))
+    for (const e of others) {
+      const n = t => String(t ?? '').slice(0, 5)
+      const [a0, a1, b0, b1] = [form.ora_inizio, form.ora_fine, e.ora_inizio, e.ora_fine].map(n)
+      if (!a0 || !a1 || !b0 || !b1 || !(a0 < b1 && a1 > b0)) continue
+      if ((e.squadra ?? '').toLowerCase() === (form.squadra ?? '').toLowerCase()) {
+        errors.push(`${e.squadra} ha già un ${e._tipo === 'partita' ? 'partita' : 'allenamento'} (${n(e.ora_inizio)}–${n(e.ora_fine)})`)
+      } else if (form.casa_fuori === 'Casa' && form.palestra?.trim() && e.palestra?.trim() &&
+                 form.palestra.trim().toLowerCase() === e.palestra.trim().toLowerCase()) {
+        errors.push(`${form.palestra} già occupata da ${e.squadra} (${n(e.ora_inizio)}–${n(e.ora_fine)})`)
+      }
+    }
+    return { errors, hasConflicts: errors.length > 0 }
+  }, [form, conflictEvents])
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
@@ -389,6 +452,7 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
         <div className="overflow-y-auto flex-1 px-5 pb-2">
           <form id="event-form" onSubmit={e => {
           e.preventDefault()
+          if (conflictCheck.hasConflicts && !forceInsert) return
           const saveData = form.casa_fuori === 'Fuori Casa'
             ? { ...form, palestra: form.avversario || '' }
             : form
@@ -472,14 +536,269 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
         </div>
 
         <div className="px-5 pt-3 pb-10 flex-shrink-0 space-y-2">
+          {/* Conflict feedback */}
+          {form.data && form.ora_inizio && form.ora_fine && form.squadra && (
+            conflictCheck.hasConflicts ? (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={13} className="text-red-500 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-red-700">Conflitti rilevati</span>
+                </div>
+                {conflictCheck.errors.map((msg, i) => (
+                  <p key={i} className="text-xs text-red-600">• {msg}</p>
+                ))}
+                <label className="flex items-center gap-2 pt-1 cursor-pointer">
+                  <input type="checkbox" checked={forceInsert} onChange={e => setForceInsert(e.target.checked)}
+                    className="w-4 h-4 rounded text-orange-600" />
+                  <span className="text-xs text-orange-700 font-medium">Inserisci comunque</span>
+                </label>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-green-700 font-medium bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                <CheckCircle size={13} className="flex-shrink-0" /> Nessun conflitto
+              </div>
+            )
+          )}
+
           {saveError && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2">
               <p className="text-xs text-red-700">❌ {saveError}</p>
             </div>
           )}
-          <button type="submit" form="event-form" disabled={saving}
+          <button
+            type="submit" form="event-form"
+            disabled={saving || (conflictCheck.hasConflicts && !forceInsert)}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
             {saving ? 'Salvataggio...' : (initial?.id ? 'Salva modifiche' : 'Aggiungi partita')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Training mini card (vista completa) ─────────────────────────────────────
+
+function TrainingMiniCard({ training, isConflicted, onNavigateAllenamenti, onEdit }) {
+  return (
+    <div className={`w-full rounded-lg p-2 mb-1 shadow-sm ${
+      isConflicted
+        ? 'border-l-4 border-red-500 bg-red-50'
+        : 'border-l-4 border-gray-300 bg-gray-50'
+    }`}>
+      <div className="flex items-start justify-between gap-1">
+        <div className={`text-xs font-semibold truncate ${isConflicted ? 'text-red-800' : 'text-gray-700'}`}>
+          {training.squadra}
+        </div>
+        {onEdit && (
+          <button onClick={onEdit} className="text-gray-400 hover:text-blue-600 active:opacity-70 shrink-0">
+            <Edit2 size={11} />
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-1 mt-0.5">
+        <Clock size={10} className="text-gray-400 flex-shrink-0" />
+        <span className="text-xs text-gray-500">
+          {formatTime(training.ora_inizio)}–{formatTime(training.ora_fine)}
+        </span>
+      </div>
+      {training.palestra && (
+        <div className="text-xs text-gray-400 truncate">{training.palestra}</div>
+      )}
+      {isConflicted && (
+        <button
+          onClick={onNavigateAllenamenti}
+          className="flex items-center gap-1 mt-1 pt-1 border-t border-red-200 text-xs text-red-600 font-medium w-full text-left active:opacity-70"
+        >
+          <AlertTriangle size={10} className="flex-shrink-0" />
+          Da spostare →
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Vista settimana completa (partite + allenamenti) ────────────────────────
+
+function VistaSettimanaleCompleta({ weekDays, data, scopeFilter, allenatoreFilterFn, squadraFilter, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
+  const allEventsByDate = useMemo(() => {
+    if (!data) return {}
+    const map = {}
+    data.events
+      .filter(e => {
+        if (!scopeFilter(e)) return false
+        if (squadraFilter && e.squadra !== squadraFilter) return false
+        if (!allenatoreFilterFn(e)) return false
+        if (e.annullato && e._tipo !== 'partita') return false
+        return true
+      })
+      .forEach(e => {
+        if (!map[e.data]) map[e.data] = []
+        map[e.data].push(e)
+      })
+    return map
+  }, [data, scopeFilter, allenatoreFilterFn, squadraFilter])
+
+  return (
+    <div className="overflow-x-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Legenda */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+        {[
+          { cls: 'bg-green-500',  label: 'Partita casa' },
+          { cls: 'bg-blue-500',   label: 'Partita trasferta' },
+          { cls: 'bg-gray-400',   label: 'Allenamento' },
+          { cls: 'bg-red-500',    label: 'All. da spostare' },
+        ].map(({ cls, label }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <div className={`w-2.5 h-2.5 rounded-full ${cls}`} />
+            <span className="text-xs text-gray-500">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2" style={{ minWidth: 'max-content' }}>
+        {weekDays.map((day, di) => {
+          const dateStr   = format(day, 'yyyy-MM-dd')
+          const isToday   = isDateToday(dateStr)
+          const dayEvents = allEventsByDate[dateStr] ?? []
+          const isLast    = di === weekDays.length - 1
+          return (
+            <div key={dateStr} className={`w-36 flex-shrink-0 ${!isLast ? 'border-r border-gray-200 pr-1' : ''}`}>
+              <div className={`rounded-xl p-2 mb-2 text-center ${isToday ? 'bg-blue-600' : 'bg-white border border-gray-200'}`}>
+                <div className={`text-xs font-medium uppercase tracking-wide ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
+                  {format(day, 'EEE', { locale: it })}
+                </div>
+                <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-700'}`}>
+                  {format(day, 'd')}
+                </div>
+              </div>
+              {dayEvents.length === 0 ? (
+                <div className="text-gray-300 text-center py-6 text-sm select-none">–</div>
+              ) : (
+                dayEvents.map((event, i) => {
+                  if (event._tipo === 'partita') {
+                    return (
+                      <MiniEventCard
+                        key={`p-${event.id ?? i}`}
+                        event={event}
+                        conflicts={conflictMap.get(event.id) ?? []}
+                        onClick={onPartitaClick}
+                      />
+                    )
+                  }
+                  const tKey = `${event.squadra}|${event.data}|${event.ora_inizio}`
+                  return (
+                    <TrainingMiniCard
+                      key={`t-${i}`}
+                      training={event}
+                      isConflicted={conflictedTrainingKeys.has(tKey)}
+                      onNavigateAllenamenti={onNavigateAllenamenti}
+                      onEdit={onTrainingEdit ? () => onTrainingEdit(event) : undefined}
+                    />
+                  )
+                })
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── Training edit modal ──────────────────────────────────────────────────────
+
+function TrainingEditModal({ training, onClose, onSaved }) {
+  const { societaId } = useAuth()
+  const qc = useQueryClient()
+  const [form, setForm] = useState({
+    ora_inizio: formatTime(training.ora_inizio) || '',
+    ora_fine:   formatTime(training.ora_fine)   || '',
+    palestra:   training.palestra ?? '',
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const { data: palestreList = [] } = useQuery({
+    queryKey: ['palestre'],
+    queryFn: async () => {
+      const { data } = await supabase.from('palestre').select('nome').order('nome')
+      return (data ?? []).map(p => p.nome).filter(Boolean)
+    },
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const saveMut = useMutation({
+    mutationFn: () => saveAllenamento(training, form, societaId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      inviaNotificaModifica(
+        training.squadra, societaId, training.data,
+        `${form.ora_inizio}–${form.ora_fine}${form.palestra ? ` @ ${form.palestra}` : ''}`
+      )
+      onSaved()
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div
+        className="relative bg-white rounded-t-2xl w-full max-w-lg p-6 pb-10 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Modifica allenamento</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{training.squadra} · {formatDate(training.data, 'EEE d MMM')}</p>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+            <X size={20} className="text-gray-400" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Ora inizio</label>
+              <input type="time" value={form.ora_inizio} onChange={e => set('ora_inizio', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Ora fine</label>
+              <input type="time" value={form.ora_fine} onChange={e => set('ora_fine', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Palestra</label>
+            {palestreList.length > 0 ? (
+              <select value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Scegli palestra...</option>
+                {palestreList.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            ) : (
+              <input value={form.palestra} onChange={e => set('palestra', e.target.value)}
+                placeholder="es. PalaOderzo"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            )}
+          </div>
+
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Modifica solo questa data — la settimana tipo rimane invariata.
+          </p>
+
+          {saveMut.isError && (
+            <p className="text-xs text-red-600">Errore: {saveMut.error?.message}</p>
+          )}
+
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending || !form.ora_inizio || !form.ora_fine}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
+          >
+            {saveMut.isPending ? 'Salvataggio...' : 'Salva modifica'}
           </button>
         </div>
       </div>
@@ -501,8 +820,9 @@ export default function CalendarioPage() {
   const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
   const canModifyEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
-  const [calTab,           setCalTab]           = useState('calendario') // 'calendario' | 'importa'
+  const [calTab,           setCalTab]           = useState('partite') // 'partite' | 'settimana' | 'importa'
   const [view,             setView]             = useState('settimana') // 'settimana' | 'mese'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [monthOffset,      setMonthOffset]      = useState(0)
@@ -512,6 +832,7 @@ export default function CalendarioPage() {
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
+  const [editingTraining,  setEditingTraining]  = useState(null)
   const [exportingICS,     setExportingICS]     = useState(false)
 
   const touchStartX = useRef(null)
@@ -541,44 +862,79 @@ export default function CalendarioPage() {
   const { data: monthPartite = [], isLoading: monthLoading }    = useMonthPartite(currentMonthDate, view === 'mese')
   const { data: squadre = [] }                                  = useSquadre()
 
-  const { data: allenatoriList = [] } = useQuery({
+  // Allenatori con squadre — squadre_capo/squadre_vice sono stringhe CSV
+  const { data: allenatoriData = [] } = useQuery({
     queryKey: ['allenatori-list'],
     queryFn: async () => {
-      const { data: rows } = await supabase.from('allenatori').select('nome, cognome').order('cognome').order('nome')
-      return (rows ?? []).map(a => [a.nome, a.cognome].filter(Boolean).join(' ')).filter(Boolean)
+      const { data: rows } = await supabase
+        .from('allenatori')
+        .select('nome, cognome, squadre_capo, squadre_vice')
+        .order('cognome').order('nome')
+      return rows ?? []
     },
     staleTime: 10 * 60 * 1000,
   })
 
-  // Only partite, filtered by squad/allenatore
+  const allenatoriList = useMemo(
+    () => allenatoriData.map(a => [a.nome, a.cognome].filter(Boolean).join(' ')).filter(Boolean),
+    [allenatoriData]
+  )
+
+  // Mappa nomeAllenatore → [squadre] da orario_fisso (fonte affidabile anche se squadre_capo/vice sono vuote)
+  const { data: fissoAllenatoriMap = {} } = useQuery({
+    queryKey: ['fisso-allenatori-map'],
+    queryFn: async () => {
+      const { data } = await supabase.from('orario_fisso').select('squadra, allenatori')
+      const map = {}
+      for (const row of data ?? []) {
+        if (!row.allenatori || !row.squadra) continue
+        row.allenatori.split(',').map(a => a.trim()).filter(Boolean).forEach(name => {
+          if (!map[name]) map[name] = []
+          if (!map[name].includes(row.squadra)) map[name].push(row.squadra)
+        })
+      }
+      return map
+    },
+    staleTime: 10 * 60 * 1000,
+  })
+
+  // Solo partite, filtrate per squadra/allenatore
   const scopeFilter = mySquadreOnly && squadreAllenatore?.length
     ? (e) => squadreAllenatore.includes(e.squadra)
     : () => true
+
+  // Filtro allenatore: orario_fisso come fonte primaria, squadre_capo/vice come fallback
+  const allenatoreFilterFn = useMemo(() => {
+    if (!allenatoreFilter) return () => true
+    const fissoSq = Object.entries(fissoAllenatoriMap)
+      .filter(([name]) => name.toLowerCase() === allenatoreFilter.toLowerCase())
+      .flatMap(([, sq]) => sq)
+    const al = allenatoriData.find(a => [a.nome, a.cognome].filter(Boolean).join(' ') === allenatoreFilter)
+    const parseList = s => (s ?? '').split(',').map(x => x.trim()).filter(Boolean)
+    const tabSq = al ? [...parseList(al.squadre_capo), ...parseList(al.squadre_vice)] : []
+    const squadreAl = [...new Set([...fissoSq, ...tabSq])]
+    return (e) => {
+      if (squadreAl.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())) return true
+      if (e.allenatori && e.allenatori.split(',').some(a =>
+        a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase()))) return true
+      return false
+    }
+  }, [allenatoreFilter, allenatoriData, fissoAllenatoriMap])
 
   const displayEvents = useMemo(() => {
     if (!data) return []
     let events = data.events.filter(e => e._tipo === 'partita').filter(scopeFilter)
     if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
-    if (allenatoreFilter) {
-      events = events.filter(e => {
-        if (!e.allenatori) return false
-        return e.allenatori.split(',').some(a => a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase()))
-      })
-    }
+    if (allenatoreFilter) events = events.filter(allenatoreFilterFn)
     return events
-  }, [data, squadraFilter, allenatoreFilter, scopeFilter])
+  }, [data, squadraFilter, allenatoreFilter, scopeFilter, allenatoreFilterFn])
 
   const displayMonthEvents = useMemo(() => {
     let events = monthPartite.filter(scopeFilter)
     if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
-    if (allenatoreFilter) {
-      events = events.filter(e => {
-        if (!e.allenatori) return false
-        return e.allenatori.split(',').some(a => a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase()))
-      })
-    }
+    if (allenatoreFilter) events = events.filter(allenatoreFilterFn)
     return events
-  }, [monthPartite, squadraFilter, allenatoreFilter, scopeFilter])
+  }, [monthPartite, squadraFilter, allenatoreFilter, scopeFilter, allenatoreFilterFn])
 
   // All non-cancelled trainings — used only for conflict detection
   const allTrainings = useMemo(() =>
@@ -591,15 +947,28 @@ export default function CalendarioPage() {
     const map = new Map()
     for (const p of displayEvents) {
       if (p.stato !== 'definitiva') continue
-      const conflicts = allTrainings.filter(t =>
-        t.data === p.data &&
-        (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase() &&
-        timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine)
-      )
+      const conflicts = allTrainings.filter(t => {
+        if (t.data !== p.data) return false
+        if (!timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine)) return false
+        const sameSquadra = (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase()
+        const samePalestra = p.casa_fuori === 'Casa' &&
+          p.palestra?.trim() && t.palestra?.trim() &&
+          p.palestra.trim().toLowerCase() === t.palestra.trim().toLowerCase()
+        return sameSquadra || samePalestra
+      })
       if (conflicts.length > 0) map.set(p.id, conflicts)
     }
     return map
   }, [displayEvents, allTrainings])
+
+  // Set di chiavi allenamento in conflitto — usato da VistaSettimanaleCompleta
+  const conflictedTrainingKeys = useMemo(() => {
+    const set = new Set()
+    conflictMap.forEach(trainings =>
+      trainings.forEach(t => set.add(`${t.squadra}|${t.data}|${t.ora_inizio}`))
+    )
+    return set
+  }, [conflictMap])
 
   const eventsByDate = useMemo(() => {
     const map = {}
@@ -710,8 +1079,8 @@ export default function CalendarioPage() {
       <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
         <div className="px-4 pt-4 pb-2 space-y-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">🏀 Calendario Partite</h1>
-            {calTab === 'calendario' && (
+            <h1 className="text-xl font-bold text-gray-900">🏀 Calendario</h1>
+            {calTab === 'partite' && (
               <button
                 onClick={handleExportICS}
                 disabled={exportingICS}
@@ -724,9 +1093,9 @@ export default function CalendarioPage() {
             )}
           </div>
 
-          {/* Tab switcher (solo staff) */}
+          {/* Tab switcher */}
           <div className="flex bg-gray-100 rounded-lg p-0.5">
-            {[['calendario', 'Calendario'], ['importa', 'Import FIP']].map(([v, label]) => (
+            {[['partite', 'Partite'], ['settimana', 'Settimana'], ['importa', 'Import FIP']].map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
                 className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${
                   calTab === v ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
@@ -736,7 +1105,7 @@ export default function CalendarioPage() {
             ))}
           </div>
 
-          {calTab === 'calendario' && <>
+          {(calTab === 'partite' || calTab === 'settimana') && <>
             {/* Scope select — solo per allenatori */}
             {isAllenatore && (
               <select
@@ -780,16 +1149,16 @@ export default function CalendarioPage() {
         </div>
 
         {/* Navigation */}
-        {calTab === 'calendario' && <>
+        {(calTab === 'partite' || calTab === 'settimana') && <>
           <div className="flex items-center justify-between px-2 pb-2"
             onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <button
-              onClick={() => view === 'settimana' ? setWeekOffset(w => w - 1) : setMonthOffset(m => m - 1)}
+              onClick={() => (calTab === 'settimana' || view === 'settimana') ? setWeekOffset(w => w - 1) : setMonthOffset(m => m - 1)}
               className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
               <ChevronLeft size={20} className="text-gray-600" />
             </button>
             <div className="text-center select-none">
-              {view === 'settimana' ? (
+              {(calTab === 'settimana' || view === 'settimana') ? (
                 <>
                   <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
                   {weekOffset === 0 && (
@@ -806,7 +1175,7 @@ export default function CalendarioPage() {
               )}
             </div>
             <button
-              onClick={() => view === 'settimana' ? setWeekOffset(w => w + 1) : setMonthOffset(m => m + 1)}
+              onClick={() => (calTab === 'settimana' || view === 'settimana') ? setWeekOffset(w => w + 1) : setMonthOffset(m => m + 1)}
               className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
               <ChevronRight size={20} className="text-gray-600" />
             </button>
@@ -833,8 +1202,28 @@ export default function CalendarioPage() {
       {/* ── Import FIP tab ── */}
       {calTab === 'importa' && <ImportaCalendarioPage embedded />}
 
-      {/* ── Content ── */}
-      {calTab === 'calendario' && (view === 'settimana' ? (
+      {/* ── Vista Settimana Completa ── */}
+      {calTab === 'settimana' && (
+        isLoading ? (
+          <LoadingSpinner message="Caricamento..." />
+        ) : (
+          <VistaSettimanaleCompleta
+            weekDays={weekDays}
+            data={data}
+            scopeFilter={scopeFilter}
+            allenatoreFilterFn={allenatoreFilterFn}
+            squadraFilter={squadraFilter}
+            conflictedTrainingKeys={conflictedTrainingKeys}
+            conflictMap={conflictMap}
+            onPartitaClick={setSelectedEvent}
+            onNavigateAllenamenti={() => navigate('/allenamenti')}
+            onTrainingEdit={canModify ? setEditingTraining : undefined}
+          />
+        )
+      )}
+
+      {/* ── Partite solo ── */}
+      {calTab === 'partite' && (view === 'settimana' ? (
         isLoading ? (
           <LoadingSpinner message="Caricamento calendario..." />
         ) : error ? (
@@ -935,6 +1324,16 @@ export default function CalendarioPage() {
           canModify={canModify}
           canModifyEvent={canModifyEvent(selectedEvent)}
           conflicts={conflictMap.get(selectedEvent?.id) ?? []}
+          onNavigateAllenamenti={() => { setSelectedEvent(null); navigate('/allenamenti') }}
+        />
+      )}
+
+      {/* ── Training edit modal ── */}
+      {editingTraining && (
+        <TrainingEditModal
+          training={editingTraining}
+          onClose={() => setEditingTraining(null)}
+          onSaved={() => setEditingTraining(null)}
         />
       )}
 
