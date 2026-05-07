@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Trophy, Settings, Bell } from 'lucide-react'
+import { Home, Calendar, Trophy, Settings, Bell, ClipboardList } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
@@ -7,16 +7,18 @@ const navItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/calendario', icon: Calendar, label: 'Pianificazione', superAdminHidden: true },
   { to: '/allenamenti', icon: Trophy,  label: 'Allenamenti', staffOnly: true, superAdminHidden: true },
+  { to: '/segreteria',  icon: ClipboardList, label: 'Segreteria', segreteriaOnly: true, superAdminHidden: true },
   { to: '/bacheca',     icon: Bell,    label: 'Bacheca',     superAdminHidden: true },
   { to: '/setup', icon: Settings, label: 'Setup', adminOnly: true },
 ]
 
 export default function BottomNav() {
-  const { isAdmin, isAllenatore, isSuperAdmin, societaId } = useAuth()
+  const { isAdmin, isAllenatore, isSegreteria, isSuperAdmin, societaId } = useAuth()
   const isStaff = isAdmin || isAllenatore
   const items = navItems.filter(item =>
     (!item.adminOnly || isAdmin) &&
     (!item.staffOnly || isStaff) &&
+    (!item.segreteriaOnly || isSegreteria) &&
     (!item.superAdminHidden || !isSuperAdmin)
   )
   const { data: unreadCount = 0 } = useUnreadAnnunci(societaId)
@@ -32,7 +34,7 @@ export default function BottomNav() {
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors min-w-[56px] ${
                 isActive
-                  ? 'text-blue-600'
+                  ? 'text-amber-600'
                   : 'text-gray-400 hover:text-gray-600'
               }`
             }

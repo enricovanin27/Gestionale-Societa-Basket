@@ -28,23 +28,23 @@
 
 @layer base {
   :root {
-    /* Basket palette — slate base, blue primary */
-    --background:           #f1f5f9;   /* slate-100 */
-    --foreground:           #0f172a;   /* slate-900 */
+    /* Palette calda — ambra/arancio */
+    --background:           #fffbeb;   /* amber-50  */
+    --foreground:           #1c1917;   /* stone-900 */
     --card:                 #ffffff;
-    --card-foreground:      #0f172a;
-    --primary:              #2563eb;   /* blue-600  */
+    --card-foreground:      #1c1917;
+    --primary:              #d97706;   /* amber-600 */
     --primary-foreground:   #ffffff;
-    --secondary:            #e2e8f0;   /* slate-200 */
-    --secondary-foreground: #1e293b;   /* slate-800 */
-    --muted:                #f8fafc;   /* slate-50  */
-    --muted-foreground:     #64748b;   /* slate-500 */
-    --accent:               #eff6ff;   /* blue-50   */
-    --accent-foreground:    #1d4ed8;   /* blue-700  */
+    --secondary:            #fef3c7;   /* amber-100 */
+    --secondary-foreground: #92400e;   /* amber-800 */
+    --muted:                #fffbeb;   /* amber-50  */
+    --muted-foreground:     #78716c;   /* stone-500 */
+    --accent:               #fef9c3;   /* yellow-100 */
+    --accent-foreground:    #78350f;   /* amber-900 */
     --destructive:          #ef4444;   /* red-500   */
-    --border:               #e2e8f0;   /* slate-200 */
-    --input:                #f1f5f9;   /* slate-100 */
-    --ring:                 #2563eb;
+    --border:               #fde68a;   /* amber-200 */
+    --input:                #fffbeb;   /* amber-50  */
+    --ring:                 #d97706;   /* amber-600 */
     --radius:               0.75rem;
   }
 }

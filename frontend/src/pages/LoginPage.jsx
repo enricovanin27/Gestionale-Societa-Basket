@@ -40,13 +40,13 @@ export default function LoginPage() {
     setResetOk(true)
   }
 
-  const inp = 'w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+  const inp = 'w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-800 to-amber-600 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-16 h-16 bg-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-3xl">🏀</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Gestionale Basket</h1>
@@ -73,12 +73,12 @@ export default function LoginPage() {
               </div>
             )}
             <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+              className="w-full bg-amber-600 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-amber-700 active:bg-amber-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
               {loading ? 'Accesso in corso...' : 'Accedi'}
             </button>
             <button type="button"
               onClick={() => { setMode('forgot'); setError(''); setResetOk(false) }}
-              className="w-full text-sm text-blue-500 hover:text-blue-700 text-center pt-1">
+              className="w-full text-sm text-amber-600 hover:text-amber-800 text-center pt-1">
               Password dimenticata?
             </button>
           </form>
@@ -101,12 +101,12 @@ export default function LoginPage() {
               </div>
             )}
             <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium text-sm disabled:opacity-60">
+              className="w-full bg-amber-600 text-white py-2.5 rounded-lg font-medium text-sm disabled:opacity-60">
               {loading ? 'Invio in corso...' : 'Invia link di reset'}
             </button>
             <button type="button"
               onClick={() => { setMode('login'); setError('') }}
-              className="w-full text-sm text-blue-500 hover:text-blue-700 text-center">
+              className="w-full text-sm text-amber-600 hover:text-amber-800 text-center">
               Torna al login
             </button>
           </form>
@@ -121,7 +121,7 @@ export default function LoginPage() {
             </p>
             <button type="button"
               onClick={() => { setMode('login'); setResetOk(false) }}
-              className="w-full mt-2 text-sm text-blue-500 hover:text-blue-700">
+              className="w-full mt-2 text-sm text-amber-600 hover:text-amber-800">
               Torna al login
             </button>
           </div>

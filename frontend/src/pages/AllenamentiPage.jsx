@@ -173,7 +173,7 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
             {allenatoriDisp.map(a => (
               <button key={a} type="button" onClick={() => toggleAllenatore(a)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                  form.allenatori.includes(a) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                  form.allenatori.includes(a) ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200'
                 }`}>
                 {a}
               </button>
@@ -206,7 +206,7 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
         )}
       </div>
       <button type="submit" disabled={saving || !canSave}
-        className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+        className="w-full py-3 bg-amber-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
         {saving ? 'Salvataggio...' : 'Salva in settimana'}
       </button>
       {errors.length > 0 && !activeCondivisione && (
@@ -246,7 +246,7 @@ function TrainingColumnCard({ event, color, onEdit, onCancel, onPresenze, presAl
               </button>
             )}
             {onEdit && (
-              <button onClick={onEdit} title="Modifica" className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors">
+              <button onClick={onEdit} title="Modifica" className="p-1 text-amber-600 hover:bg-amber-50 rounded transition-colors">
                 <Edit2 size={12} />
               </button>
             )}
@@ -323,7 +323,7 @@ function TrainingCard({ event, color, canEdit, onEdit, onCancel, onPresenze, pre
                 <ClipboardList size={14} />
               </button>
             )}
-            <button onClick={onEdit}   title="Modifica" className="p-1.5 text-blue-500 hover:bg-blue-100 rounded-lg transition-colors">
+            <button onClick={onEdit}   title="Modifica" className="p-1.5 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
               <Edit2 size={14} />
             </button>
             <button onClick={onCancel} title="Annulla"  className="p-1.5 text-red-400 hover:bg-red-100 rounded-lg transition-colors">
@@ -559,7 +559,7 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved, squadreA
               {allenatoriDisp.map(a => (
                 <button key={a} type="button" onClick={() => toggleAllenatore(a)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                    form.allenatori.includes(a) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                    form.allenatori.includes(a) ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200'
                   }`}>
                   {a}
                 </button>
@@ -595,7 +595,7 @@ function AddAllenamentoModal({ weekStart, allSquadre, onClose, onSaved, squadreA
         </div>
         {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
         <button type="submit" disabled={saveMut.isPending || !canSave}
-          className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+          className="w-full py-3 bg-amber-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
           {saveMut.isPending ? 'Salvataggio...' : '✅ Aggiungi allenamento'}
         </button>
         {errors.length > 0 && !activeCondivisione && (
@@ -891,8 +891,8 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                 const isLast  = di === weekDays.length - 1
                 return (
                   <div key={dateStr} className={`w-36 flex-shrink-0 ${!isLast ? 'border-r border-gray-200 mr-2 pr-1' : ''}`}>
-                    <div className={`rounded-xl p-2 mb-2 text-center ${isToday ? 'bg-blue-600' : 'bg-white border border-gray-200'}`}>
-                      <div className={`text-xs font-medium uppercase tracking-wide ${isToday ? 'text-blue-100' : 'text-gray-400'}`}>
+                    <div className={`rounded-xl p-2 mb-2 text-center ${isToday ? 'bg-amber-600' : 'bg-white border border-gray-200'}`}>
+                      <div className={`text-xs font-medium uppercase tracking-wide ${isToday ? 'text-amber-100' : 'text-gray-400'}`}>
                         {format(safeDate(dateStr), 'EEE', { locale: it })}
                       </div>
                       <div className={`text-lg font-bold leading-tight ${isToday ? 'text-white' : 'text-gray-700'}`}>
@@ -982,7 +982,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
       {canEdit && (
         <button
           onClick={() => setShowAddForm(true)}
-          className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
+          className="fixed bottom-24 right-4 w-14 h-14 bg-amber-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-amber-700 active:scale-95 transition-all z-20"
           aria-label="Aggiungi allenamento"
         >
           <Plus size={28} />
@@ -1170,7 +1170,7 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
       {canEdit && (
         <button
           onClick={() => setShowAddForm(true)}
-          className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
+          className="fixed bottom-24 right-4 w-14 h-14 bg-amber-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-amber-700 active:scale-95 transition-all z-20"
           aria-label="Aggiungi allenamento"
         >
           <Plus size={28} />
@@ -1410,7 +1410,7 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
                             <div className="flex gap-1 mt-1.5">
                               <button
                                 onClick={() => openEdit(r)}
-                                className="flex-1 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium"
+                                className="flex-1 py-1 bg-amber-50 text-amber-600 rounded text-xs font-medium"
                               >
                                 Modifica
                               </button>
@@ -1436,7 +1436,7 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
       {canEdit && (
         <button
           onClick={openAdd}
-          className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
+          className="fixed bottom-24 right-4 w-14 h-14 bg-amber-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-amber-700 active:scale-95 transition-all z-20"
           aria-label="Aggiungi allenamento fisso"
         >
           <Plus size={28} />
@@ -1489,7 +1489,7 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
                   {allenatoriNomi.map(a => (
                     <button key={a} type="button" onClick={() => toggleAllenatore(a)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        form.allenatori.includes(a) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                        form.allenatori.includes(a) ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-gray-600 border-gray-200'
                       }`}>
                       {a}
                     </button>
@@ -1523,7 +1523,7 @@ function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squ
             </div>
             {saveMut.isError && <p className="text-xs text-red-500 text-center">{saveMut.error?.message}</p>}
             <button type="submit" disabled={saveMut.isPending || !canSaveFisso}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+              className="w-full py-3 bg-amber-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
               {saveMut.isPending ? 'Salvataggio...' : (editingRow ? 'Salva modifiche' : 'Aggiungi allenamento fisso')}
             </button>
             {fErrors.length > 0 && !fActiveCondivisione && (
@@ -1601,7 +1601,7 @@ export default function AllenamentiPage() {
               <p className="text-xs text-gray-400 mt-0.5">Presenze · Annullamenti · Settimana tipo</p>
             </div>
             <a href="/calendario"
-              className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-1 hover:underline">
+              className="text-xs text-amber-600 font-medium flex items-center gap-1 mt-1 hover:underline">
               Pianificazione →
             </a>
           </div>
@@ -1642,7 +1642,7 @@ export default function AllenamentiPage() {
           {TABS.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'
+                activeTab === tab.id ? 'border-amber-600 text-amber-600' : 'border-transparent text-gray-500'
               }`}
             >
               {tab.label}

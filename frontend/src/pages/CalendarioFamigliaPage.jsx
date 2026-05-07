@@ -1,2 +1,2 @@
-import { GenitoreHome } from './HomePage'
-export default GenitoreHome
+import HomeGenitore from './home/HomeGenitore'
+export default HomeGenitore

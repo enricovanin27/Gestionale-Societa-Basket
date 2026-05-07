@@ -127,7 +127,7 @@ function NuovoAnnuncioModal({ onClose, squadre, isAllenatore, societaId, autorId
           <button
             type="submit"
             disabled={saveMut.isPending || !form.titolo.trim()}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
+            className="w-full py-3 bg-amber-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
           >
             {saveMut.isPending ? 'Pubblicazione...' : '📣 Pubblica annuncio'}
           </button>
@@ -258,16 +258,16 @@ export default function BachecaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="bg-blue-600 text-white px-4 pt-12 pb-5 sticky top-0 z-30 shadow-sm">
+      <div className="bg-gradient-to-r from-amber-800 to-amber-600 text-white px-4 pt-12 pb-5 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold">📣 Bacheca</h1>
-            <p className="text-blue-200 text-xs mt-0.5">Comunicazioni della società</p>
+            <p className="text-amber-200 text-xs mt-0.5">Comunicazioni della società</p>
           </div>
           {canWrite && (
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 bg-white text-blue-600 px-3 py-2 rounded-xl text-sm font-semibold shadow active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 bg-white text-amber-700 px-3 py-2 rounded-xl text-sm font-semibold shadow active:scale-95 transition-transform"
             >
               <Plus size={16} /> Nuovo
             </button>
@@ -280,7 +280,7 @@ export default function BachecaPage() {
             <button
               onClick={() => setSquadraFilter('')}
               className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                !squadraFilter ? 'bg-white text-blue-700' : 'bg-blue-500 text-blue-100'
+                !squadraFilter ? 'bg-white text-amber-700' : 'bg-amber-500 text-amber-100'
               }`}
             >
               Tutte
@@ -290,7 +290,7 @@ export default function BachecaPage() {
                 key={s}
                 onClick={() => setSquadraFilter(s === squadraFilter ? '' : s)}
                 className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  squadraFilter === s ? 'bg-white text-blue-700' : 'bg-blue-500 text-blue-100'
+                  squadraFilter === s ? 'bg-white text-amber-700' : 'bg-amber-500 text-amber-100'
                 }`}
               >
                 {s}
