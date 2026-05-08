@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Users, AlertTriangle, CheckCircle2, Clock, CreditCard, FileText } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { Users, AlertTriangle, CheckCircle2, Clock, CreditCard, FileText, Edit2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -90,6 +90,26 @@ export default function SegreteriePage() {
 
   const isLoading = loadingG || loadingQ
 
+  const qc = useQueryClient()
+  const [editingCert, setEditingCert] = useState(null) // giocatore object | null
+  const [certDateInput, setCertDateInput] = useState('')
+
+  const certMut = useMutation({
+    mutationFn: async ({ id, cert_medico_scadenza }) => {
+      const { error } = await supabase
+        .from('giocatori')
+        .update({ cert_medico_scadenza: cert_medico_scadenza || null })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['segreteria-giocatori'] }),
+  })
+
+  function openCertEdit(g) {
+    setEditingCert(g)
+    setCertDateInput(g.cert_medico_scadenza ?? '')
+  }
+
   return (
     <div className="pb-20">
       <AppHeader
@@ -163,6 +183,9 @@ export default function SegreteriePage() {
                           {cert.urgente && (
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${cert.cls}`}>
                               <FileText size={10} /> {cert.label}
+                              <button onClick={() => openCertEdit(g)} className="ml-0.5 hover:opacity-70">
+                                <Edit2 size={9} />
+                              </button>
                             </span>
                           )}
                           {quoteG.map(q => (
@@ -209,9 +232,18 @@ export default function SegreteriePage() {
                             <p className="text-xs text-gray-500">{[g.squadra, g.squadra2, g.squadra3].filter(Boolean).join(', ')}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${cert.cls}`}>
-                              <FileText size={10} /> {cert.label}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${cert.cls}`}>
+                                <FileText size={10} /> {cert.label}
+                              </span>
+                              <button
+                                onClick={() => openCertEdit(g)}
+                                className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors"
+                                title="Modifica data certificato"
+                              >
+                                <Edit2 size={10} />
+                              </button>
+                            </div>
                             {quoteG.length > 0 && (
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700 flex items-center gap-1">
                                 <CreditCard size={10} /> {quoteG.length} quota{quoteG.length > 1 ? 'e' : ''} aperta{quoteG.length > 1 ? '' : ''}
@@ -335,6 +367,55 @@ export default function SegreteriePage() {
               )
             })()
           )}
+        </div>
+      )}
+      {/* Modal editing cert medico */}
+      {editingCert && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setEditingCert(null)}>
+          <div className="w-full bg-white rounded-t-2xl p-6 space-y-4 max-w-lg mx-auto" onClick={e => e.stopPropagation()}>
+            <div>
+              <p className="font-semibold text-gray-900 text-base">Certificato medico</p>
+              <p className="text-sm text-gray-500">{editingCert.cognome} {editingCert.nome}</p>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block font-medium">Data di scadenza</label>
+              <input
+                type="date"
+                value={certDateInput}
+                onChange={e => setCertDateInput(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              {certDateInput && (
+                <button
+                  onClick={() => setCertDateInput('')}
+                  className="text-xs text-red-400 mt-1"
+                >
+                  Rimuovi data
+                </button>
+              )}
+            </div>
+            {certMut.isError && (
+              <p className="text-xs text-red-500">{certMut.error?.message}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setEditingCert(null)}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 active:scale-95 transition-transform"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  certMut.mutate({ id: editingCert.id, cert_medico_scadenza: certDateInput })
+                  setEditingCert(null)
+                }}
+                disabled={certMut.isPending}
+                className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium active:scale-95 transition-transform disabled:opacity-60"
+              >
+                {certMut.isPending ? 'Salvataggio...' : 'Salva'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
