@@ -8,7 +8,7 @@ import {
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL } from '../lib/constants'
+import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL, RUOLI_EXTRA_DISPONIBILI } from '../lib/constants'
 import { Modal, Field, TabBtn, inp, ErrorBox } from '../components/ui'
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -796,6 +796,7 @@ function SquadreSelector({ squadre, selected, disabled, takenByOthers, onToggle,
 const RUOLO_COLORS = {
   admin:      'bg-red-100 text-red-700',
   allenatore: 'bg-blue-100 text-blue-700',
+  segreteria: 'bg-teal-100 text-teal-700',
   genitore:   'bg-green-100 text-green-700',
   giocatore:  'bg-purple-100 text-purple-700',
 }
@@ -832,7 +833,7 @@ function UtentiTab() {
     queryKey: ['setup-utenti'],
     queryFn: async () => {
       const [profRes, allRes] = await Promise.all([
-        supabase.from('profiles').select('id, nome, cognome, email, ruolo, attivo, squadra, squadra2, squadra3').order('nome'),
+        supabase.from('profiles').select('id, nome, cognome, email, ruolo, ruoli_extra, attivo, squadra, squadra2, squadra3').order('nome'),
         supabase.from('allenatori').select('email, squadre_capo, squadre_vice'),
       ])
       if (profRes.error) throw profRes.error
@@ -905,8 +906,9 @@ function UtentiTab() {
       }
       const { error } = await supabase.from('profiles').delete().eq('id', u.id)
       if (error) throw error
-      const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-      await fetch(`${apiBase}/api/admin/delete-user/${u.id}`, { method: 'DELETE' })
+      if (!supabaseAdmin) throw new Error('Service role key non configurata — impossibile eliminare da auth.users')
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(u.id)
+      if (authErr) throw authErr
     },
     onSuccess: () => {
       setDeleteErr(null)
@@ -938,6 +940,22 @@ function UtentiTab() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
   })
+
+  const ruoliExtraMut = useMutation({
+    mutationFn: async ({ id, ruoli_extra }) => {
+      const { error } = await supabase.from('profiles').update({ ruoli_extra }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  function toggleRuoloExtra(userId, ruoloCorrente, ruoli_extra, ruoloExtra) {
+    const attuali = ruoli_extra ?? []
+    const nuovo = attuali.includes(ruoloExtra)
+      ? attuali.filter(r => r !== ruoloExtra)
+      : [...attuali, ruoloExtra]
+    ruoliExtraMut.mutate({ id: userId, ruoli_extra: nuovo })
+  }
 
   async function handleInvite(e) {
     e.preventDefault()
@@ -1070,6 +1088,11 @@ function UtentiTab() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RUOLO_COLORS[u.ruolo] ?? 'bg-gray-100 text-gray-600'}`}>
                         {RUOLI_LABEL[u.ruolo] ?? u.ruolo}
                       </span>
+                      {(u.ruoli_extra ?? []).map(r => (
+                        <span key={r} className={`text-xs px-2 py-0.5 rounded-full font-medium border border-dashed ${RUOLO_COLORS[r] ?? 'bg-gray-50 text-gray-500'}`}>
+                          +{RUOLI_LABEL[r] ?? r}
+                        </span>
+                      ))}
                       {isDisabled && (
                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Disabilitato</span>
                       )}
@@ -1143,6 +1166,23 @@ function UtentiTab() {
                       >
                         {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
                       </select>
+                      {/* Ruoli extra */}
+                      <div className="flex flex-col gap-0.5 items-end">
+                        {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
+                          const checked = (u.ruoli_extra ?? []).includes(r)
+                          return (
+                            <label key={r} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 select-none">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
+                                className="w-3 h-3 rounded accent-blue-600"
+                              />
+                              +{RUOLI_LABEL[r]}
+                            </label>
+                          )
+                        })}
+                      </div>
                       {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (<>
                         <select
                           value={u.squadra ?? ''}
@@ -1189,6 +1229,26 @@ function UtentiTab() {
                       >
                         <Trash2 size={14} />
                       </button>
+                    </div>
+                  )}
+                  {/* Ruoli extra per se stessi (ruolo primario non modificabile per evitare self-lockout) */}
+                  {u.id === me?.id && (
+                    <div className="flex flex-col gap-0.5 items-end">
+                      <p className="text-xs text-gray-400 mb-1">Ruoli extra:</p>
+                      {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
+                        const checked = (u.ruoli_extra ?? []).includes(r)
+                        return (
+                          <label key={r} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 select-none">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
+                              className="w-3 h-3 rounded accent-blue-600"
+                            />
+                            +{RUOLI_LABEL[r]}
+                          </label>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
