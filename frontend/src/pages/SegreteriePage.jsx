@@ -106,6 +106,7 @@ export default function SegreteriePage() {
   })
 
   function openCertEdit(g) {
+    certMut.reset()
     setEditingCert(g)
     setCertDateInput(g.cert_medico_scadenza ?? '')
   }
