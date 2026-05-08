@@ -10,6 +10,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
+  const [activeRole, setActiveRoleState] = useState(() => {
+    return localStorage.getItem('oderzo_active_role') ?? null
+  })
+
+  function setActiveRole(role) {
+    localStorage.setItem('oderzo_active_role', role)
+    setActiveRoleState(role)
+  }
+
   async function fetchProfile(userId) {
     try {
       const timeout = new Promise((_, reject) =>
@@ -17,7 +26,7 @@ export function AuthProvider({ children }) {
       )
       const query = supabase
         .from('profiles')
-        .select('id, nome, cognome, ruolo, societa_id, email, squadra, squadra2, squadra3, societa:societa_id(nome)')
+        .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, societa:societa_id(nome)')
         .eq('id', userId)
         .single()
 
@@ -86,12 +95,20 @@ export function AuthProvider({ children }) {
   }
 
   const role = profile?.ruolo ?? null
+  const ruoliExtra = profile?.ruoli_extra ?? []
+  const allRuoli = [...new Set([role, ...ruoliExtra].filter(Boolean))]
+
+  // Active role: quello scelto dall'utente, purché sia ancora nei suoi ruoli
+  const effectiveActiveRole = (activeRole && allRuoli.includes(activeRole))
+    ? activeRole
+    : (role ?? null)
+
   const societaId = profile?.societa_id ?? null
   const societaNome = profile?.societa?.nome ?? null
   const displayName = profile
     ? `${profile.nome ?? ''} ${profile.cognome ?? ''}`.trim()
     : user?.email ?? ''
-  const squadreAllenatore = (profile && role === 'allenatore')
+  const squadreAllenatore = (profile && allRuoli.includes('allenatore'))
     ? [profile.squadra, profile.squadra2, profile.squadra3].filter(Boolean)
     : null
   const value = {
@@ -101,15 +118,20 @@ export function AuthProvider({ children }) {
     login,
     logout,
     role,
+    ruoliExtra,
+    allRuoli,
+    activeRole: effectiveActiveRole,
+    setActiveRole,
     societaId,
     societaNome,
     displayName,
     squadreAllenatore,
     isSuperAdmin:       role === 'super_admin',
-    isAdmin:            role === 'admin' || role === 'super_admin',
-    isAllenatore:       role === 'allenatore',
-    isGenitore:         role === 'genitore',
-    isGiocatore:        role === 'giocatore',
+    isAdmin:            allRuoli.some(r => r === 'admin' || r === 'super_admin'),
+    isAllenatore:       allRuoli.includes('allenatore'),
+    isGenitore:         allRuoli.includes('genitore'),
+    isGiocatore:        allRuoli.includes('giocatore'),
+    isSegreteria:       allRuoli.includes('segreteria'),
     isPasswordRecovery,
     clearPasswordRecovery,
   }
