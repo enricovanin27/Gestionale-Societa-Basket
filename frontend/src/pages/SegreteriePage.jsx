@@ -22,10 +22,10 @@ function certStatus(dataScadenza) {
 }
 
 
-export default function SegreteriePage() {
+export default function SegreteriePage({ initialTab = 'giocatori' }) {
   const { societaId, displayName, logout, societaNome } = useAuth()
   const [squadraFilter, setSquadraFilter] = useState('')
-  const [tab, setTab] = useState('giocatori')
+  const [tab, setTab] = useState(initialTab)
 
   const { data: giocatori = [], isLoading: loadingG } = useQuery({
     queryKey: ['segreteria-giocatori', societaId],
@@ -51,6 +51,7 @@ export default function SegreteriePage() {
         .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato')
         .eq('societa_id', societaId)
         .eq('pagato', false)
+        .eq('tipo', 'iscrizione')
         .order('data_scadenza')
       return data ?? []
     },
@@ -193,12 +194,13 @@ export default function SegreteriePage() {
                         <p className="text-xs text-gray-500 mb-2">{[g.squadra, g.squadra2, g.squadra3].filter(Boolean).join(', ')}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {cert.urgente && (
-                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${cert.cls}`}>
-                              <FileText size={10} /> {cert.label}
-                              <button onClick={() => openCertEdit(g)} className="ml-0.5 hover:opacity-70">
-                                <Edit2 size={9} />
-                              </button>
-                            </span>
+                            <button
+                              onClick={() => openCertEdit(g)}
+                              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${cert.cls} hover:opacity-75 transition-opacity`}
+                              title="Modifica certificato medico"
+                            >
+                              <FileText size={10} /> Cert: {cert.label} <Edit2 size={9} className="ml-0.5 opacity-60" />
+                            </button>
                           )}
                           {quoteG.map(q => (
                             <span key={q.id} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -244,18 +246,13 @@ export default function SegreteriePage() {
                             <p className="text-xs text-gray-500">{[g.squadra, g.squadra2, g.squadra3].filter(Boolean).join(', ')}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-1">
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${cert.cls}`}>
-                                <FileText size={10} /> {cert.label}
-                              </span>
-                              <button
-                                onClick={() => openCertEdit(g)}
-                                className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors"
-                                title="Modifica data certificato"
-                              >
-                                <Edit2 size={10} />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => openCertEdit(g)}
+                              className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${cert.cls} hover:opacity-75 transition-opacity`}
+                              title="Modifica certificato medico"
+                            >
+                              <FileText size={10} /> Cert: {cert.label} <Edit2 size={9} className="ml-0.5 opacity-60" />
+                            </button>
                             {quoteG.length > 0 && (
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700 flex items-center gap-1">
                                 <CreditCard size={10} /> {quoteG.length} quota{quoteG.length > 1 ? 'e' : ''} aperta{quoteG.length > 1 ? '' : ''}
@@ -393,7 +390,7 @@ export default function SegreteriePage() {
       {/* Modal editing cert medico */}
       {editingCert && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setEditingCert(null)}>
-          <div className="w-full bg-white rounded-t-2xl p-6 space-y-4 max-w-lg mx-auto" onClick={e => e.stopPropagation()}>
+          <div className="w-full bg-white rounded-t-2xl p-6 space-y-4 max-w-lg mx-auto max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div>
               <p className="font-semibold text-gray-900 text-base">Certificato medico</p>
               <p className="text-sm text-gray-500">{editingCert.cognome} {editingCert.nome}</p>
