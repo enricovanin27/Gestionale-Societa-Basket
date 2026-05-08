@@ -7,10 +7,16 @@ import HomeGenitore from './home/HomeGenitore'
 export { default as GenitoreHome } from './home/HomeGenitore'
 
 export default function HomePage() {
-  const { isAdmin, isAllenatore, role } = useAuth()
+  const { activeRole, allRuoli } = useAuth()
 
-  if (isAdmin) return <HomeAdmin />
-  if (role === 'segreteria') return <Navigate to="/segreteria" replace />
-  if (isAllenatore) return <HomeAllenatore />
+  // Routing basato sull'activeRole scelto dall'utente
+  if (activeRole === 'admin' || activeRole === 'super_admin') return <HomeAdmin />
+  if (activeRole === 'segreteria') return <Navigate to="/segreteria" replace />
+  if (activeRole === 'allenatore') return <HomeAllenatore />
+
+  // Fallback: se activeRole non è settato o non è riconosciuto, usa allRuoli
+  if (allRuoli.includes('admin') || allRuoli.includes('super_admin')) return <HomeAdmin />
+  if (allRuoli.includes('segreteria') && allRuoli.length === 1) return <Navigate to="/segreteria" replace />
+  if (allRuoli.includes('allenatore')) return <HomeAllenatore />
   return <HomeGenitore />
 }
