@@ -11,7 +11,8 @@ const ROLE_PATH = {
 }
 
 export default function RoleRedirect() {
-  const { user, activeRole } = useAuth()
+  const { user, activeRole, loading } = useAuth()
+  if (loading) return null
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={ROLE_PATH[activeRole] ?? '/login'} replace />
 }
