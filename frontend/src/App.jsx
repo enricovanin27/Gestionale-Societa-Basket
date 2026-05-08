@@ -21,6 +21,7 @@ import BachecaPage from './pages/BachecaPage'
 import StatistichePage from './pages/StatistichePage'
 import SegreteriePage from './pages/SegreteriePage'
 import HomeGenitore from './pages/home/HomeGenitore'
+import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
 
@@ -124,7 +125,7 @@ function AppShell() {
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
           <Route index element={<HomeGenitore />} />
           <Route path="bacheca" element={<BachecaPage />} />
-          {/* /parent/quote aggiunto in Fase 1 */}
+          <Route path="quote" element={<QuoteGenitore />} />
         </Route>
 
         {/* ── Giocatore ────────────────────────────────── */}
