@@ -18,6 +18,15 @@ export default function HomeGenitore() {
   const today    = new Date()
   const mySquadre = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
 
+  const CHILD_COLORS = [
+    { border: 'border-l-amber-500', bg: 'bg-amber-50', badge: 'bg-amber-100 text-amber-800' },
+    { border: 'border-l-blue-500',  bg: 'bg-blue-50',  badge: 'bg-blue-100 text-blue-800'  },
+    { border: 'border-l-green-500', bg: 'bg-green-50', badge: 'bg-green-100 text-green-800' },
+  ]
+  const squadraColor = Object.fromEntries(
+    mySquadre.map((s, i) => [s.toLowerCase(), CHILD_COLORS[i % CHILD_COLORS.length]])
+  )
+
   const thisWeekStart = useMemo(
     () => startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 }),
     [weekOffset]
@@ -159,7 +168,11 @@ export default function HomeGenitore() {
                         className="w-full text-left"
                         onClick={() => setSelectedEvent(e)}
                       >
-                        <EventCard event={e} />
+                        <EventCard
+                          event={e}
+                          squadraColor={squadraColor}
+                          showBadge={mySquadre.length > 1}
+                        />
                       </button>
                     ))}
                   </div>
@@ -181,25 +194,25 @@ export default function HomeGenitore() {
   )
 }
 
-function EventCard({ event }) {
+function EventCard({ event, squadraColor, showBadge }) {
   const isPartita = event._tipo === 'partita'
+  const colors = squadraColor?.[event.squadra?.toLowerCase()] ?? { border: 'border-l-amber-400', bg: 'bg-amber-50', badge: 'bg-amber-100 text-amber-800' }
 
-  let borderColor = 'border-l-amber-400'
-  let bgColor     = 'bg-amber-50'
-  let labelColor  = 'text-amber-700'
-  let labelBg     = 'bg-amber-100'
+  let borderColor = colors.border
+  let bgColor     = colors.bg
   let typeLabel   = 'Allenamento'
+  let labelCls    = 'bg-white border border-gray-200 text-gray-500'
 
   if (isPartita) {
     if (event.stato === 'provvisoria') {
-      borderColor = 'border-l-yellow-400'; bgColor = 'bg-yellow-50'
-      labelColor = 'text-yellow-700'; labelBg = 'bg-yellow-100'; typeLabel = '⚠️ Provvisoria'
+      borderColor = 'border-l-yellow-400'; bgColor = 'bg-yellow-50'; typeLabel = '⚠️ Provvisoria'
+      labelCls = 'bg-yellow-100 text-yellow-700'
     } else if ((event.casa_fuori ?? '').toLowerCase() === 'casa') {
-      borderColor = 'border-l-green-500'; bgColor = 'bg-green-50'
-      labelColor = 'text-green-700'; labelBg = 'bg-green-100'; typeLabel = '🏠 Casa'
+      borderColor = 'border-l-green-500'; bgColor = 'bg-green-50'; typeLabel = '🏠 Casa'
+      labelCls = 'bg-green-100 text-green-700'
     } else {
-      borderColor = 'border-l-blue-500'; bgColor = 'bg-blue-50'
-      labelColor = 'text-blue-700'; labelBg = 'bg-blue-100'; typeLabel = '✈️ Trasferta'
+      borderColor = 'border-l-blue-500'; bgColor = 'bg-blue-50'; typeLabel = '✈️ Trasferta'
+      labelCls = 'bg-blue-100 text-blue-700'
     }
   }
 
@@ -221,9 +234,16 @@ function EventCard({ event }) {
             {event.palestra && <span>{event.palestra}</span>}
           </div>
         </div>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${labelBg} ${labelColor}`}>
-          {typeLabel}
-        </span>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${labelCls}`}>
+            {typeLabel}
+          </span>
+          {showBadge && (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${colors.badge}`}>
+              {event.squadra}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
