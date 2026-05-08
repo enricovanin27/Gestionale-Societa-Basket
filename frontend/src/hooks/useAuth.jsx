@@ -73,6 +73,8 @@ export function AuthProvider({ children }) {
         setProfile(p)
       } else {
         setProfile(null)
+        setActiveRoleState(null)
+        localStorage.removeItem('oderzo_active_role')
       }
       setLoading(false)
     })
