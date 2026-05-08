@@ -110,6 +110,17 @@ export default function SegreteriePage() {
     setCertDateInput(g.cert_medico_scadenza ?? '')
   }
 
+  const pagaMut = useMutation({
+    mutationFn: async (quotaId) => {
+      const { error } = await supabase
+        .from('quote')
+        .update({ pagato: true })
+        .eq('id', quotaId)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['segreteria-quote'] }),
+  })
+
   return (
     <div className="pb-20">
       <AppHeader
@@ -331,6 +342,15 @@ export default function SegreteriePage() {
                             </span>
                           )}
                         </div>
+                      </div>
+                      <div className="flex justify-end mt-2 pt-2 border-t border-gray-100">
+                        <button
+                          onClick={() => pagaMut.mutate(q.id)}
+                          disabled={pagaMut.isPending}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg font-medium active:scale-95 transition-transform disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={12} /> Segna come pagata
+                        </button>
                       </div>
                     </CardContent>
                   </Card>
