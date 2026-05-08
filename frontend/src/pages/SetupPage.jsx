@@ -2129,7 +2129,7 @@ function SocietaTab() {
 // TAB — GIOCATORI
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const EMPTY_GIOCATORE = { nome: '', cognome: '', email: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', attivo: true }
+const EMPTY_GIOCATORE = { nome: '', cognome: '', email: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', cert_medico_scadenza: '', attivo: true }
 
 function GiocatoriTab() {
   const qc = useQueryClient()
@@ -2187,6 +2187,7 @@ function GiocatoriTab() {
         data_nascita:   f.data_nascita || null,
         numero_maglia:  f.numero_maglia !== '' ? Number(f.numero_maglia) : null,
         note:           f.note.trim() || null,
+        cert_medico_scadenza: f.cert_medico_scadenza || null,
         attivo:         f.attivo,
       }
       if (f.id) {
@@ -2209,7 +2210,7 @@ function GiocatoriTab() {
   })
 
   function openAdd()   { saveMut.reset(); setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
-  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, email: g.email ?? '', squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '' }); setShowForm(true) }
+  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, email: g.email ?? '', squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '', cert_medico_scadenza: g.cert_medico_scadenza ?? '' }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_GIOCATORE) }
 
   function openAccountModal(g) {
@@ -2418,6 +2419,14 @@ function GiocatoriTab() {
                 <input type="number" min="0" max="99" value={form.numero_maglia} onChange={e => set('numero_maglia', e.target.value)} className={inp} placeholder="–" />
               </Field>
             </div>
+            <Field label="Scadenza cert. medico">
+              <input
+                type="date"
+                value={form.cert_medico_scadenza}
+                onChange={e => set('cert_medico_scadenza', e.target.value)}
+                className={inp}
+              />
+            </Field>
             <Field label="Note">
               <input value={form.note} onChange={e => set('note', e.target.value)} className={inp} placeholder="Opzionale" />
             </Field>
