@@ -29,6 +29,7 @@ import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
 import PresenzePage from './pages/coach/PresenzePage'
 import AdminPersone from './pages/admin/AdminPersone'
+import SetupMenu from './pages/admin/SetupMenu'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,7 +164,8 @@ function AppShell() {
           <Route path="partite"     element={<CalendarioPage />} />
           <Route path="allenamenti" element={<AllenamentiPage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
-          <Route path="setup"       element={<SetupPage />} />
+          <Route path="setup"       element={<SetupMenu />} />
+          <Route path="setup/:tab"  element={<SetupPage />} />
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
@@ -2937,12 +2938,14 @@ const ALL_TABS = [
   { id: 'giocatori',   label: 'Giocatori',   icon: UserPlus,  superAdminOnly: false },
   { id: 'quote',       label: 'Quote',       icon: CreditCard, superAdminOnly: false, adminOnly: true },
   { id: 'utenti',      label: 'Utenti',      icon: Shield,    superAdminOnly: false },
-  { id: 'scheduling',  label: 'Scheduling',  icon: Calendar,  superAdminOnly: false, hidden: true },
-  { id: 'societa',     label: 'Società',     icon: Globe,     superAdminOnly: true  },
+  { id: 'scheduling',         label: 'Scheduling',       icon: Calendar,  superAdminOnly: false, hidden: true },
+  { id: 'squadre_allenatori', label: 'Doppio Campionato', icon: Shield,    superAdminOnly: false, hidden: true },
+  { id: 'societa',            label: 'Società',           icon: Globe,     superAdminOnly: true  },
 ]
 
-export default function SetupPage() {
-  const [activeTab, setActiveTab] = useState('squadre')
+export default function SetupPage({ initialTab }) {
+  const { tab } = useParams()
+  const [activeTab, setActiveTab] = useState(tab ?? initialTab ?? 'squadre')
   const { isSuperAdmin, isAdmin } = useAuth()
   const tabs = ALL_TABS.filter(t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && !t.hidden)
 
@@ -2974,8 +2977,9 @@ export default function SetupPage() {
         {activeTab === 'giocatori'   && <GiocatoriTab />}
         {activeTab === 'quote'       && <QuoteTab />}
         {activeTab === 'utenti'      && <UtentiTab />}
-        {activeTab === 'scheduling'  && <SchedulingTab />}
-        {activeTab === 'societa'     && <SocietaTab />}
+        {activeTab === 'scheduling'         && <SchedulingTab />}
+        {activeTab === 'squadre_allenatori' && <SquadreAllenatoriTab />}
+        {activeTab === 'societa'            && <SocietaTab />}
       </div>
     </div>
   )
