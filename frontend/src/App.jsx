@@ -12,6 +12,7 @@ import SecretaryLayout from './layouts/SecretaryLayout'
 import CoachLayout from './layouts/CoachLayout'
 import AdminLayout from './layouts/AdminLayout'
 import LoginPage from './pages/LoginPage'
+import LoadingSpinner from './components/LoadingSpinner'
 import CalendarioPage from './pages/CalendarioPage'
 import AllenamentiPage from './pages/AllenamentiPage'
 import SetupPage from './pages/SetupPage'
@@ -106,7 +107,11 @@ function NuovaPasswordPage({ onDone }) {
 function AppShell() {
   const { user, loading, isSuperAdmin, isPasswordRecovery, clearPasswordRecovery } = useAuth()
 
-  if (loading) return null
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <LoadingSpinner />
+    </div>
+  )
   if (isPasswordRecovery) return <NuovaPasswordPage onDone={clearPasswordRecovery} />
 
   if (user && isSuperAdmin) {

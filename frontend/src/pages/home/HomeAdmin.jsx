@@ -1,35 +1,84 @@
 import { useState, useMemo } from 'react'
-import { format, addDays, addWeeks, parseISO, startOfWeek } from 'date-fns'
+import { format, addDays, addWeeks, startOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { CheckCircle2, AlertTriangle, Clock, MapPin, AlertCircle, ArrowRight, ChevronUp, ChevronDown } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
-import { formatTime } from '../../lib/utils'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { EventRow, timesOverlap, QuickEditAllenamentoModal } from './shared'
 
 export default function HomeAdmin() {
-  const { displayName, logout, societaNome } = useAuth()
-  const [tab, setTab]                             = useState('partite')
+  const { displayName, logout, societaNome, societaId } = useAuth()
   const [editingConflictTraining, setEditingConflictTraining] = useState(null)
-  const [openQuestaSettimana,    setOpenQuestaSettimana]    = useState(true)
-  const [openProssimaSettimana,  setOpenProssimaSettimana]  = useState(true)
-  const navigate                                  = useNavigate()
-  const today          = new Date()
-  const todayStr       = format(today, 'yyyy-MM-dd')
-  const endStr         = format(addDays(today, 14), 'yyyy-MM-dd')
-  const weekStart      = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
-  const nextWeekStart  = useMemo(() => addWeeks(weekStart, 1), [weekStart])
-  const week2Start     = useMemo(() => addWeeks(weekStart, 2), [weekStart])
-  const nextWeekStartStr = useMemo(() => format(nextWeekStart, 'yyyy-MM-dd'), [nextWeekStart])
+  const navigate = useNavigate()
 
+  const today      = new Date()
+  const todayStr   = format(today, 'yyyy-MM-dd')
+  const endStr     = format(addDays(today, 14), 'yyyy-MM-dd')
+  const monthStart = format(startOfMonth(today), 'yyyy-MM-dd')
+  const monthEnd   = format(endOfMonth(today), 'yyyy-MM-dd')
+  const weekStart     = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
+  const nextWeekStart = useMemo(() => addWeeks(weekStart, 1), [weekStart])
+  const week2Start    = useMemo(() => addWeeks(weekStart, 2), [weekStart])
+
+  // ── KPI: giocatori, squadre, cert ──────────────────────────────────────────
+  const { data: giocatori = [], isLoading: loadingG } = useQuery({
+    queryKey: ['admin-giocatori-kpi', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('giocatori')
+        .select('squadra, cert_medico_scadenza')
+        .eq('societa_id', societaId)
+        .eq('attivo', true)
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const squadreCount = useMemo(
+    () => new Set(giocatori.map(g => g.squadra).filter(Boolean)).size,
+    [giocatori]
+  )
+  const certScadutiN = useMemo(
+    () => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza < todayStr).length,
+    [giocatori, todayStr]
+  )
+
+  // ── KPI: partite questo mese ───────────────────────────────────────────────
+  const { data: partiteMese = 0 } = useQuery({
+    queryKey: ['admin-partite-mese', monthStart, monthEnd],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('calendario')
+        .select('*', { count: 'exact', head: true })
+        .gte('data', monthStart)
+        .lte('data', monthEnd)
+      return count ?? 0
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ── KPI: quote non pagate ──────────────────────────────────────────────────
+  const { data: quoteNonPagate = 0 } = useQuery({
+    queryKey: ['admin-quote-non-pagate', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('quote')
+        .select('*', { count: 'exact', head: true })
+        .eq('societa_id', societaId)
+        .eq('pagato', false)
+      return count ?? 0
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ── Partite future (prossimi 14gg) ─────────────────────────────────────────
   const { data: partiteFuture = [], isLoading: loadingP } = useQuery({
     queryKey: ['admin-partite-future', todayStr],
     queryFn: async () => {
@@ -43,22 +92,23 @@ export default function HomeAdmin() {
     staleTime: 2 * 60 * 1000,
   })
 
+  // ── Provvisorie ────────────────────────────────────────────────────────────
   const { data: provvisorie = [], isLoading: loadingProv } = useQuery({
     queryKey: ['admin-provvisorie', todayStr],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('calendario').select('*')
         .eq('stato', 'provvisoria').gte('data', todayStr)
-        .order('data').order('ora_inizio')
-      if (error) throw error
+        .order('data')
       return data ?? []
     },
     staleTime: 2 * 60 * 1000,
   })
 
-  const { data: thisWeek }  = useWeekEvents(weekStart)
-  const { data: nextWeek }  = useWeekEvents(nextWeekStart)
-  const { data: week2 }     = useWeekEvents(week2Start)
+  // ── Conflict detection ─────────────────────────────────────────────────────
+  const { data: thisWeek } = useWeekEvents(weekStart)
+  const { data: nextWeek } = useWeekEvents(nextWeekStart)
+  const { data: week2 }    = useWeekEvents(week2Start)
 
   const conflictsAll = useMemo(() => {
     const allEvents   = [...(thisWeek?.events ?? []), ...(nextWeek?.events ?? []), ...(week2?.events ?? [])]
@@ -69,7 +119,7 @@ export default function HomeAdmin() {
       const conf = allenamenti.filter(t => {
         if (t.data !== p.data) return false
         if (!timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine)) return false
-        const sameSquadra = (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase()
+        const sameSquadra  = (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase()
         const samePalestra = p.casa_fuori === 'Casa' &&
           p.palestra?.trim() && t.palestra?.trim() &&
           p.palestra.trim().toLowerCase() === t.palestra.trim().toLowerCase()
@@ -78,65 +128,12 @@ export default function HomeAdmin() {
       if (conf.length) result.push({ partita: p, allenamenti: conf })
     }
     const seen = new Set()
-    return result.filter(r => {
-      if (seen.has(r.partita.id)) return false
-      seen.add(r.partita.id)
-      return true
-    })
+    return result.filter(r => { if (seen.has(r.partita.id)) return false; seen.add(r.partita.id); return true })
   }, [thisWeek, nextWeek, week2, todayStr])
 
-  const { data: doppioList = [] } = useQuery({
-    queryKey: ['doppio-campionato'],
-    queryFn: async () => {
-      const { data } = await supabase.from('doppio_campionato').select('*')
-      return data ?? []
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const doppioConflictsAdmin = useMemo(() => {
-    if (!doppioList.length || !partiteFuture.length) return []
-    const byDate = {}
-    for (const p of partiteFuture) {
-      if (!byDate[p.data]) byDate[p.data] = []
-      byDate[p.data].push(p)
-    }
-    const result = []
-    for (const pair of doppioList) {
-      for (const [dateStr, partite] of Object.entries(byDate)) {
-        const partita_a = partite.find(p => p.squadra === pair.squadra_a)
-        const partita_b = partite.find(p => p.squadra === pair.squadra_b)
-        if (partita_a && partita_b) {
-          result.push({ data: dateStr, pair, partita_a, partita_b })
-        }
-      }
-    }
-    return result
-  }, [doppioList, partiteFuture])
-
-  const daGestireTot = provvisorie.length + conflictsAll.length + doppioConflictsAdmin.length
-  const isLoading    = loadingP || loadingProv
-
-  const partiteQuestaSettimana   = useMemo(() => partiteFuture.filter(p => p.data < nextWeekStartStr), [partiteFuture, nextWeekStartStr])
-  const partiteProssimaSettimana = useMemo(() => partiteFuture.filter(p => p.data >= nextWeekStartStr), [partiteFuture, nextWeekStartStr])
-
-  const partiteQsByDate = useMemo(() => {
-    const map = {}
-    for (const p of partiteQuestaSettimana) {
-      if (!map[p.data]) map[p.data] = []
-      map[p.data].push(p)
-    }
-    return map
-  }, [partiteQuestaSettimana])
-
-  const partitePSByDate = useMemo(() => {
-    const map = {}
-    for (const p of partiteProssimaSettimana) {
-      if (!map[p.data]) map[p.data] = []
-      map[p.data].push(p)
-    }
-    return map
-  }, [partiteProssimaSettimana])
+  const totalConflicts = conflictsAll.reduce((n, c) => n + c.allenamenti.length, 0)
+  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN
+  const isLoading      = loadingP || loadingProv || loadingG
 
   return (
     <div className="pb-20">
@@ -148,252 +145,113 @@ export default function HomeAdmin() {
         societaNome={societaNome}
       />
 
-      {/* Toggle tab */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex bg-secondary rounded-xl p-1 gap-1">
-          <button
-            onClick={() => setTab('partite')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === 'partite'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Partite
-            <span className="ml-1.5 text-xs text-muted-foreground">({partiteFuture.length})</span>
-          </button>
-          <button
-            onClick={() => setTab('gestire')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              tab === 'gestire'
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Da gestire
-            {daGestireTot > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] bg-destructive text-white text-[10px] font-bold rounded-full px-1">
-                {daGestireTot}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
       {isLoading ? (
-        <div className="pt-6"><LoadingSpinner /></div>
-      ) : tab === 'partite' ? (
-
-        <div className="px-4 space-y-3">
-          {partiteFuture.length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center gap-2 py-5 text-sm text-green-600">
-                <CheckCircle2 size={16} />
-                <span>Nessuna partita nei prossimi 14 giorni</span>
-              </CardContent>
-            </Card>
-          ) : (<>
-
-            <div className="border border-border rounded-xl overflow-hidden bg-card">
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 text-left"
-                onClick={() => setOpenQuestaSettimana(v => !v)}
-              >
-                <span className="text-sm font-semibold text-foreground">
-                  Partite questa settimana
-                  <span className="ml-2 text-xs text-muted-foreground font-normal">({partiteQuestaSettimana.length})</span>
-                </span>
-                {openQuestaSettimana
-                  ? <ChevronUp size={16} className="text-muted-foreground" />
-                  : <ChevronDown size={16} className="text-muted-foreground" />}
-              </button>
-              {openQuestaSettimana && (
-                <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
-                  {partiteQuestaSettimana.length === 0 ? (
-                    <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-xl py-3 px-3">
-                      <CheckCircle2 size={14} /> Nessuna partita questa settimana
-                    </div>
-                  ) : (
-                    Object.entries(partiteQsByDate).map(([dateStr, partite]) => (
-                      <div key={dateStr}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 capitalize">
-                          {format(parseISO(dateStr), 'EEEE d MMMM', { locale: it })}
-                        </p>
-                        <div className="space-y-2">
-                          {partite.map(p => (
-                            <EventRow key={p.id} event={{ ...p, _tipo: 'partita', _source: 'calendario' }} />
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="border border-border rounded-xl overflow-hidden bg-card">
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 text-left"
-                onClick={() => setOpenProssimaSettimana(v => !v)}
-              >
-                <span className="text-sm font-semibold text-foreground">
-                  Partite settimana prossima
-                  <span className="ml-2 text-xs text-muted-foreground font-normal">({partiteProssimaSettimana.length})</span>
-                </span>
-                {openProssimaSettimana
-                  ? <ChevronUp size={16} className="text-muted-foreground" />
-                  : <ChevronDown size={16} className="text-muted-foreground" />}
-              </button>
-              {openProssimaSettimana && (
-                <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
-                  {partiteProssimaSettimana.length === 0 ? (
-                    <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 rounded-xl py-3 px-3">
-                      <CheckCircle2 size={14} /> Nessuna partita la prossima settimana
-                    </div>
-                  ) : (
-                    Object.entries(partitePSByDate).map(([dateStr, partite]) => (
-                      <div key={dateStr}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 capitalize">
-                          {format(parseISO(dateStr), 'EEEE d MMMM', { locale: it })}
-                        </p>
-                        <div className="space-y-2">
-                          {partite.map(p => (
-                            <EventRow key={p.id} event={{ ...p, _tipo: 'partita', _source: 'calendario' }} />
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-          </>)}
-        </div>
-
+        <div className="pt-8"><LoadingSpinner /></div>
       ) : (
+        <div className="px-4 pt-4 space-y-4">
 
-        <div className="px-4 space-y-4">
-          {daGestireTot === 0 ? (
-            <Card>
-              <CardContent className="flex items-center gap-2 py-5 text-sm text-green-600">
-                <CheckCircle2 size={16} />
-                <span>Tutto in ordine! Nessuna azione richiesta</span>
-              </CardContent>
-            </Card>
-          ) : (<>
+          {/* KPI row 1 */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Squadre',       value: squadreCount,  color: 'text-amber-600'  },
+              { label: 'Cert. scaduti', value: certScadutiN,  color: certScadutiN  > 0 ? 'text-red-600'  : 'text-green-600' },
+              { label: 'Partite mese',  value: partiteMese,   color: 'text-green-600'  },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm">
+                <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
+              </div>
+            ))}
+          </div>
 
-            {provvisorie.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-yellow-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
-                  <AlertCircle size={12} /> Partite da confermare ({provvisorie.length})
-                </p>
-                <div className="space-y-2">
-                  {provvisorie.map(p => (
-                    <Card key={p.id} className="border-l-4 border-l-yellow-400">
-                      <CardContent className="px-4 py-3">
-                        <p className="text-sm font-semibold text-foreground">
-                          {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock size={11} />
-                            {format(parseISO(p.data), 'EEE d MMM', { locale: it })} · {formatTime(p.ora_inizio)}
-                          </span>
-                          {p.palestra && (
-                            <span className="flex items-center gap-1">
-                              <MapPin size={11} /> {p.palestra}
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+          {/* KPI row 2 */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Quote non pagate', value: quoteNonPagate,      color: quoteNonPagate > 0 ? 'text-amber-500' : 'text-green-600', onClick: () => navigate('/admin/setup') },
+              { label: 'Provvisorie',       value: provvisorie.length, color: provvisorie.length > 0 ? 'text-purple-600' : 'text-green-600', onClick: () => navigate('/admin/partite') },
+            ].map(({ label, value, color, onClick }) => (
+              <button key={label} onClick={onClick}
+                className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm active:scale-[0.98] transition-transform">
+                <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
+              </button>
+            ))}
+          </div>
+
+          {/* Azioni urgenti */}
+          {urgenzeTot > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Azioni urgenti</p>
+              <div className="space-y-2">
+                {totalConflicts > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/allenamenti')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-red-500 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      ⚠️ {totalConflicts} allenament{totalConflicts === 1 ? 'o' : 'i'} in conflitto con partite
+                    </p>
+                  </button>
+                )}
+                {provvisorie.length > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/partite')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-amber-400 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      📋 {provvisorie.length} partite provvisorie da confermare
+                    </p>
+                  </button>
+                )}
+                {certScadutiN > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/persone')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-red-400 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      🏥 {certScadutiN} certificat{certScadutiN === 1 ? 'o' : 'i'} medic{certScadutiN === 1 ? 'o' : 'i'} scadut{certScadutiN === 1 ? 'o' : 'i'}
+                    </p>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {urgenzeTot === 0 && (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-sm text-green-700">
+              <CheckCircle2 size={16} /> Tutto in ordine! Nessuna azione urgente.
+            </div>
+          )}
+
+          {/* Prossime partite */}
+          <div>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prossime partite</p>
+              <button onClick={() => navigate('/admin/partite')} className="text-xs text-amber-600 font-medium">
+                Tutte →
+              </button>
+            </div>
+            {partiteFuture.length === 0 ? (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-sm text-green-700">
+                <CheckCircle2 size={16} /> Nessuna partita nei prossimi 14 giorni
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {partiteFuture.slice(0, 5).map(p => (
+                  <EventRow key={p.id} event={{ ...p, _tipo: 'partita', _source: 'calendario' }} />
+                ))}
+                {partiteFuture.length > 5 && (
+                  <button
+                    onClick={() => navigate('/admin/partite')}
+                    className="w-full text-center text-xs text-amber-600 font-medium py-2"
+                  >
+                    + {partiteFuture.length - 5} altre partite →
+                  </button>
+                )}
               </div>
             )}
+          </div>
 
-            {conflictsAll.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <p className="text-xs font-semibold text-destructive uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertTriangle size={12} /> Allenamenti da spostare ({conflictsAll.length})
-                  </p>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/calendario')}
-                    className="text-destructive hover:text-destructive hover:bg-red-50 h-auto py-1 px-2">
-                    Gestisci <ArrowRight size={12} />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {conflictsAll.map(({ partita, allenamenti }, i) => (
-                    <Card key={i} className="border-l-4 border-l-destructive">
-                      <CardContent className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <p className="text-sm font-semibold text-foreground">
-                            {partita.squadra}{partita.avversario ? ` vs ${partita.avversario}` : ''}
-                          </p>
-                          <Badge variant="destructive">Definitiva</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {format(parseISO(partita.data), 'EEE d MMM', { locale: it })} · {formatTime(partita.ora_inizio)}–{formatTime(partita.ora_fine)}
-                          {partita.palestra ? ` · ${partita.palestra}` : ''}
-                        </p>
-                        <div className="space-y-1.5">
-                          {allenamenti.map((t, j) => (
-                            <div key={j} className="flex items-center gap-2 text-xs bg-red-50 rounded-lg px-2 py-1.5">
-                              <AlertTriangle size={10} className="shrink-0 text-destructive" />
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium text-foreground">{t.squadra}</span>
-                                <span className="text-muted-foreground ml-2">{formatTime(t.ora_inizio)}–{formatTime(t.ora_fine)}</span>
-                                {t.palestra && <span className="text-muted-foreground ml-1 truncate">· {t.palestra}</span>}
-                              </div>
-                              <Button variant="ghost" size="sm"
-                                className="h-auto py-0.5 px-2 text-xs text-primary hover:bg-amber-50 shrink-0"
-                                onClick={() => setEditingConflictTraining(t)}>
-                                Modifica
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {doppioConflictsAdmin.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
-                  <AlertTriangle size={12} /> Doppio campionato — stesso giorno ({doppioConflictsAdmin.length})
-                </p>
-                <div className="space-y-2">
-                  {doppioConflictsAdmin.map(({ data: dateStr, pair, partita_a, partita_b }, i) => (
-                    <Card key={i} className="border-l-4 border-l-orange-400">
-                      <CardContent className="px-4 py-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-semibold text-muted-foreground capitalize">
-                            {format(parseISO(dateStr), 'EEE d MMMM', { locale: it })}
-                          </p>
-                          {pair.note && <Badge variant="orange">{pair.note}</Badge>}
-                        </div>
-                        <div className="space-y-1">
-                          {[partita_a, partita_b].map((p, j) => (
-                            <div key={j} className="flex items-center gap-2 text-xs bg-orange-50 rounded-lg px-2 py-1.5">
-                              <span className="font-medium text-foreground">{p.squadra}</span>
-                              {p.avversario && <span className="text-muted-foreground">vs {p.avversario}</span>}
-                              {p.ora_inizio && <span className="text-muted-foreground ml-auto">{formatTime(p.ora_inizio)}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          </>)}
         </div>
       )}
 
