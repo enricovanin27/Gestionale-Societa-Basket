@@ -22,6 +22,7 @@ import StatistichePage from './pages/StatistichePage'
 import SegreteriePage from './pages/SegreteriePage'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
+import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
@@ -133,7 +134,7 @@ function AppShell() {
         <Route path="/player" element={<ProtectedRoute requiredRole="giocatore"><PlayerLayout /></ProtectedRoute>}>
           <Route index element={<HomeGiocatore />} />
           <Route path="bacheca" element={<BachecaPage />} />
-          {/* /player/statistiche aggiunto in Fase 2 */}
+          <Route path="statistiche" element={<StatisticheGiocatore />} />
         </Route>
 
         {/* ── Segreteria ───────────────────────────────── */}
