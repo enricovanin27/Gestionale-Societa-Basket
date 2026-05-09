@@ -27,6 +27,7 @@ import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
+import PresenzePage from './pages/coach/PresenzePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -152,7 +153,7 @@ function AppShell() {
           <Route path="calendario"  element={<CalendarioPage />} />
           <Route path="statistiche" element={<StatistichePage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
-          {/* /coach/presenze aggiunto in Fase 4 */}
+          <Route path="presenze"    element={<PresenzePage />} />
         </Route>
 
         {/* ── Admin ────────────────────────────────────── */}
