@@ -190,9 +190,9 @@ function AnnuncioCard({ ann, canDelete, onDelete }) {
 
 // ─── Pagina principale ────────────────────────────────────────────────────────
 export default function BachecaPage() {
-  const { user, profile, societaId, isAdmin, isAllenatore, displayName } = useAuth()
+  const { user, profile, societaId, isAdmin, isAllenatore, isSegreteria, displayName } = useAuth()
   const qc = useQueryClient()
-  const canWrite = isAdmin || isAllenatore
+  const canWrite = isAdmin || isAllenatore || isSegreteria
   const [showForm, setShowForm] = useState(false)
   const [squadraFilter, setSquadraFilter] = useState('')
 

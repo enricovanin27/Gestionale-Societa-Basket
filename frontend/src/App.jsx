@@ -20,6 +20,7 @@ import PlatformPage from './pages/PlatformPage'
 import BachecaPage from './pages/BachecaPage'
 import StatistichePage from './pages/StatistichePage'
 import SegreteriePage from './pages/SegreteriePage'
+import SegreteriaDashboard from './pages/secretary/SegreteriaDashboard'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
@@ -139,7 +140,7 @@ function AppShell() {
 
         {/* ── Segreteria ───────────────────────────────── */}
         <Route path="/secretary" element={<ProtectedRoute requiredRole="segreteria"><SecretaryLayout /></ProtectedRoute>}>
-          <Route index element={<SegreteriePage />} /> {/* sostituito in Fase 3 */}
+          <Route index element={<SegreteriaDashboard />} />
           <Route path="giocatori" element={<SegreteriePage initialTab="giocatori" />} />
           <Route path="quote"     element={<SegreteriePage initialTab="quote" />} />
           <Route path="bacheca"   element={<BachecaPage />} />
