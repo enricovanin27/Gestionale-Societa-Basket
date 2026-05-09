@@ -28,6 +28,7 @@ import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
 import PresenzePage from './pages/coach/PresenzePage'
+import AdminPersone from './pages/admin/AdminPersone'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,7 +164,7 @@ function AppShell() {
           <Route path="allenamenti" element={<AllenamentiPage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
           <Route path="setup"       element={<SetupPage />} />
-          {/* /admin/persone aggiunto in Fase 5 */}
+          <Route path="persone"     element={<AdminPersone />} />
         </Route>
 
         {/* ── Legacy redirects ─────────────────────────── */}
