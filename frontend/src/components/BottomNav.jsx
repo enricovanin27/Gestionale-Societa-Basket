@@ -1,11 +1,12 @@
+// DEPRECATED: rimpiazzato dai layout per ruolo in src/layouts/. Da rimuovere dopo migrazione completa.
 import { NavLink } from 'react-router-dom'
 import { Home, Calendar, Trophy, Settings, Bell, ClipboardList } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Home' },
-  { to: '/calendario', icon: Calendar, label: 'Pianificazione', superAdminHidden: true },
+  { to: '/', icon: Home, label: 'Home', segreteriaHidden: true },
+  { to: '/calendario', icon: Calendar, label: 'Pianificazione', staffOnly: true, superAdminHidden: true },
   { to: '/allenamenti', icon: Trophy,  label: 'Allenamenti', staffOnly: true, superAdminHidden: true },
   { to: '/segreteria',  icon: ClipboardList, label: 'Segreteria', segreteriaOnly: true, superAdminHidden: true },
   { to: '/bacheca',     icon: Bell,    label: 'Bacheca',     superAdminHidden: true },
@@ -13,12 +14,17 @@ const navItems = [
 ]
 
 export default function BottomNav() {
-  const { isAdmin, isAllenatore, isSegreteria, isSuperAdmin, societaId } = useAuth()
-  const isStaff = isAdmin || isAllenatore
+  const { allRuoli, activeRole, isSuperAdmin, societaId } = useAuth()
+  const navRole = activeRole ?? allRuoli[0] ?? 'genitore'
+  const navIsAdmin = navRole === 'admin' || navRole === 'super_admin'
+  const navIsAllenatore = navRole === 'allenatore'
+  const navIsSegreteria = navRole === 'segreteria'
+  const navIsStaff = navIsAdmin || navIsAllenatore
   const items = navItems.filter(item =>
-    (!item.adminOnly || isAdmin) &&
-    (!item.staffOnly || isStaff) &&
-    (!item.segreteriaOnly || isSegreteria) &&
+    (!item.adminOnly || navIsAdmin) &&
+    (!item.staffOnly || navIsStaff) &&
+    (!item.segreteriaOnly || navIsSegreteria) &&
+    (!item.segreteriaHidden || !navIsSegreteria) &&
     (!item.superAdminHidden || !isSuperAdmin)
   )
   const { data: unreadCount = 0 } = useUnreadAnnunci(societaId)
