@@ -1030,7 +1030,7 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
   const todayStr  = format(new Date(), 'yyyy-MM-dd')
   const [gridView, setGridView] = useState(false)
 
-  const { data: weekData, isLoading } = useWeekEvents(weekStart)
+  const { data: weekData, isLoading, error: weekError } = useWeekEvents(weekStart)
   const [editingEvent,     setEditingEvent]     = useState(null)
   const [editingDayEvents, setEditingDayEvents] = useState([])
   const [showAddForm,      setShowAddForm]      = useState(false)
@@ -1101,10 +1101,22 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
         && (!squadraFilter || e.squadra === squadraFilter)
         && (!allenatoreFilter || (e.allenatori ?? '').split(',').some(a => a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase())))
         && (!palestraFilter || e.palestra === palestraFilter))
-      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(a.ora_inizio ?? '')),
+      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? '')),
     [weekData, todayStr, squadraFilter, allenatoreFilter, palestraFilter, inScope])
 
   if (isLoading) return <LoadingSpinner message="Caricamento..." />
+  if (weekError) return (
+    <div className="text-center py-20 space-y-2">
+      <p className="text-sm font-medium text-red-500">Errore nel caricamento degli allenamenti</p>
+      <p className="text-xs text-gray-400">{weekError.message}</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="mt-3 px-4 py-2 text-xs bg-gray-100 rounded-xl text-gray-600 font-medium"
+      >
+        Riprova
+      </button>
+    </div>
+  )
 
   const dayAllEvents = weekData?.eventsByDate?.[todayStr] ?? []
 
