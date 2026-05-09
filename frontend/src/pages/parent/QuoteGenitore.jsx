@@ -8,9 +8,8 @@ import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 
-const today = new Date()
-
 function scadenzaStatus(dataScadenza) {
+  const today = new Date()
   if (!dataScadenza) return { label: 'Nessuna scadenza', cls: 'bg-gray-100 text-gray-500' }
   const diff = differenceInDays(parseISO(dataScadenza), today)
   if (diff < 0)  return { label: `Scaduta ${-diff}gg fa`, cls: 'bg-red-100 text-red-700' }

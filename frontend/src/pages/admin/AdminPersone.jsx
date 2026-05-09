@@ -8,10 +8,9 @@ import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '../../components/ui/card'
 
-const today = new Date()
-const todayStr = format(today, 'yyyy-MM-dd')
-
 function certLabel(dataScad) {
+  const today = new Date()
+  const todayStr = format(today, 'yyyy-MM-dd')
   if (!dataScad) return { text: 'N/D', cls: 'bg-gray-100 text-gray-500' }
   const diff = differenceInDays(parseISO(dataScad), today)
   if (diff < 0)  return { text: `Scad. ${-diff}gg fa`, cls: 'bg-red-100 text-red-700'    }
@@ -20,6 +19,9 @@ function certLabel(dataScad) {
 }
 
 export default function AdminPersone() {
+  const today = new Date()
+  const todayStr = format(today, 'yyyy-MM-dd')
+
   const { societaId, displayName, logout, societaNome } = useAuth()
   const [squadraFilter, setSquadraFilter] = useState('')
   const [search, setSearch] = useState('')

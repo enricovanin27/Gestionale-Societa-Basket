@@ -61,6 +61,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // INITIAL_SESSION is handled by the getSession() effect above — skip to avoid double fetch
+      if (event === 'INITIAL_SESSION') return
+
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true)
         setUser(session?.user ?? null)

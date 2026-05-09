@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, endOfWeek, eachDayOfInterval } from 'date-fns'
+import { format, endOfWeek, eachDayOfInterval, startOfWeek } from 'date-fns'
 import { it } from 'date-fns/locale'
 import {
   Edit2, X, Plus, Users, MapPin, Clock,

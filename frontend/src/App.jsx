@@ -6,6 +6,7 @@ import { useAuth } from './hooks/useAuth'
 import { supabase } from './lib/supabase'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleRedirect from './components/RoleRedirect'
+import ErrorBoundary from './components/ErrorBoundary'
 import ParentLayout from './layouts/ParentLayout'
 import PlayerLayout from './layouts/PlayerLayout'
 import SecretaryLayout from './layouts/SecretaryLayout'
@@ -191,12 +192,16 @@ function AppShell() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <AppShell />
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <ErrorBoundary>
+              <AppShell />
+            </ErrorBoundary>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }

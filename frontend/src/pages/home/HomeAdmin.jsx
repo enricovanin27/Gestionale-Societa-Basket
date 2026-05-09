@@ -51,7 +51,8 @@ export default function HomeAdmin() {
 
   // ── KPI: partite questo mese ───────────────────────────────────────────────
   const { data: partiteMese = 0 } = useQuery({
-    queryKey: ['admin-partite-mese', monthStart, monthEnd],
+    queryKey: ['admin-partite-mese', monthStart, monthEnd, societaId],
+    enabled: !!societaId,
     queryFn: async () => {
       const { count } = await supabase
         .from('calendario')
@@ -80,7 +81,8 @@ export default function HomeAdmin() {
 
   // ── Partite future (prossimi 14gg) ─────────────────────────────────────────
   const { data: partiteFuture = [], isLoading: loadingP } = useQuery({
-    queryKey: ['admin-partite-future', todayStr],
+    queryKey: ['admin-partite-future', todayStr, societaId],
+    enabled: !!societaId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('calendario').select('*')
@@ -94,7 +96,8 @@ export default function HomeAdmin() {
 
   // ── Provvisorie ────────────────────────────────────────────────────────────
   const { data: provvisorie = [], isLoading: loadingProv } = useQuery({
-    queryKey: ['admin-provvisorie', todayStr],
+    queryKey: ['admin-provvisorie', todayStr, societaId],
+    enabled: !!societaId,
     queryFn: async () => {
       const { data } = await supabase
         .from('calendario').select('*')

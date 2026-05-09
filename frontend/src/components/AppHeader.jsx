@@ -1,4 +1,5 @@
 import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import CambiaPasswordButton from './CambiaPasswordButton'
 import { useAuth } from '../hooks/useAuth'
 
@@ -11,9 +12,25 @@ const ROLE_LABEL = {
   giocatore:   'Giocatore',
 }
 
+const ROLE_PATH = {
+  genitore:    '/parent',
+  giocatore:   '/player',
+  segreteria:  '/secretary',
+  allenatore:  '/coach',
+  admin:       '/admin',
+  super_admin: '/platform',
+}
+
 export default function AppHeader({ title, subtitle, displayName, logout, societaNome, children }) {
   const { allRuoli, activeRole, setActiveRole } = useAuth()
+  const navigate = useNavigate()
   const multiRole = allRuoli.length > 1
+
+  function handleRoleSwitch(r) {
+    setActiveRole(r)
+    const path = ROLE_PATH[r]
+    if (path) navigate(path)
+  }
 
   return (
     <div className="bg-gradient-to-r from-amber-800 to-amber-600 text-white px-4 pt-10 pb-5">
@@ -47,7 +64,7 @@ export default function AppHeader({ title, subtitle, displayName, logout, societ
           {allRuoli.map(r => (
             <button
               key={r}
-              onClick={() => setActiveRole(r)}
+              onClick={() => handleRoleSwitch(r)}
               className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
                 activeRole === r
                   ? 'bg-white text-amber-800 shadow-sm'

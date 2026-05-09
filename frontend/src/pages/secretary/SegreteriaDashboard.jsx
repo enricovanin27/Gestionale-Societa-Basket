@@ -10,11 +10,10 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
-const today = new Date()
-const todayStr = format(today, 'yyyy-MM-dd')
-const in30days = format(new Date(today.getTime() + 30 * 86400000), 'yyyy-MM-dd')
-
 export default function SegreteriaDashboard() {
+  const today = new Date()
+  const todayStr = format(today, 'yyyy-MM-dd')
+  const in30days = format(new Date(today.getTime() + 30 * 86400000), 'yyyy-MM-dd')
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
 

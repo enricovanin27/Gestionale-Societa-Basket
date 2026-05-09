@@ -9,9 +9,8 @@ import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 
-const today = new Date()
-
 export default function PresenzePage() {
+  const today = new Date()
   const { user, societaId, displayName, logout, societaNome } = useAuth()
   const qc = useQueryClient()
 
