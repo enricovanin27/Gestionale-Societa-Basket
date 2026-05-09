@@ -51,7 +51,6 @@ export default function SegreteriePage({ initialTab = 'giocatori' }) {
         .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato')
         .eq('societa_id', societaId)
         .eq('pagato', false)
-        .eq('tipo', 'iscrizione')
         .order('data_scadenza')
       return data ?? []
     },
