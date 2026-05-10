@@ -17,6 +17,7 @@ import ImportaCalendarioPage from './ImportaCalendarioPage'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
+import PageHeader from '../components/PageHeader'
 import { saveAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -1086,38 +1087,41 @@ export default function CalendarioPage() {
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
 
       {/* ── Sticky header ── */}
-      <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
-        <div className="px-4 pt-4 pb-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">🏀 Calendario</h1>
-            {calTab === 'partite' && (
-              <button
-                onClick={handleExportICS}
-                disabled={exportingICS}
-                title="Esporta calendario (.ics)"
-                className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded-lg px-2 py-1 hover:border-blue-300 transition-colors disabled:opacity-50"
-              >
-                <Download size={13} />
-                {exportingICS ? '…' : '.ics'}
-              </button>
-            )}
-          </div>
-
-          {/* Tab switcher */}
-          <div className="flex bg-secondary rounded-xl p-1 gap-1">
-            {[['partite', 'Partite'], ['settimana', 'Settimana'], ['importa', 'Import FIP']].map(([v, label]) => (
+      <PageHeader
+        title="Calendario"
+        actions={calTab === 'partite' && (
+          <button
+            onClick={handleExportICS}
+            disabled={exportingICS}
+            title="Esporta calendario (.ics)"
+            className="flex items-center gap-1 text-xs text-amber-100 hover:text-white border border-amber-400/50 rounded-lg px-2 py-1 hover:border-amber-200 transition-colors disabled:opacity-50"
+          >
+            <Download size={13} />
+            {exportingICS ? '…' : '.ics'}
+          </button>
+        )}
+      >
+        {/* Tab switcher */}
+        <div className="px-4 pb-3">
+          <div className="flex bg-amber-700/40 rounded-xl p-1 gap-1">
+            {[['partite', 'Partite'], ['settimana', 'Settimana'], ['importa', 'Importa']].map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
                 className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
                   calTab === v
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-white text-amber-900 shadow-sm'
+                    : 'text-amber-100 hover:text-white'
                 }`}>
                 {label}
               </button>
             ))}
           </div>
+        </div>
+      </PageHeader>
 
-          {(calTab === 'partite' || calTab === 'settimana') && <>
+      {/* ── Filters + Navigation (below sticky header) ── */}
+      <div className="bg-white border-b shadow-sm">
+        {(calTab === 'partite' || calTab === 'settimana') && (
+          <div className="px-4 pt-2 pb-2 space-y-2">
             {/* Scope select — solo per allenatori */}
             {isAllenatore && (
               <select
@@ -1157,8 +1161,8 @@ export default function CalendarioPage() {
                 {allenatoriList.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
-          </>}
-        </div>
+          </div>
+        )}
 
         {/* Navigation */}
         {(calTab === 'partite' || calTab === 'settimana') && <>
