@@ -1634,7 +1634,7 @@ export default function AllenamentiPage() {
         )}
       </PageHeader>
 
-      <div className="bg-white border-b shadow-sm sticky top-[var(--page-header-height,96px)] z-20">
+      <div className="bg-white border-b shadow-sm">
         <div className="px-4 pt-2 pb-2">
           <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
