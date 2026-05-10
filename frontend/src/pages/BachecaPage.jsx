@@ -5,6 +5,7 @@ import { it } from 'date-fns/locale'
 import { Plus, X, Pin, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import PageHeader from '../components/PageHeader'
 
 const LAST_READ_KEY = (sid) => `bacheca_last_read_${sid}`
 
@@ -258,25 +259,21 @@ export default function BachecaPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <div className="bg-gradient-to-r from-amber-800 to-amber-600 text-white px-4 pt-12 pb-5 sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">📣 Bacheca</h1>
-            <p className="text-amber-200 text-xs mt-0.5">Comunicazioni della società</p>
-          </div>
-          {canWrite && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 bg-white text-amber-700 px-3 py-2 rounded-xl text-sm font-semibold shadow active:scale-95 transition-transform"
-            >
-              <Plus size={16} /> Nuovo
-            </button>
-          )}
-        </div>
-
+      <PageHeader
+        title="Bacheca"
+        subtitle="Comunicazioni della società"
+        actions={canWrite && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 bg-white text-amber-700 px-3 py-2 rounded-xl text-sm font-semibold shadow active:scale-95 transition-transform"
+          >
+            <Plus size={16} /> Nuovo
+          </button>
+        )}
+      >
         {/* Filtro squadra */}
         {(canWrite || mySquadre.length > 1) && (
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="px-4 pb-3 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             <button
               onClick={() => setSquadraFilter('')}
               className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -298,7 +295,7 @@ export default function BachecaPage() {
             ))}
           </div>
         )}
-      </div>
+      </PageHeader>
 
       {/* Contenuto */}
       <div className="px-4 pt-4 space-y-3">
