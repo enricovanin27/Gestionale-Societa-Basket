@@ -13,6 +13,7 @@ import { useWeekEvents } from '../hooks/useWeekEvents'
 import StatistichePage from './StatistichePage'
 import { formatTime } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
+import PageHeader from '../components/PageHeader'
 import GrigliaSettimanale, { GrigliaTipo } from '../components/GrigliaSettimanale'
 import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 import { Modal, Field, inp } from '../components/ui'
@@ -1605,39 +1606,42 @@ export default function AllenamentiPage() {
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
-        <div className="px-4 pt-4 pb-2">
-          <div className="flex items-start justify-between mb-1">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Allenamenti</h1>
-              <p className="text-xs text-gray-400 mt-0.5">Presenze · Annullamenti · Settimana tipo</p>
-            </div>
-            <a href="/calendario"
-              className="text-xs text-amber-600 font-medium flex items-center gap-1 mt-1 hover:underline">
-              Pianificazione →
-            </a>
-          </div>
-
-          {isAllenatore && (
-            <div className="flex bg-gray-100 rounded-lg p-0.5 mb-2">
+      <PageHeader
+        title="Allenamenti"
+        subtitle="Presenze · Annullamenti · Settimana tipo"
+        actions={
+          <a href="/calendario"
+            className="text-xs text-amber-100 font-medium flex items-center gap-1 hover:text-white">
+            Pianificazione →
+          </a>
+        }
+      >
+        {isAllenatore && (
+          <div className="px-4 pb-3">
+            <div className="flex bg-amber-700/40 rounded-lg p-0.5">
               {[['mine', 'Le mie squadre'], ['all', 'Tutte le squadre']].map(([v, label]) => (
                 <button key={v}
                   onClick={() => { setMySquadreOnly(v === 'mine'); setSquadraFilter('') }}
                   className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${
-                    (v === 'mine') === mySquadreOnly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                  }`}>
-                  {label}
-                </button>
+                    (v === 'mine') === mySquadreOnly
+                      ? 'bg-white text-amber-900 shadow-sm'
+                      : 'text-amber-100 hover:text-white'
+                  }`}
+                >{label}</button>
               ))}
             </div>
-          )}
+          </div>
+        )}
+      </PageHeader>
 
+      <div className="bg-white border-b shadow-sm sticky top-[var(--page-header-height,96px)] z-20">
+        <div className="px-4 pt-2 pb-2">
           <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
             className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">{mySquadreOnly && squadreAllenatore?.length ? 'Tutte le mie' : 'Tutte le squadre'}</option>
             {(mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : allSquadre).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 mt-2">
             <select value={allenatoreFilter} onChange={e => setAllenatoreFilter(e.target.value)}
               className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Tutti gli allenatori</option>
