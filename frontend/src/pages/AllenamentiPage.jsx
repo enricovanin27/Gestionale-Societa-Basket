@@ -1205,13 +1205,8 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-const TABS = [
-  { id: 'oggi', label: 'Oggi' },
-]
-
 export default function AllenamentiPage() {
   const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
-  const [activeTab,        setActiveTab]        = useState('oggi')
   const [squadraFilter,    setSquadraFilter]    = useState('')
   const [allenatoreFilter, setAllenatoreFilter] = useState('')
   const [palestraFilter,   setPalestraFilter]   = useState('')
@@ -1252,7 +1247,7 @@ export default function AllenamentiPage() {
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
       <PageHeader
         title="Allenamenti"
-        subtitle="Presenze · Annullamenti · Settimana tipo"
+        subtitle="Presenze · Annullamenti"
         actions={
           <a href="/calendario"
             className="text-xs text-amber-100 font-medium flex items-center gap-1 hover:text-white">
@@ -1281,21 +1276,11 @@ export default function AllenamentiPage() {
             </select>
           </div>
         </div>
-        <div className="flex border-t border-gray-100">
-          {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                activeTab === tab.id ? 'border-amber-600 text-amber-600' : 'border-transparent text-gray-500'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       <div className="flex-1 p-4">
-        {activeTab === 'oggi'     && <OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={null} />}
+        {<OggiTab allSquadre={allSquadre} canEdit={canEdit} squadraFilter={squadraFilter} allenatoreFilter={allenatoreFilter} palestraFilter={palestraFilter} squadreAllenatore={squadreAllenatore} onlySquadre={null} />}
 
       </div>
     </div>
