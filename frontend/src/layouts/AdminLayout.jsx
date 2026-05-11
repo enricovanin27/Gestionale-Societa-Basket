@@ -1,10 +1,10 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Trophy, Dumbbell, Users, Settings, LayoutDashboard, Bell } from 'lucide-react'
+import { Trophy, Dumbbell, Users, Settings, LayoutDashboard, Bell, Activity } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
 const cls = ({ isActive }) =>
-  `flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-xl min-w-[44px] ${
+  `flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl min-w-[36px] ${
     isActive ? 'text-amber-600' : 'text-gray-400 hover:text-gray-600'
   }`
 
@@ -24,6 +24,9 @@ export default function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/allenamenti" className={cls}>
             <Dumbbell size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Allenamenti</span>
+          </NavLink>
+          <NavLink to="/admin/presenze" className={cls}>
+            <Activity size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Presenze</span>
           </NavLink>
           <NavLink to="/admin/persone" className={cls}>
             <Users size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Persone</span>

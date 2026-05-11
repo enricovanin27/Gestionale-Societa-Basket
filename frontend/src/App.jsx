@@ -32,6 +32,7 @@ import HomeAdmin from './pages/home/HomeAdmin'
 import PresenzePage from './pages/coach/PresenzePage'
 import AdminPersone from './pages/admin/AdminPersone'
 import SetupMenu from './pages/admin/SetupMenu'
+import PresenzeAdmin from './pages/admin/PresenzeAdmin'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -170,6 +171,7 @@ function AppShell() {
           <Route index          element={<HomeAdmin />} />
           <Route path="partite"     element={<CalendarioPage />} />
           <Route path="allenamenti" element={<AllenamentiPage />} />
+          <Route path="presenze"    element={<PresenzeAdmin />} />
           <Route path="bacheca"     element={<BachecaPage />} />
           <Route path="setup"       element={<SetupMenu />} />
           <Route path="setup/:tab"  element={<SetupPage />} />
