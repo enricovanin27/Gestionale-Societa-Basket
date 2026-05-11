@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL, RUOLI_EXTRA_DISPONIBILI } from '../lib/constants'
 import { Modal, Field, TabBtn, inp, ErrorBox } from '../components/ui'
+import PageHeader from '../components/PageHeader'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB 1 — PALESTRE
@@ -2951,12 +2952,8 @@ export default function SetupPage({ initialTab }) {
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-          <Settings size={20} className="text-gray-700" />
-          <h1 className="text-xl font-bold text-gray-900">Setup</h1>
-        </div>
-        <div className="flex border-t border-gray-100 overflow-x-auto">
+      <PageHeader title="Setup">
+        <div className="flex border-t border-amber-700/50 overflow-x-auto">
           {tabs.map(tab => (
             <TabBtn
               key={tab.id}
@@ -2964,10 +2961,11 @@ export default function SetupPage({ initialTab }) {
               icon={tab.icon}
               active={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
+              variant="light"
             />
           ))}
         </div>
-      </div>
+      </PageHeader>
 
       <div className="flex-1 p-4">
         {isAdmin && !isSuperAdmin && <GuidaRapida setActiveTab={setActiveTab} />}

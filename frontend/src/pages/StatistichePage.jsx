@@ -5,6 +5,7 @@ import { it } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import PageHeader from '../components/PageHeader'
 
 const TIPO_LABELS = { infortunio: 'Infortunio', sospeso: 'Sospeso', altro: 'Altro' }
 const TIPO_COLORS = {
@@ -222,12 +223,9 @@ export default function StatistichePage({ embedded = false }) {
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-          <BarChart2 size={20} className="text-blue-600" />
-          <h1 className="text-xl font-bold text-gray-900">Statistiche</h1>
-        </div>
-        <div className="px-4 pb-3">{monthSelector}</div>
+      <PageHeader title="Statistiche" />
+      <div className="bg-white border-b shadow-sm">
+        <div className="px-4 py-2">{monthSelector}</div>
       </div>
       <div className="p-4">{body}</div>
     </div>
