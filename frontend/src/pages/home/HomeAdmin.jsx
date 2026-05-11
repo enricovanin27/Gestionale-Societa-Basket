@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, addDays, addWeeks, startOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
@@ -10,10 +10,12 @@ import { useWeekEvents } from '../../hooks/useWeekEvents'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
 import { EventRow, timesOverlap, QuickEditAllenamentoModal } from './shared'
+import { formatTime } from '../../lib/utils'
 
 export default function HomeAdmin() {
   const { displayName, logout, societaNome, societaId } = useAuth()
   const [editingConflictTraining, setEditingConflictTraining] = useState(null)
+  const [conflictModalOpen, setConflictModalOpen] = useState(false)
   const navigate = useNavigate()
 
   const today      = new Date()
@@ -59,21 +61,6 @@ export default function HomeAdmin() {
         .select('*', { count: 'exact', head: true })
         .gte('data', monthStart)
         .lte('data', monthEnd)
-      return count ?? 0
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  // ── KPI: quote non pagate ──────────────────────────────────────────────────
-  const { data: quoteNonPagate = 0 } = useQuery({
-    queryKey: ['admin-quote-non-pagate', societaId],
-    enabled: !!societaId,
-    queryFn: async () => {
-      const { count } = await supabase
-        .from('quote')
-        .select('*', { count: 'exact', head: true })
-        .eq('societa_id', societaId)
-        .eq('pagato', false)
       return count ?? 0
     },
     staleTime: 5 * 60 * 1000,
@@ -153,32 +140,44 @@ export default function HomeAdmin() {
       ) : (
         <div className="px-4 pt-4 space-y-4">
 
-          {/* KPI row 1 */}
+          {/* KPI cards */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Squadre',       value: squadreCount,  color: 'text-amber-600'  },
-              { label: 'Cert. scaduti', value: certScadutiN,  color: certScadutiN  > 0 ? 'text-red-600'  : 'text-green-600' },
-              { label: 'Partite mese',  value: partiteMese,   color: 'text-green-600'  },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm">
-                <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* KPI row 2 */}
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Quote non pagate', value: quoteNonPagate,      color: quoteNonPagate > 0 ? 'text-amber-500' : 'text-green-600', onClick: () => navigate('/admin/setup') },
-              { label: 'Provvisorie',       value: provvisorie.length, color: provvisorie.length > 0 ? 'text-purple-600' : 'text-green-600', onClick: () => navigate('/admin/partite') },
-            ].map(({ label, value, color, onClick }) => (
-              <button key={label} onClick={onClick}
-                className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm active:scale-[0.98] transition-transform">
-                <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
-              </button>
-            ))}
+              {
+                label: 'Squadre',
+                value: squadreCount,
+                color: 'text-amber-600',
+                onClick: null,
+              },
+              {
+                label: 'Partite mese',
+                value: partiteMese,
+                color: 'text-green-600',
+                onClick: null,
+              },
+              {
+                label: 'Provvisorie',
+                value: provvisorie.length,
+                color: provvisorie.length > 0 ? 'text-purple-600' : 'text-green-600',
+                onClick: () => navigate('/admin/partite'),
+              },
+            ].map(({ label, value, color, onClick }) =>
+              onClick ? (
+                <button
+                  key={label}
+                  onClick={onClick}
+                  className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm active:scale-[0.98] transition-transform"
+                >
+                  <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
+                </button>
+              ) : (
+                <div key={label} className="bg-white rounded-xl border border-gray-100 py-3 text-center shadow-sm">
+                  <p className={`text-2xl font-extrabold ${color}`}>{value}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{label}</p>
+                </div>
+              )
+            )}
           </div>
 
           {/* Azioni urgenti */}
@@ -188,7 +187,7 @@ export default function HomeAdmin() {
               <div className="space-y-2">
                 {totalConflicts > 0 && (
                   <button
-                    onClick={() => navigate('/admin/allenamenti')}
+                    onClick={() => setConflictModalOpen(true)}
                     className="w-full text-left bg-white rounded-xl border-l-4 border-red-500 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
                   >
                     <p className="text-sm text-gray-800">
@@ -255,6 +254,77 @@ export default function HomeAdmin() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {conflictModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mt-4 mb-20">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900">
+                ⚠️ Conflitti ({totalConflicts})
+              </h2>
+              <button
+                onClick={() => setConflictModalOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 space-y-4">
+              {conflictsAll.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-6">Nessun conflitto al momento</p>
+              )}
+              {conflictsAll.map((c, ci) => (
+                <div key={ci} className="rounded-xl border border-red-100 bg-red-50 p-3">
+
+                  {/* Partita info */}
+                  <p className="text-sm font-semibold text-red-700 mb-0.5">
+                    🏀 {c.partita.squadra}
+                    {c.partita.avversario ? ` vs ${c.partita.avversario}` : ''}
+                  </p>
+                  <p className="text-xs text-red-400 mb-2">
+                    {format(parseISO(c.partita.data), 'EEE d MMM', { locale: it })}
+                    {' · '}
+                    {formatTime(c.partita.ora_inizio)}–{formatTime(c.partita.ora_fine)}
+                    {c.partita.palestra ? ` · ${c.partita.palestra}` : ''}
+                  </p>
+
+                  <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                    Allenamenti in conflitto
+                  </p>
+
+                  {c.allenamenti.map((t, ti) => (
+                    <div
+                      key={ti}
+                      className="flex items-center justify-between bg-white rounded-lg px-3 py-2 mb-1 border border-red-200"
+                    >
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{t.squadra}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatTime(t.ora_inizio)}–{formatTime(t.ora_fine)}
+                          {t.palestra ? ` · ${t.palestra}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setConflictModalOpen(false)
+                          setEditingConflictTraining(t)
+                        }}
+                        className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg font-medium active:scale-95 transition-transform ml-3 shrink-0"
+                      >
+                        Modifica
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
