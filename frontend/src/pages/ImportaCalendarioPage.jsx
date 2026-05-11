@@ -371,7 +371,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
           )}
 
           <div className="border-t border-gray-100 pt-3">
-            <h2 className="text-sm font-semibold text-gray-700 mb-2">2. Carica PDF FIP</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-2">2. Carica PDF calendario</h2>
 
             <button
               onClick={() => fileRef.current?.click()}
@@ -385,7 +385,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf"
+              accept=".pdf,application/pdf"
               className="hidden"
               onChange={e => { setFile(e.target.files[0] ?? null); setPartite([]); setErrore(null) }}
             />
@@ -498,7 +498,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
   if (embedded) return <div className="pb-4">{inner}</div>
   return (
     <div className="flex flex-col min-h-screen pb-24 bg-gray-50">
-      <PageHeader title="Importa Calendario FIP" />
+      <PageHeader title="Importa Calendario" />
       <div className="p-4">{inner}</div>
     </div>
   )
