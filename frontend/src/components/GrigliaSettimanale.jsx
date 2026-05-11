@@ -131,15 +131,24 @@ function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader }
                       style={{ minWidth: 88, verticalAlign: 'top' }}>
                       {cell.events.map((e, i) => {
                         const col = getColor(e.squadra, allSquadre)
+                        const isPartita = e._tipo === 'partita'
                         return (
-                          <div key={i} className={`rounded px-1.5 py-1 leading-snug ${col.bg} ${col.title} ${i > 0 ? 'mt-1' : ''}`}>
-                            <div className="font-bold text-xs">{e.squadra}</div>
+                          <div key={i} className={`rounded px-1.5 py-1 leading-snug ${isPartita ? col.gameBg : col.bg} ${col.title} ${i > 0 ? 'mt-1' : ''}`}>
+                            {isPartita && (
+                              <div className="text-[9px] font-bold uppercase tracking-wide opacity-70 mb-0.5">Gara</div>
+                            )}
+                            <div className="font-bold text-xs">
+                              {isPartita ? (e.avversario ? `vs ${e.avversario}` : 'Partita') : e.squadra}
+                            </div>
                             <div className="text-xs opacity-75">{hhmm(e.ora_inizio)}–{hhmm(e.ora_fine)}</div>
-                            {e.allenatori && (
+                            {!isPartita && e.allenatori && (
                               <div className="text-xs opacity-60 truncate">{e.allenatori}</div>
                             )}
-                            {String(e.condivisione).toUpperCase() === 'SI' && (
+                            {!isPartita && String(e.condivisione).toUpperCase() === 'SI' && (
                               <div className="text-xs text-violet-600 font-medium">Condivisione</div>
+                            )}
+                            {isPartita && e.casa_fuori && (
+                              <div className="text-xs opacity-60">{e.casa_fuori}</div>
                             )}
                           </div>
                         )
@@ -177,7 +186,7 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
     return weekDays.map(day => {
       const dateStr = format(day, 'yyyy-MM-dd')
       const events  = (weekData.eventsByDate?.[dateStr] ?? [])
-        .filter(e => e._tipo === 'allenamento' && !e.annullato)
+        .filter(e => !e.annullato && (e._tipo === 'allenamento' || e._tipo === 'partita'))
       const usedSet       = new Set(events.map(e => e.palestra?.trim()).filter(Boolean))
       const hasNoPalestra = events.some(e => !e.palestra?.trim())
       const palestre = [

@@ -1,8 +1,7 @@
 import { useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  format, addWeeks, startOfWeek, addMonths, startOfMonth, endOfMonth,
-  isSameMonth, eachDayOfInterval, endOfWeek,
+  format, addWeeks, startOfWeek,
 } from 'date-fns'
 import { it } from 'date-fns/locale'
 import {
@@ -15,7 +14,8 @@ import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '..
 import { useAuth } from '../hooks/useAuth'
 import ImportaCalendarioPage from './ImportaCalendarioPage'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
-import { useWeekEvents, useSquadre, useMonthPartite } from '../hooks/useWeekEvents'
+import { PALETTE } from '../lib/constants'
+import { useWeekEvents, useSquadre } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageHeader from '../components/PageHeader'
 import { saveAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
@@ -40,6 +40,11 @@ const COLORS = {
 const STATO_LABEL = {
   provvisoria: 'Provvisoria',
   definitiva:  'Definitiva',
+}
+
+function getTeamColor(squadra, allSquadre) {
+  const idx = allSquadre.indexOf(squadra)
+  return PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length]
 }
 
 // ─── Conflict helper ──────────────────────────────────────────────────────────
@@ -588,13 +593,10 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
 
 // ─── Training mini card (vista completa) ─────────────────────────────────────
 
-function TrainingMiniCard({ training, isConflicted, onNavigateAllenamenti, onEdit }) {
+function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenamenti, onEdit }) {
+  const borderCls = isConflicted ? 'border-red-500 bg-red-50' : `${teamColor?.border ?? 'border-gray-300'} ${teamColor?.bg ?? 'bg-gray-50'}`
   return (
-    <div className={`w-full rounded-lg p-2 mb-1 shadow-sm ${
-      isConflicted
-        ? 'border-l-4 border-red-500 bg-red-50'
-        : 'border-l-4 border-gray-300 bg-gray-50'
-    }`}>
+    <div className={`w-full rounded-lg p-2 mb-1 shadow-sm border-l-4 ${borderCls}`}>
       <div className="flex items-start justify-between gap-1">
         <div className={`text-xs font-semibold truncate ${isConflicted ? 'text-red-800' : 'text-gray-700'}`}>
           {training.squadra}
@@ -629,15 +631,13 @@ function TrainingMiniCard({ training, isConflicted, onNavigateAllenamenti, onEdi
 
 // ─── Vista settimana completa (partite + allenamenti) ────────────────────────
 
-function VistaSettimanaleCompleta({ weekDays, data, scopeFilter, allenatoreFilterFn, squadraFilter, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
+function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
   const allEventsByDate = useMemo(() => {
     if (!data) return {}
     const map = {}
     data.events
       .filter(e => {
-        if (!scopeFilter(e)) return false
         if (squadraFilter && e.squadra !== squadraFilter) return false
-        if (!allenatoreFilterFn(e)) return false
         if (e.annullato && e._tipo !== 'partita') return false
         return true
       })
@@ -646,7 +646,7 @@ function VistaSettimanaleCompleta({ weekDays, data, scopeFilter, allenatoreFilte
         map[e.data].push(e)
       })
     return map
-  }, [data, scopeFilter, allenatoreFilterFn, squadraFilter])
+  }, [data, squadraFilter])
 
   return (
     <div className="overflow-x-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -696,11 +696,13 @@ function VistaSettimanaleCompleta({ weekDays, data, scopeFilter, allenatoreFilte
                     )
                   }
                   const tKey = `${event.squadra}|${event.data}|${event.ora_inizio}`
+                  const col = getTeamColor(event.squadra, allSquadre)
                   return (
                     <TrainingMiniCard
                       key={`t-${i}`}
                       training={event}
                       isConflicted={conflictedTrainingKeys.has(tKey)}
+                      teamColor={col}
                       onNavigateAllenamenti={onNavigateAllenamenti}
                       onEdit={onTrainingEdit ? () => onTrainingEdit(event) : undefined}
                     />
@@ -833,12 +835,8 @@ export default function CalendarioPage() {
   const navigate = useNavigate()
 
   const [calTab,           setCalTab]           = useState('partite') // 'partite' | 'settimana' | 'importa'
-  const [view,             setView]             = useState('settimana') // 'settimana' | 'mese'
   const [weekOffset,       setWeekOffset]       = useState(0)
-  const [monthOffset,      setMonthOffset]      = useState(0)
-  const [mySquadreOnly,    setMySquadreOnly]    = useState(true)
   const [squadraFilter,    setSquadraFilter]    = useState('')
-  const [allenatoreFilter, setAllenatoreFilter] = useState('')
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
@@ -860,92 +858,15 @@ export default function CalendarioPage() {
     return `${s} – ${e}`
   }, [weekDays])
 
-  const currentMonthDate = useMemo(
-    () => startOfMonth(addMonths(new Date(), monthOffset)),
-    [monthOffset]
-  )
-  const monthLabel = useMemo(
-    () => format(currentMonthDate, 'MMMM yyyy', { locale: it }),
-    [currentMonthDate]
-  )
-
-  const { data, isLoading, error }                              = useWeekEvents(startDate)
-  const { data: monthPartite = [], isLoading: monthLoading }    = useMonthPartite(currentMonthDate, view === 'mese')
-  const { data: squadre = [] }                                  = useSquadre()
-
-  // Allenatori con squadre — squadre_capo/squadre_vice sono stringhe CSV
-  const { data: allenatoriData = [] } = useQuery({
-    queryKey: ['allenatori-list'],
-    queryFn: async () => {
-      const { data: rows } = await supabase
-        .from('allenatori')
-        .select('nome, cognome, squadre_capo, squadre_vice')
-        .order('cognome').order('nome')
-      return rows ?? []
-    },
-    staleTime: 10 * 60 * 1000,
-  })
-
-  const allenatoriList = useMemo(
-    () => allenatoriData.map(a => [a.nome, a.cognome].filter(Boolean).join(' ')).filter(Boolean),
-    [allenatoriData]
-  )
-
-  // Mappa nomeAllenatore → [squadre] da orario_fisso (fonte affidabile anche se squadre_capo/vice sono vuote)
-  const { data: fissoAllenatoriMap = {} } = useQuery({
-    queryKey: ['fisso-allenatori-map'],
-    queryFn: async () => {
-      const { data } = await supabase.from('orario_fisso').select('squadra, allenatori')
-      const map = {}
-      for (const row of data ?? []) {
-        if (!row.allenatori || !row.squadra) continue
-        row.allenatori.split(',').map(a => a.trim()).filter(Boolean).forEach(name => {
-          if (!map[name]) map[name] = []
-          if (!map[name].includes(row.squadra)) map[name].push(row.squadra)
-        })
-      }
-      return map
-    },
-    staleTime: 10 * 60 * 1000,
-  })
-
-  // Solo partite, filtrate per squadra/allenatore
-  const scopeFilter = mySquadreOnly && squadreAllenatore?.length
-    ? (e) => squadreAllenatore.includes(e.squadra)
-    : () => true
-
-  // Filtro allenatore: orario_fisso come fonte primaria, squadre_capo/vice come fallback
-  const allenatoreFilterFn = useMemo(() => {
-    if (!allenatoreFilter) return () => true
-    const fissoSq = Object.entries(fissoAllenatoriMap)
-      .filter(([name]) => name.toLowerCase() === allenatoreFilter.toLowerCase())
-      .flatMap(([, sq]) => sq)
-    const al = allenatoriData.find(a => [a.nome, a.cognome].filter(Boolean).join(' ') === allenatoreFilter)
-    const parseList = s => (s ?? '').split(',').map(x => x.trim()).filter(Boolean)
-    const tabSq = al ? [...parseList(al.squadre_capo), ...parseList(al.squadre_vice)] : []
-    const squadreAl = [...new Set([...fissoSq, ...tabSq])]
-    return (e) => {
-      if (squadreAl.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())) return true
-      if (e.allenatori && e.allenatori.split(',').some(a =>
-        a.trim().toLowerCase().includes(allenatoreFilter.toLowerCase()))) return true
-      return false
-    }
-  }, [allenatoreFilter, allenatoriData, fissoAllenatoriMap])
+  const { data, isLoading, error }  = useWeekEvents(startDate)
+  const { data: squadre = [] }      = useSquadre()
 
   const displayEvents = useMemo(() => {
     if (!data) return []
-    let events = data.events.filter(e => e._tipo === 'partita').filter(scopeFilter)
+    let events = data.events.filter(e => e._tipo === 'partita')
     if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
-    if (allenatoreFilter) events = events.filter(allenatoreFilterFn)
     return events
-  }, [data, squadraFilter, allenatoreFilter, scopeFilter, allenatoreFilterFn])
-
-  const displayMonthEvents = useMemo(() => {
-    let events = monthPartite.filter(scopeFilter)
-    if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
-    if (allenatoreFilter) events = events.filter(allenatoreFilterFn)
-    return events
-  }, [monthPartite, squadraFilter, allenatoreFilter, scopeFilter, allenatoreFilterFn])
+  }, [data, squadraFilter])
 
   // All non-cancelled trainings — used only for conflict detection
   const allTrainings = useMemo(() =>
@@ -1037,10 +958,7 @@ export default function CalendarioPage() {
   const handleTouchEnd   = (e) => {
     if (touchStartX.current === null) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
-    if (Math.abs(dx) > 60) {
-      if (view === 'settimana') setWeekOffset(w => w + (dx < 0 ? 1 : -1))
-      else                     setMonthOffset(m => m + (dx < 0 ? 1 : -1))
-    }
+    if (Math.abs(dx) > 60) setWeekOffset(w => w + (dx < 0 ? 1 : -1))
     touchStartX.current = null
   }
 
@@ -1104,7 +1022,7 @@ export default function CalendarioPage() {
         {/* Tab switcher */}
         <div className="px-4 pb-3">
           <div className="flex bg-amber-700/40 rounded-xl p-1 gap-1">
-            {[['partite', 'Partite'], ['settimana', 'Settimana'], ['importa', 'Importa']].map(([v, label]) => (
+            {[['partite', 'Partite'], ['settimana', 'Orario Settimanale'], ['importa', 'Importa']].map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
                 className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
                   calTab === v
@@ -1121,46 +1039,12 @@ export default function CalendarioPage() {
       {/* ── Filters + Navigation (below sticky header) ── */}
       <div className="bg-white border-b shadow-sm">
         {(calTab === 'partite' || calTab === 'settimana') && (
-          <div className="px-4 pt-2 pb-2 space-y-2">
-            {/* Scope select — solo per allenatori */}
-            {isAllenatore && (
-              <select
-                value={mySquadreOnly ? 'mine' : 'all'}
-                onChange={e => { setMySquadreOnly(e.target.value === 'mine'); setSquadraFilter('') }}
-                className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="mine">Le mie squadre</option>
-                <option value="all">Tutti gli allenatori</option>
-              </select>
-            )}
-
-            {/* View toggle */}
-            <div className="flex bg-secondary rounded-xl p-1 gap-1">
-              {[['settimana', 'Settimana'], ['mese', 'Mese']].map(([v, label]) => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
-                    view === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">{mySquadreOnly && squadreAllenatore?.length ? 'Tutte le mie' : 'Tutte le squadre'}</option>
-                {(mySquadreOnly && squadreAllenatore?.length ? squadreAllenatore : squadre).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <select value={allenatoreFilter} onChange={e => setAllenatoreFilter(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Tutti gli allenatori</option>
-                {allenatoriList.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
+          <div className="px-4 pt-2 pb-2">
+            <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Tutte le squadre</option>
+              {squadre.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
         )}
 
@@ -1169,29 +1053,18 @@ export default function CalendarioPage() {
           <div className="flex items-center justify-between px-2 pb-2"
             onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <button
-              onClick={() => (calTab === 'settimana' || view === 'settimana') ? setWeekOffset(w => w - 1) : setMonthOffset(m => m - 1)}
+              onClick={() => setWeekOffset(w => w - 1)}
               className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
               <ChevronLeft size={20} className="text-gray-600" />
             </button>
             <div className="text-center select-none">
-              {(calTab === 'settimana' || view === 'settimana') ? (
-                <>
-                  <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
-                  {weekOffset === 0 && (
-                    <div className="text-xs text-blue-500 font-medium">Settimana corrente</div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="text-sm font-semibold text-gray-800 capitalize">{monthLabel}</div>
-                  {monthOffset === 0 && (
-                    <div className="text-xs text-blue-500 font-medium">Mese corrente</div>
-                  )}
-                </>
+              <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
+              {weekOffset === 0 && (
+                <div className="text-xs text-blue-500 font-medium">Settimana corrente</div>
               )}
             </div>
             <button
-              onClick={() => (calTab === 'settimana' || view === 'settimana') ? setWeekOffset(w => w + 1) : setMonthOffset(m => m + 1)}
+              onClick={() => setWeekOffset(w => w + 1)}
               className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
               <ChevronRight size={20} className="text-gray-600" />
             </button>
@@ -1244,8 +1117,7 @@ export default function CalendarioPage() {
           <VistaSettimanaleCompleta
             weekDays={weekDays}
             data={data}
-            scopeFilter={scopeFilter}
-            allenatoreFilterFn={allenatoreFilterFn}
+            allSquadre={squadre}
             squadraFilter={squadraFilter}
             conflictedTrainingKeys={conflictedTrainingKeys}
             conflictMap={conflictMap}
@@ -1257,7 +1129,7 @@ export default function CalendarioPage() {
       )}
 
       {/* ── Partite solo ── */}
-      {calTab === 'partite' && (view === 'settimana' ? (
+      {calTab === 'partite' && (
         isLoading ? (
           <LoadingSpinner message="Caricamento calendario..." />
         ) : error ? (
@@ -1319,20 +1191,7 @@ export default function CalendarioPage() {
             </div>
           </div>
         )
-      ) : (
-        monthLoading ? (
-          <LoadingSpinner message="Caricamento mese..." />
-        ) : (
-          <div className="py-3">
-            <MonthGrid
-              key={monthLabel}
-              monthDate={currentMonthDate}
-              events={displayMonthEvents}
-              onEventClick={setSelectedEvent}
-            />
-          </div>
-        )
-      ))}
+      )}
 
       {/* ── FAB ── */}
       {canModify && (
