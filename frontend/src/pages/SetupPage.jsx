@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
   Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe, UserPlus,
-  Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight,
+  Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight, ChevronLeft, GitFork,
 } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -12,6 +12,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL, RUOLI_EXTRA_DISPONIBILI } from '../lib/constants'
 import { Modal, Field, TabBtn, inp, ErrorBox } from '../components/ui'
 import PageHeader from '../components/PageHeader'
+import SettimanaTipoTab from '../components/SettimanaTipoTab'
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB 1 — PALESTRE
@@ -2855,7 +2856,8 @@ function QuoteGiocatoreModal({ giocatore, societaId, onClose }) {
 
 // ─── GuidaRapida ─────────────────────────────────────────────────────────────
 
-function GuidaRapida({ setActiveTab }) {
+function GuidaRapida() {
+  const navigate = useNavigate()
   const { societaId } = useAuth()
   const [open, setOpen] = useState(null) // null = auto da dati
 
@@ -2910,7 +2912,7 @@ function GuidaRapida({ setActiveTab }) {
         {steps.map((step, i) => (
           <button
             key={step.id}
-            onClick={() => { setActiveTab(step.id); setOpen(false) }}
+            onClick={() => { navigate(`/admin/setup/${step.id}`); setOpen(false) }}
             className="w-full flex items-center gap-3 bg-white rounded-lg p-2.5 border border-blue-100 hover:border-blue-300 active:scale-[0.98] transition-all text-left"
           >
             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
@@ -2933,51 +2935,42 @@ function GuidaRapida({ setActiveTab }) {
 }
 
 const ALL_TABS = [
-  { id: 'squadre',     label: 'Squadre',     icon: Users,     superAdminOnly: false },
-  { id: 'palestre',    label: 'Palestre',    icon: Building2, superAdminOnly: false },
-  { id: 'allenatori',  label: 'Allenatori',  icon: UserCheck, superAdminOnly: false },
-  { id: 'giocatori',   label: 'Giocatori',   icon: UserPlus,  superAdminOnly: false },
-  { id: 'quote',       label: 'Quote',       icon: CreditCard, superAdminOnly: false, adminOnly: true },
-  { id: 'utenti',      label: 'Utenti',      icon: Shield,    superAdminOnly: false },
-  { id: 'scheduling',         label: 'Scheduling',       icon: Calendar,  superAdminOnly: false, hidden: true },
-  { id: 'squadre_allenatori', label: 'Doppio Campionato', icon: Shield,    superAdminOnly: false, hidden: true },
-  { id: 'societa',            label: 'Società',           icon: Globe,     superAdminOnly: true  },
+  { id: 'squadre',            label: 'Squadre',          icon: Users     },
+  { id: 'palestre',           label: 'Palestre',          icon: Building2 },
+  { id: 'allenatori',         label: 'Allenatori',        icon: UserCheck },
+  { id: 'giocatori',          label: 'Giocatori',         icon: UserPlus  },
+  { id: 'utenti',             label: 'Utenti & Accessi',  icon: Shield    },
+  { id: 'squadre_allenatori', label: 'Doppio Campionato', icon: GitFork   },
+  { id: 'settimana_tipo',     label: 'Settimana Tipo',    icon: Calendar  },
 ]
 
-export default function SetupPage({ initialTab }) {
+export default function SetupPage() {
   const { tab } = useParams()
-  const [activeTab, setActiveTab] = useState(tab ?? initialTab ?? 'squadre')
-  const { isSuperAdmin, isAdmin } = useAuth()
-  const tabs = ALL_TABS.filter(t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && !t.hidden)
+  const navigate = useNavigate()
+  const { isAdmin } = useAuth()
+  const tabMeta = ALL_TABS.find(t => t.id === tab) ?? ALL_TABS[0]
+
+  const backButton = (
+    <button
+      onClick={() => navigate('/admin/setup')}
+      className="flex items-center gap-1 text-amber-200 hover:text-white text-xs font-medium"
+    >
+      <ChevronLeft size={15} /> Setup
+    </button>
+  )
 
   return (
     <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
-      <PageHeader title="Setup">
-        <div className="flex border-t border-amber-700/50 overflow-x-auto">
-          {tabs.map(tab => (
-            <TabBtn
-              key={tab.id}
-              label={tab.label}
-              icon={tab.icon}
-              active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              variant="light"
-            />
-          ))}
-        </div>
-      </PageHeader>
-
+      <PageHeader title={tabMeta.label} actions={backButton} />
       <div className="flex-1 p-4">
-        {isAdmin && !isSuperAdmin && <GuidaRapida setActiveTab={setActiveTab} />}
-        {activeTab === 'squadre'     && <SquadreTab />}
-        {activeTab === 'palestre'    && <PalestreTab />}
-        {activeTab === 'allenatori'  && <AllenatoriTab />}
-        {activeTab === 'giocatori'   && <GiocatoriTab />}
-        {activeTab === 'quote'       && <QuoteTab />}
-        {activeTab === 'utenti'      && <UtentiTab />}
-        {activeTab === 'scheduling'         && <SchedulingTab />}
-        {activeTab === 'squadre_allenatori' && <SquadreAllenatoriTab />}
-        {activeTab === 'societa'            && <SocietaTab />}
+        {isAdmin && tab === 'squadre' && <GuidaRapida />}
+        {tab === 'squadre'            && <SquadreTab />}
+        {tab === 'palestre'           && <PalestreTab />}
+        {tab === 'allenatori'         && <AllenatoriTab />}
+        {tab === 'giocatori'          && <GiocatoriTab />}
+        {tab === 'utenti'             && <UtentiTab />}
+        {tab === 'squadre_allenatori' && <SquadreAllenatoriTab />}
+        {tab === 'settimana_tipo'     && <SettimanaTipoTab isAdmin={isAdmin} />}
       </div>
     </div>
   )

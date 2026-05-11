@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Users, Dumbbell, UserCheck, Trophy, Building2, Building, CreditCard, Calendar, GitFork, ChevronRight } from 'lucide-react'
+import { Users, Dumbbell, UserCheck, Trophy, Building2, GitFork, ChevronRight, CalendarDays } from 'lucide-react'
 import AppHeader from '../../components/AppHeader'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -7,25 +7,23 @@ const SECTIONS = [
   {
     group: '👥 Persone',
     items: [
-      { icon: Trophy,     label: 'Giocatori',       desc: 'Anagrafica, squadre, info',   tab: 'giocatori' },
-      { icon: Dumbbell,   label: 'Allenatori',       desc: 'Profili e assegnazione',      tab: 'allenatori' },
-      { icon: UserCheck,  label: 'Utenti & Accessi', desc: 'Inviti, ruoli, password',     tab: 'utenti' },
+      { icon: Trophy,       label: 'Giocatori',        desc: 'Anagrafica, squadre, info',    tab: 'giocatori' },
+      { icon: Dumbbell,     label: 'Allenatori',        desc: 'Profili e assegnazione',       tab: 'allenatori' },
+      { icon: UserCheck,    label: 'Utenti & Accessi',  desc: 'Inviti, ruoli, password',      tab: 'utenti' },
     ],
   },
   {
     group: '🏢 Struttura societaria',
     items: [
-      { icon: Users,      label: 'Squadre',  desc: 'Categorie e nomi squadre', tab: 'squadre' },
-      { icon: Building2,  label: 'Palestre', desc: 'Sedi e orari',             tab: 'palestre' },
-      { icon: Building,   label: 'Società',  desc: 'Info generali, stagione',  tab: 'societa' },
+      { icon: Users,        label: 'Squadre',           desc: 'Categorie e nomi squadre',     tab: 'squadre' },
+      { icon: Building2,    label: 'Palestre',           desc: 'Sedi e orari',                 tab: 'palestre' },
     ],
   },
   {
-    group: '🛠 Strumenti & Configurazione',
+    group: '🛠 Strumenti',
     items: [
-      { icon: CreditCard, label: 'Tipologie Quote',  desc: 'Template iscrizioni e mensili', tab: 'quote' },
-      { icon: Calendar,   label: 'Scheduling',        desc: 'Suggeritore orari',             tab: 'scheduling' },
-      { icon: GitFork,    label: 'Doppio Campionato', desc: 'Squadre con giocatori comuni',  tab: 'squadre_allenatori' },
+      { icon: GitFork,      label: 'Doppio Campionato', desc: 'Squadre con giocatori comuni',  tab: 'squadre_allenatori' },
+      { icon: CalendarDays, label: 'Settimana Tipo',    desc: 'Template orario settimanale',   tab: 'settimana_tipo' },
     ],
   },
 ]
