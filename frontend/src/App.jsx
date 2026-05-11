@@ -162,6 +162,7 @@ function AppShell() {
           <Route path="statistiche" element={<StatistichePage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
           <Route path="presenze"    element={<PresenzePage />} />
+          <Route path="importa"     element={<ImportaCalendarioPage />} />
         </Route>
 
         {/* ── Admin ────────────────────────────────────── */}
@@ -182,7 +183,7 @@ function AppShell() {
         <Route path="/segreteria"  element={<Navigate to="/secretary" replace />} />
         <Route path="/setup"       element={<Navigate to="/admin/setup" replace />} />
         <Route path="/statistiche" element={<Navigate to="/coach/statistiche" replace />} />
-        <Route path="/importa"     element={<ProtectedRoute requiredRole="allenatore"><ImportaCalendarioPage /></ProtectedRoute>} />
+        <Route path="/importa"     element={<Navigate to="/coach/importa" replace />} />
         <Route path="/platform"    element={<Navigate to="/" replace />} />
         <Route path="*"            element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
       </Routes>
