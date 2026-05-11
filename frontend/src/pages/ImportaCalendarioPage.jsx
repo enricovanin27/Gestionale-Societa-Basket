@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import PageHeader from '../components/PageHeader'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -497,12 +498,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
   if (embedded) return <div className="pb-4">{inner}</div>
   return (
     <div className="flex flex-col min-h-screen pb-24 bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-30 shadow-sm px-4 pt-4 pb-3">
-        <div className="flex items-center gap-2">
-          <FileText size={20} className="text-blue-600" />
-          <h1 className="text-xl font-bold text-gray-900">Importa Calendario FIP</h1>
-        </div>
-      </div>
+      <PageHeader title="Importa Calendario FIP" />
       <div className="p-4">{inner}</div>
     </div>
   )
