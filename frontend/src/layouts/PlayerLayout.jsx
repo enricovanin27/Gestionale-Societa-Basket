@@ -1,10 +1,10 @@
-import { Outlet, NavLink } from 'react-router-dom'
-import { Home, MessageCircle, Bell } from 'lucide-react'
+﻿import { Outlet, NavLink } from 'react-router-dom'
+import { Home, MessageCircle, CalendarDays, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
 const cls = ({ isActive }) =>
-  `flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl min-w-[56px] ${
+  `flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl min-w-[48px] ${
     isActive ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
   }`
 
@@ -20,7 +20,10 @@ export default function PlayerLayout() {
             <Home size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Home</span>
           </NavLink>
           <NavLink to="/player/comunicazioni" className={cls}>
-            <MessageCircle size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Comunicazioni</span>
+            <MessageCircle size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Comunica</span>
+          </NavLink>
+          <NavLink to="/player/calendario" className={cls}>
+            <CalendarDays size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Calendario</span>
           </NavLink>
           <NavLink to="/player/bacheca" className={cls}>
             <div className="relative">

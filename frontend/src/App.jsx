@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './hooks/useAuth'
@@ -27,6 +27,7 @@ import GiocatoreDetail from './pages/secretary/GiocatoreDetail'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
+import CalendarioPlayer from './pages/player/CalendarioPlayer'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
@@ -40,7 +41,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// ─── Pagina di reset password (dopo click sul link nell'email) ────────────────
+// â”€â”€â”€ Pagina di reset password (dopo click sul link nell'email) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function NuovaPasswordPage({ onDone }) {
   const [form, setForm] = useState({ nuova: '', conferma: '' })
@@ -67,14 +68,14 @@ function NuovaPasswordPage({ onDone }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-3xl">🏀</span>
+            <span className="text-3xl">ðŸ€</span>
           </div>
           <h1 className="text-xl font-bold text-gray-900">Imposta nuova password</h1>
           <p className="text-sm text-gray-500 mt-1">Gestionale Basket</p>
         </div>
         {ok ? (
           <div className="text-center py-6">
-            <div className="text-4xl mb-3">✅</div>
+            <div className="text-4xl mb-3">âœ…</div>
             <p className="font-semibold text-gray-800">Password aggiornata!</p>
             <p className="text-xs text-gray-500 mt-1">Reindirizzamento...</p>
           </div>
@@ -104,7 +105,7 @@ function NuovaPasswordPage({ onDone }) {
   )
 }
 
-// ─── Shell principale ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Shell principale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AppShell() {
   const { user, loading, isSuperAdmin, isPasswordRecovery, clearPasswordRecovery } = useAuth()
@@ -131,25 +132,26 @@ function AppShell() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Root → redirect al namespace del ruolo attivo */}
+        {/* Root â†’ redirect al namespace del ruolo attivo */}
         <Route path="/" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
 
-        {/* ── Genitore ─────────────────────────────────── */}
+        {/* â”€â”€ Genitore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
           <Route index element={<HomeGenitore />} />
           <Route path="bacheca" element={<BachecaPage />} />
           <Route path="quote" element={<QuoteGenitore />} />
         </Route>
 
-        {/* ── Giocatore ────────────────────────────────── */}
+        {/* â”€â”€ Giocatore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/player" element={<ProtectedRoute requiredRole="giocatore"><PlayerLayout /></ProtectedRoute>}>
           <Route index                  element={<HomeGiocatore />} />
           <Route path="comunicazioni"   element={<ComunicazioniPage />} />
+          <Route path="calendario"      element={<CalendarioPlayer />} />
           <Route path="bacheca"         element={<BachecaPage />} />
           <Route path="statistiche"     element={<Navigate to="/player/comunicazioni" replace />} />
         </Route>
 
-        {/* ── Segreteria ───────────────────────────────── */}
+        {/* â”€â”€ Segreteria â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/secretary" element={<ProtectedRoute requiredRole="segreteria"><SecretaryLayout /></ProtectedRoute>}>
           <Route index                  element={<SegreteriaDashboard />} />
           <Route path="giocatori"       element={<GiocatoriPage />} />
@@ -158,7 +160,7 @@ function AppShell() {
           <Route path="quote"           element={<Navigate to="/secretary/giocatori" replace />} />
         </Route>
 
-        {/* ── Allenatore ───────────────────────────────── */}
+        {/* â”€â”€ Allenatore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/coach" element={<ProtectedRoute requiredRole="allenatore"><CoachLayout /></ProtectedRoute>}>
           <Route index         element={<HomeAllenatore />} />
           <Route path="calendario"  element={<CalendarioPage />} />
@@ -167,7 +169,7 @@ function AppShell() {
           <Route path="importa"     element={<ImportaCalendarioPage />} />
         </Route>
 
-        {/* ── Admin ────────────────────────────────────── */}
+        {/* â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>}>
           <Route index          element={<HomeAdmin />} />
           <Route path="partite"     element={<CalendarioPage />} />
@@ -179,7 +181,7 @@ function AppShell() {
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 
-        {/* ── Legacy redirects ─────────────────────────── */}
+        {/* â”€â”€ Legacy redirects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/bacheca"    element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
         <Route path="/calendario" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
         <Route path="/allenamenti" element={<Navigate to="/admin/allenamenti" replace />} />
@@ -211,3 +213,4 @@ export default function App() {
     </ErrorBoundary>
   )
 }
+
