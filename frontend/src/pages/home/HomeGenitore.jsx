@@ -106,7 +106,7 @@ export default function HomeGenitore() {
 
   if (!mySquadre.length) {
     return (
-      <div className="pb-20">
+      <div>
         <AppHeader title="Ciao!" subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
           displayName={displayName} logout={logout} societaNome={societaNome} />
         <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -117,10 +117,10 @@ export default function HomeGenitore() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <AppHeader
-        title={`Ciao, ${displayName}!`}
-        subtitle={mySquadre.length === 1 ? `La tua squadra: ${mySquadre[0]}` : `Le tue squadre: ${mySquadre.join(' - ')}`}
+        title={`Ciao, ${displayName}! 👋`}
+        subtitle={mySquadre.join(' · ')}
         displayName={displayName} logout={logout} societaNome={societaNome}
       >
         {mySquadre.length > 1 && (
@@ -159,13 +159,13 @@ export default function HomeGenitore() {
         <div className="pt-3 space-y-4 pb-4">
           {hasVariazioni && (
             <div className="mx-4 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
-              <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide mb-2">Variazioni settimana</p>
+              <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide mb-2">📌 Variazioni settimana</p>
               {variazioni.annullatiList.map(v => (
                 <div key={v.id} className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                   <span className="text-xs text-gray-700">
                     <span className="font-semibold text-red-600">Annullato</span>
-                    {' - '}{v.squadra}{' - '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
+                    {' · '}{v.squadra}{' · '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
                     {v.ora_inizio ? ` ${v.ora_inizio.slice(0, 5)}` : ''}
                   </span>
                 </div>
@@ -175,7 +175,7 @@ export default function HomeGenitore() {
                   <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
                   <span className="text-xs text-gray-700">
                     <span className="font-semibold text-yellow-700">Spostato</span>
-                    {' - '}{v.squadra}{' - '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
+                    {' · '}{v.squadra}{' · '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
                     {v.ora_inizio ? ` ${v.ora_inizio.slice(0, 5)}` : ''}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export default function HomeGenitore() {
                   <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
                   <span className="text-xs text-gray-700">
                     <span className="font-semibold text-green-700">Aggiunto</span>
-                    {' - '}{v.squadra}{' - '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
+                    {' · '}{v.squadra}{' · '}{format(new Date(v.data + 'T00:00:00'), 'd MMM', { locale: it })}
                     {v.ora_inizio ? ` ${v.ora_inizio.slice(0, 5)}` : ''}
                   </span>
                 </div>
@@ -205,7 +205,7 @@ export default function HomeGenitore() {
                   {isToday && <span className="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">oggi</span>}
                 </div>
                 {events.length === 0 ? (
-                  <div className="mx-4 text-sm text-gray-300 py-1">-</div>
+                  <div className="mx-4 text-sm text-gray-300 py-1">–</div>
                 ) : (
                   <div className="px-4 space-y-2">
                     {events.map(e => (
@@ -234,8 +234,8 @@ function EventCardParent({ event, colorMap }) {
       : isCasa ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
     : `${pal.bg} ${pal.title}`
   const label = isPartita
-    ? event.stato === 'provvisoria' ? 'Provvisoria'
-      : isCasa ? 'Casa' : 'Trasferta'
+    ? event.stato === 'provvisoria' ? '⚠️ Provvisoria'
+      : isCasa ? '🏠 Casa' : '✈️ Trasferta'
     : 'Allenamento'
 
   return (
@@ -246,7 +246,7 @@ function EventCardParent({ event, colorMap }) {
             {isPartita && event.avversario ? `vs ${event.avversario}` : event.squadra}
           </p>
           <div className="flex flex-wrap gap-x-3 mt-1 text-xs text-gray-500">
-            {event.ora_inizio && <span className="font-medium text-gray-700">{event.ora_inizio.slice(0,5)}-{event.ora_fine?.slice(0,5)}</span>}
+            {event.ora_inizio && <span className="font-medium text-gray-700">{event.ora_inizio.slice(0,5)}–{event.ora_fine?.slice(0,5)}</span>}
             {event.palestra && <span>{event.palestra}</span>}
           </div>
         </div>
