@@ -137,9 +137,10 @@ function AppShell() {
 
         {/* â”€â”€ Genitore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
-          <Route index element={<HomeGenitore />} />
-          <Route path="bacheca" element={<BachecaPage />} />
-          <Route path="quote" element={<QuoteGenitore />} />
+          <Route index                element={<HomeGenitore />} />
+          <Route path="comunicazioni" element={<ComunicazioniPage />} />
+          <Route path="bacheca"       element={<BachecaPage />} />
+          <Route path="quote"         element={<QuoteGenitore />} />
         </Route>
 
         {/* â”€â”€ Giocatore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
