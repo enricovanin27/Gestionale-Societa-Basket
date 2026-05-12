@@ -34,12 +34,13 @@ export default function GiocatoreDetail() {
 
   const { data: giocatore, isLoading: loadingG } = useQuery({
     queryKey: ['giocatore-detail', id],
-    enabled: !!id,
+    enabled: !!id && !!societaId,
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
         .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza')
         .eq('id', id)
+        .eq('societa_id', societaId)
         .single()
       return data
     },
@@ -53,6 +54,7 @@ export default function GiocatoreDetail() {
         .from('note_giocatore')
         .select('id, testo, autore_nome, created_at')
         .eq('giocatore_id', id)
+        .eq('societa_id', societaId)
         .order('created_at', { ascending: false })
       return data ?? []
     },
@@ -66,6 +68,7 @@ export default function GiocatoreDetail() {
         .from('quote')
         .select('id, tipo, descrizione, importo, data_scadenza, pagato')
         .eq('giocatore_id', id)
+        .eq('societa_id', societaId)
         .order('data_scadenza')
       return data ?? []
     },
@@ -90,7 +93,7 @@ export default function GiocatoreDetail() {
   const certMut = useMutation({
     mutationFn: async (cert_medico_scadenza) => {
       const { error } = await supabase
-        .from('giocatori').update({ cert_medico_scadenza }).eq('id', id)
+        .from('giocatori').update({ cert_medico_scadenza }).eq('id', id).eq('societa_id', societaId)
       if (error) throw error
     },
     onSuccess: () => {
