@@ -25,10 +25,12 @@ function PresenzeTab({ mySquadre, societaId }) {
   const today = new Date()
   const qc    = useQueryClient()
 
-  const [selectedId,   setSelectedId]   = useState(null)
-  const [presMap,      setPresMap]      = useState({})
-  const [saved,        setSaved]        = useState(false)
-  const [creatingRow,  setCreatingRow]  = useState(false)
+  const [selectedId,     setSelectedId]     = useState(null)
+  const [presMap,        setPresMap]        = useState({})
+  const [saved,          setSaved]          = useState(false)
+  const [creatingRow,    setCreatingRow]    = useState(false)
+  const [selectedSquadra,  setSelectedSquadra]  = useState(null)
+  const [selectedAlHeader, setSelectedAlHeader] = useState(null)
 
   const rangeStart = format(subDays(today, 7), 'yyyy-MM-dd')
   const rangeEnd   = format(addDays(today, 7), 'yyyy-MM-dd')
@@ -40,6 +42,7 @@ function PresenzeTab({ mySquadre, societaId }) {
       const [fissoRes, settRes] = await Promise.all([
         supabase.from('orario_fisso')
           .select('id, giorno, squadra, ora_inizio, ora_fine, palestra')
+          .eq('societa_id', societaId)
           .in('squadra', mySquadre),
         supabase.from('orario_settimana')
           .select('id, data, squadra, ora_inizio, ora_fine, palestra, annullato')
@@ -94,15 +97,15 @@ function PresenzeTab({ mySquadre, societaId }) {
     })
   }, [rawData, rangeStart, rangeEnd])
 
-  const selectedAl = allenamenti.find(a => a.id === selectedId)
+  const selectedAl = selectedAlHeader
 
   const { data: giocatori = [], isLoading: lg } = useQuery({
-    queryKey: ['presenze-giocatori', selectedAl?.squadra, societaId],
-    enabled: !!selectedAl?.squadra && !!societaId,
+    queryKey: ['presenze-giocatori', selectedSquadra, societaId],
+    enabled: !!selectedSquadra && !!societaId,
     queryFn: async () => {
       const { data } = await supabase.from('giocatori')
         .select('id, nome, cognome')
-        .eq('squadra', selectedAl.squadra)
+        .eq('squadra', selectedSquadra)
         .eq('societa_id', societaId)
         .eq('attivo', true)
         .order('cognome').order('nome')
@@ -111,7 +114,7 @@ function PresenzeTab({ mySquadre, societaId }) {
   })
 
   const { data: existingPresenze = [] } = useQuery({
-    queryKey: ['presenze-existing', selectedId],
+    queryKey: ['presenze-existing', societaId, selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
       const { data } = await supabase.from('presenze')
@@ -122,36 +125,54 @@ function PresenzeTab({ mySquadre, societaId }) {
   })
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (existingPresenze.length > 0) {
       setPresMap(Object.fromEntries(existingPresenze.map(p => [p.giocatore_id, p.presente])))
     } else {
       setPresMap({})
     }
     setSaved(false)
-  }, [existingPresenze, selectedId])
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [existingPresenze])
 
   async function handleSelectAllenamento(al) {
     let id = al.id
     if (al._source === 'fisso') {
       setCreatingRow(true)
-      const { data, error } = await supabase.from('orario_settimana')
-        .insert([{
-          data:       al.data,
-          squadra:    al.squadra,
-          ora_inizio: al.ora_inizio,
-          ora_fine:   al.ora_fine,
-          palestra:   al.palestra ?? null,
-          annullato:  false,
-          societa_id: societaId,
-        }])
+      const { data: existing } = await supabase.from('orario_settimana')
         .select('id')
-        .single()
+        .eq('data', al.data)
+        .eq('squadra', al.squadra)
+        .eq('societa_id', societaId)
+        .maybeSingle()
+      if (existing) {
+        id = existing.id
+      } else {
+        const { data: inserted, error } = await supabase.from('orario_settimana')
+          .insert([{
+            data:       al.data,
+            squadra:    al.squadra,
+            ora_inizio: al.ora_inizio,
+            ora_fine:   al.ora_fine,
+            palestra:   al.palestra ?? null,
+            annullato:  false,
+            societa_id: societaId,
+          }])
+          .select('id')
+          .single()
+        if (error) {
+          console.error(error)
+          setCreatingRow(false)
+          return
+        }
+        id = inserted.id
+        qc.invalidateQueries({ queryKey: ['attivita-presenze'] })
+      }
       setCreatingRow(false)
-      if (error) { console.error(error); return }
-      qc.invalidateQueries({ queryKey: ['attivita-presenze'] })
-      id = data.id
     }
     setSelectedId(id)
+    setSelectedSquadra(al.squadra)
+    setSelectedAlHeader({ data: al.data, squadra: al.squadra, ora_inizio: al.ora_inizio, ora_fine: al.ora_fine })
     setSaved(false)
     setPresMap({})
   }
@@ -171,7 +192,7 @@ function PresenzeTab({ mySquadre, societaId }) {
     },
     onSuccess: () => {
       setSaved(true)
-      qc.invalidateQueries({ queryKey: ['presenze-existing', selectedId] })
+      qc.invalidateQueries({ queryKey: ['presenze-existing', societaId, selectedId] })
       qc.invalidateQueries({ queryKey: ['presenze-giocatore'] })
     },
   })
@@ -224,7 +245,7 @@ function PresenzeTab({ mySquadre, societaId }) {
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => setSelectedId(null)} className="text-xs text-amber-600 font-semibold">← Cambia</button>
+        <button onClick={() => { setSelectedId(null); setSelectedSquadra(null); setSelectedAlHeader(null) }} className="text-xs text-amber-600 font-semibold">← Cambia</button>
         {selectedAl && (
           <div>
             <p className="text-sm font-semibold text-gray-900">
