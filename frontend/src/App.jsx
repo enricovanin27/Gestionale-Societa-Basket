@@ -26,7 +26,7 @@ import GiocatoriPage   from './pages/secretary/GiocatoriPage'
 import GiocatoreDetail from './pages/secretary/GiocatoreDetail'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
-import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
+import ComunicazioniPage from './pages/player/ComunicazioniPage'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
@@ -143,9 +143,10 @@ function AppShell() {
 
         {/* ── Giocatore ────────────────────────────────── */}
         <Route path="/player" element={<ProtectedRoute requiredRole="giocatore"><PlayerLayout /></ProtectedRoute>}>
-          <Route index element={<HomeGiocatore />} />
-          <Route path="bacheca" element={<BachecaPage />} />
-          <Route path="statistiche" element={<StatisticheGiocatore />} />
+          <Route index                  element={<HomeGiocatore />} />
+          <Route path="comunicazioni"   element={<ComunicazioniPage />} />
+          <Route path="bacheca"         element={<BachecaPage />} />
+          <Route path="statistiche"     element={<Navigate to="/player/comunicazioni" replace />} />
         </Route>
 
         {/* ── Segreteria ───────────────────────────────── */}

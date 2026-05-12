@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Home, BarChart2, Bell } from 'lucide-react'
+import { Home, MessageCircle, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
@@ -19,8 +19,8 @@ export default function PlayerLayout() {
           <NavLink to="/player" end className={cls}>
             <Home size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Home</span>
           </NavLink>
-          <NavLink to="/player/statistiche" className={cls}>
-            <BarChart2 size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Statistiche</span>
+          <NavLink to="/player/comunicazioni" className={cls}>
+            <MessageCircle size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Comunicazioni</span>
           </NavLink>
           <NavLink to="/player/bacheca" className={cls}>
             <div className="relative">
