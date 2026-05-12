@@ -21,8 +21,9 @@ import ImportaCalendarioPage from './pages/ImportaCalendarioPage'
 import PlatformPage from './pages/PlatformPage'
 import BachecaPage from './pages/BachecaPage'
 import AttivitaPage from './pages/coach/AttivitaPage'
-import SegreteriePage from './pages/SegreteriePage'
 import SegreteriaDashboard from './pages/secretary/SegreteriaDashboard'
+import GiocatoriPage   from './pages/secretary/GiocatoriPage'
+import GiocatoreDetail from './pages/secretary/GiocatoreDetail'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
@@ -149,10 +150,11 @@ function AppShell() {
 
         {/* ── Segreteria ───────────────────────────────── */}
         <Route path="/secretary" element={<ProtectedRoute requiredRole="segreteria"><SecretaryLayout /></ProtectedRoute>}>
-          <Route index element={<SegreteriaDashboard />} />
-          <Route path="giocatori" element={<SegreteriePage initialTab="giocatori" />} />
-          <Route path="quote"     element={<SegreteriePage initialTab="quote" />} />
-          <Route path="bacheca"   element={<BachecaPage />} />
+          <Route index                  element={<SegreteriaDashboard />} />
+          <Route path="giocatori"       element={<GiocatoriPage />} />
+          <Route path="giocatori/:id"   element={<GiocatoreDetail />} />
+          <Route path="bacheca"         element={<BachecaPage />} />
+          <Route path="quote"           element={<Navigate to="/secretary/giocatori" replace />} />
         </Route>
 
         {/* ── Allenatore ───────────────────────────────── */}

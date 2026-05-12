@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, CreditCard, Bell } from 'lucide-react'
+import { LayoutDashboard, Users, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
@@ -21,9 +21,6 @@ export default function SecretaryLayout() {
           </NavLink>
           <NavLink to="/secretary/giocatori" className={cls}>
             <Users size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Giocatori</span>
-          </NavLink>
-          <NavLink to="/secretary/quote" className={cls}>
-            <CreditCard size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Quote</span>
           </NavLink>
           <NavLink to="/secretary/bacheca" className={cls}>
             <div className="relative">
