@@ -1019,7 +1019,7 @@ export default function CalendarioPage() {
           <LoadingSpinner message="Caricamento..." />
         ) : settimanaView === 'griglia' ? (
           <div className="px-4 pt-2">
-            <GrigliaSettimanale weekStart={startDate} allSquadre={squadre} />
+            <GrigliaSettimanale weekStart={startDate} allSquadre={squadre} squadreFilter={effectiveSquadre} />
           </div>
         ) : (
           <VistaSettimanaleCompleta

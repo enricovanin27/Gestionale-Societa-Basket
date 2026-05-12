@@ -166,7 +166,7 @@ function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader }
 }
 
 // ─── GrigliaSettimanale (settimana corrente/prossima/oggi) ───────────────────
-export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter = null }) {
+export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter = null, squadreFilter = null }) {
   const weekEnd  = useMemo(() => endOfWeek(weekStart, { weekStartsOn: 1 }), [weekStart])
   const weekDays = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd])
 
@@ -187,6 +187,7 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
       const dateStr = format(day, 'yyyy-MM-dd')
       const events  = (weekData.eventsByDate?.[dateStr] ?? [])
         .filter(e => !e.annullato && (e._tipo === 'allenamento' || e._tipo === 'partita'))
+        .filter(e => !squadreFilter?.length || squadreFilter.includes(e.squadra))
       const usedSet       = new Set(events.map(e => e.palestra?.trim()).filter(Boolean))
       const hasNoPalestra = events.some(e => !e.palestra?.trim())
       const palestre = [
@@ -196,7 +197,7 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
       ]
       return { dateStr, day, events, palestre }
     })
-  }, [weekData, weekDays, palestreOrder])
+  }, [weekData, weekDays, palestreOrder, squadreFilter])
 
   const activeDays = useMemo(
     () => daysData.filter(d => d.palestre.length > 0 && (!dateFilter || d.dateStr === dateFilter)),
