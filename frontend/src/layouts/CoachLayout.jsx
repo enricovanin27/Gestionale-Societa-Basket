@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Home, Calendar, CheckSquare, BarChart2, Bell } from 'lucide-react'
+import { Home, Calendar, Activity, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
@@ -22,11 +22,8 @@ export default function CoachLayout() {
           <NavLink to="/coach/calendario" className={cls}>
             <Calendar size={21} strokeWidth={1.8} /><span className="text-xs font-medium">Calendario</span>
           </NavLink>
-          <NavLink to="/coach/presenze" className={cls}>
-            <CheckSquare size={21} strokeWidth={1.8} /><span className="text-xs font-medium">Presenze</span>
-          </NavLink>
-          <NavLink to="/coach/statistiche" className={cls}>
-            <BarChart2 size={21} strokeWidth={1.8} /><span className="text-xs font-medium">Statistiche</span>
+          <NavLink to="/coach/attivita" className={cls}>
+            <Activity size={21} strokeWidth={1.8} /><span className="text-xs font-medium">Attività</span>
           </NavLink>
           <NavLink to="/coach/bacheca" className={cls}>
             <div className="relative">

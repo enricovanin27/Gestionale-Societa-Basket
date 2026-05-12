@@ -20,7 +20,7 @@ import SetupPage from './pages/SetupPage'
 import ImportaCalendarioPage from './pages/ImportaCalendarioPage'
 import PlatformPage from './pages/PlatformPage'
 import BachecaPage from './pages/BachecaPage'
-import StatistichePage from './pages/StatistichePage'
+import AttivitaPage from './pages/coach/AttivitaPage'
 import SegreteriePage from './pages/SegreteriePage'
 import SegreteriaDashboard from './pages/secretary/SegreteriaDashboard'
 import HomeGenitore from './pages/home/HomeGenitore'
@@ -29,7 +29,6 @@ import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
-import PresenzePage from './pages/coach/PresenzePage'
 import AdminPersone from './pages/admin/AdminPersone'
 import SetupMenu from './pages/admin/SetupMenu'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
@@ -160,9 +159,8 @@ function AppShell() {
         <Route path="/coach" element={<ProtectedRoute requiredRole="allenatore"><CoachLayout /></ProtectedRoute>}>
           <Route index         element={<HomeAllenatore />} />
           <Route path="calendario"  element={<CalendarioPage />} />
-          <Route path="statistiche" element={<StatistichePage />} />
+          <Route path="attivita"    element={<AttivitaPage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
-          <Route path="presenze"    element={<PresenzePage />} />
           <Route path="importa"     element={<ImportaCalendarioPage />} />
         </Route>
 
@@ -184,7 +182,9 @@ function AppShell() {
         <Route path="/allenamenti" element={<Navigate to="/admin/allenamenti" replace />} />
         <Route path="/segreteria"  element={<Navigate to="/secretary" replace />} />
         <Route path="/setup"       element={<Navigate to="/admin/setup" replace />} />
-        <Route path="/statistiche" element={<Navigate to="/coach/statistiche" replace />} />
+        <Route path="/statistiche" element={<Navigate to="/coach/attivita" replace />} />
+        <Route path="/coach/presenze"    element={<Navigate to="/coach/attivita" replace />} />
+        <Route path="/coach/statistiche" element={<Navigate to="/coach/attivita" replace />} />
         <Route path="/importa"     element={<Navigate to="/coach/importa" replace />} />
         <Route path="/platform"    element={<Navigate to="/" replace />} />
         <Route path="*"            element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
