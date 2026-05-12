@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { format, addWeeks, parseISO, startOfWeek, addDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { X, Plus, AlertTriangle } from 'lucide-react'
@@ -355,23 +355,21 @@ export default function HomeAllenatore() {
 
   const [selectedSquadra, setSelectedSquadra] = useState('')
 
-  useEffect(() => {
-    if (mySquadre.length && !selectedSquadra) setSelectedSquadra(mySquadre[0])
-  }, [mySquadre])
-
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
 
   const { data: prossimeGare = [] } = useQuery({
-    queryKey: ['prossime-gare', selectedSquadra, todayStr, societaId],
-    enabled: !!selectedSquadra && !!societaId,
+    queryKey: ['prossime-gare', selectedSquadra, mySquadre, todayStr, societaId],
+    enabled: !!societaId && mySquadre.length > 0,
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from('calendario').select('*')
-        .eq('squadra', selectedSquadra)
         .eq('societa_id', societaId)
         .gte('data', todayStr)
         .order('data').order('ora_inizio')
-        .limit(2)
+      q = selectedSquadra
+        ? q.eq('squadra', selectedSquadra).limit(2)
+        : q.in('squadra', mySquadre).limit(3)
+      const { data } = await q
       return data ?? []
     },
     staleTime: 2 * 60 * 1000,
@@ -382,24 +380,26 @@ export default function HomeAllenatore() {
   const { data: nextWeekData, isLoading: nextWeekLoading } = useWeekEvents(nextWeekStart)
 
   const allenamenti = useMemo(() => {
-    if (!weekData || !selectedSquadra) return []
+    if (!weekData) return []
+    const squads = selectedSquadra ? [selectedSquadra] : mySquadre
     return (weekData.events ?? [])
       .filter(e =>
         e._tipo === 'allenamento' && !e.annullato &&
-        (e.squadra ?? '').toLowerCase() === selectedSquadra.toLowerCase()
+        squads.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
       )
       .sort((a, b) => (a.data + (a.ora_inizio ?? '')).localeCompare(b.data + (b.ora_inizio ?? '')))
-  }, [weekData, selectedSquadra])
+  }, [weekData, selectedSquadra, mySquadre])
 
   const prossimiAllenamenti = useMemo(() => {
-    if (!nextWeekData || !selectedSquadra) return []
+    if (!nextWeekData) return []
+    const squads = selectedSquadra ? [selectedSquadra] : mySquadre
     return (nextWeekData.events ?? [])
       .filter(e =>
         e._tipo === 'allenamento' && !e.annullato &&
-        (e.squadra ?? '').toLowerCase() === selectedSquadra.toLowerCase()
+        squads.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
       )
       .sort((a, b) => (a.data + (a.ora_inizio ?? '')).localeCompare(b.data + (b.ora_inizio ?? '')))
-  }, [nextWeekData, selectedSquadra])
+  }, [nextWeekData, selectedSquadra, mySquadre])
 
   const [editingEvent,   setEditingEvent]   = useState(null)
   const [selectedEvent,  setSelectedEvent]  = useState(null)
@@ -446,13 +446,14 @@ export default function HomeAllenatore() {
         logout={logout}
         societaNome={societaNome}
       >
-        {mySquadre.length > 1 && (
+        {mySquadre.length > 0 && (
           <div className="mt-3">
             <select
               value={selectedSquadra}
               onChange={e => setSelectedSquadra(e.target.value)}
               className="w-full bg-amber-700 text-white border border-amber-400 rounded-lg px-3 py-2 text-sm"
             >
+              <option value="">Tutte le squadre</option>
               {mySquadre.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
