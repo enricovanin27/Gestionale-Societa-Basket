@@ -519,12 +519,13 @@ function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenam
 
 // ─── Vista settimana completa (partite + allenamenti) ────────────────────────
 
-function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
+function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, effectiveSquadre, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
   const allEventsByDate = useMemo(() => {
     if (!data) return {}
     const map = {}
     data.events
       .filter(e => {
+        if (effectiveSquadre?.length && !effectiveSquadre.includes(e.squadra)) return false
         if (squadraFilter && e.squadra !== squadraFilter) return false
         if (e.annullato && e._tipo !== 'partita') return false
         return true
@@ -534,7 +535,7 @@ function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, c
         map[e.data].push(e)
       })
     return map
-  }, [data, squadraFilter])
+  }, [data, squadraFilter, effectiveSquadre])
 
   return (
     <div className="overflow-x-auto p-3" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -725,6 +726,7 @@ export default function CalendarioPage() {
   const [calTab,           setCalTab]           = useState('partite') // 'partite' | 'settimana' | 'importa'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [squadraFilter,    setSquadraFilter]    = useState('')
+  const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!isAllenatore)
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
@@ -749,12 +751,18 @@ export default function CalendarioPage() {
   const { data, isLoading, error }  = useWeekEvents(startDate)
   const { data: squadre = [] }      = useSquadre()
 
+  const effectiveSquadre = useMemo(
+    () => (soloMieSquadre && squadreAllenatore?.length) ? squadreAllenatore : null,
+    [soloMieSquadre, squadreAllenatore]
+  )
+
   const displayEvents = useMemo(() => {
     if (!data) return []
     let events = data.events.filter(e => e._tipo === 'partita')
-    if (squadraFilter) events = events.filter(e => e.squadra === squadraFilter)
+    if (effectiveSquadre) events = events.filter(e => effectiveSquadre.includes(e.squadra))
+    if (squadraFilter)    events = events.filter(e => e.squadra === squadraFilter)
     return events
-  }, [data, squadraFilter])
+  }, [data, squadraFilter, effectiveSquadre])
 
   // All non-cancelled trainings — used only for conflict detection
   const allTrainings = useMemo(() =>
@@ -927,11 +935,23 @@ export default function CalendarioPage() {
       {/* ── Filters + Navigation (below sticky header) ── */}
       <div className="bg-white border-b shadow-sm">
         {(calTab === 'partite' || calTab === 'settimana') && (
-          <div className="px-4 pt-2 pb-2">
+          <div className="px-4 pt-2 pb-2 space-y-2">
+            {isAllenatore && (
+              <button
+                onClick={() => { setSoloMieSquadre(v => !v); setSquadraFilter('') }}
+                className={`text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
+                  soloMieSquadre
+                    ? 'bg-amber-100 text-amber-700 border-amber-300'
+                    : 'bg-gray-100 text-gray-500 border-gray-200'
+                }`}
+              >
+                {soloMieSquadre ? 'Solo mie squadre' : 'Tutte le squadre'}
+              </button>
+            )}
             <select value={squadraFilter} onChange={e => setSquadraFilter(e.target.value)}
               className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Tutte le squadre</option>
-              {squadre.map(s => <option key={s} value={s}>{s}</option>)}
+              <option value="">{soloMieSquadre ? 'Tutte le mie squadre' : 'Tutte le squadre'}</option>
+              {(effectiveSquadre ?? squadre).map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
         )}
@@ -1007,6 +1027,7 @@ export default function CalendarioPage() {
             data={data}
             allSquadre={squadre}
             squadraFilter={squadraFilter}
+            effectiveSquadre={effectiveSquadre}
             conflictedTrainingKeys={conflictedTrainingKeys}
             conflictMap={conflictMap}
             onPartitaClick={setSelectedEvent}
