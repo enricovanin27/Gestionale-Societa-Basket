@@ -32,7 +32,10 @@ export default function HomeGiocatore() {
 
   const thisWeekStr   = format(thisWeekStart, 'yyyy-MM-dd')
   const endDateStr    = format(addDays(thisWeekStart, 13), 'yyyy-MM-dd')
-  const squadreFiltro = selectedSquadra ? [selectedSquadra] : mySquadre
+  const squadreFiltro = useMemo(
+    () => selectedSquadra ? [selectedSquadra] : mySquadre,
+    [selectedSquadra, mySquadre.join(',')]
+  )
 
   const { data: annullati = [] } = useQuery({
     queryKey: ['annullati-player', societaId, thisWeekStr, endDateStr, squadreFiltro.join(',')],
@@ -204,8 +207,8 @@ export default function HomeGiocatore() {
                   <div className="mx-4 text-sm text-gray-300 py-1">–</div>
                 ) : (
                   <div className="px-4 space-y-2">
-                    {events.map((e, i) => (
-                      <EventCardPlayer key={`${e._source ?? 'e'}-${e.id ?? i}`} event={e} colorMap={colorMap} />
+                    {events.map((e) => (
+                      <EventCardPlayer key={`${e._source}-${e.id}`} event={e} colorMap={colorMap} />
                     ))}
                   </div>
                 )}
