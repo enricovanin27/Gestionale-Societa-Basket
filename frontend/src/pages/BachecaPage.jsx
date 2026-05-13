@@ -191,7 +191,7 @@ function AnnuncioCard({ ann, canDelete, onDelete }) {
 
 // ─── Pagina principale ────────────────────────────────────────────────────────
 export default function BachecaPage() {
-  const { user, profile, societaId, isAdmin, isAllenatore, isSegreteria, displayName } = useAuth()
+  const { user, profile, societaId, isAdmin, isAllenatore, isSegreteria, displayName, squadreAllenatore } = useAuth()
   const qc = useQueryClient()
   const canWrite = isAdmin || isAllenatore || isSegreteria
   const [showForm, setShowForm] = useState(false)
@@ -326,7 +326,7 @@ export default function BachecaPage() {
       {showForm && (
         <NuovoAnnuncioModal
           onClose={() => setShowForm(false)}
-          squadre={isAllenatore ? mySquadre : squadre}
+          squadre={isAllenatore && squadreAllenatore?.length ? squadreAllenatore : squadre}
           isAllenatore={isAllenatore}
           societaId={societaId}
           autorId={user?.id}
