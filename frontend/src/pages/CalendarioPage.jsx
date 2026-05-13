@@ -735,6 +735,11 @@ function TrainingEditModal({ training, onClose, onSaved }) {
 
 // ─── Legend ───────────────────────────────────────────────────────────────────
 
+const parseList = (s) =>
+  typeof s === 'string' && s.trim()
+    ? s.split(',').map(x => x.trim()).filter(Boolean)
+    : Array.isArray(s) ? s : []
+
 const LEGEND = [
   { color: 'green',  label: 'Casa'        },
   { color: 'blue',   label: 'Trasferta'   },
@@ -744,8 +749,7 @@ const LEGEND = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CalendarioPage() {
-  const { isAdmin, isAllenatore, societaId, squadreAllenatore } = useAuth()
-  const canModifyEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
+  const { user, isAdmin, isAllenatore, societaId } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -777,10 +781,31 @@ export default function CalendarioPage() {
   const { data, isLoading, error }  = useWeekEvents(startDate)
   const { data: squadre = [] }      = useSquadre()
 
-  const effectiveSquadre = useMemo(
-    () => soloMieSquadre ? (squadreAllenatore ?? []) : null,
-    [soloMieSquadre, squadreAllenatore]
-  )
+  const { data: allenatoreRow } = useQuery({
+    queryKey: ['my-allenatore', user?.email],
+    enabled: !!user?.email && isAllenatore,
+    queryFn: async () => {
+      const { data } = await supabase.from('allenatori')
+        .select('squadre_capo, squadre_vice')
+        .eq('email', user.email)
+        .maybeSingle()
+      return data
+    },
+  })
+
+  const myCoachSquadre = useMemo(() => {
+    if (!allenatoreRow) return null
+    return [...parseList(allenatoreRow.squadre_capo), ...parseList(allenatoreRow.squadre_vice)]
+  }, [allenatoreRow])
+
+  const canModifyEvent = (ev) => !myCoachSquadre?.length || myCoachSquadre.includes(ev.squadra)
+
+  const effectiveSquadre = useMemo(() => {
+    if (!soloMieSquadre) return null
+    if (!isAllenatore) return null
+    if (myCoachSquadre === null) return [] // ancora in caricamento
+    return myCoachSquadre.length > 0 ? myCoachSquadre : null
+  }, [soloMieSquadre, isAllenatore, myCoachSquadre])
 
   const displayEvents = useMemo(() => {
     if (!data) return []
@@ -910,8 +935,8 @@ export default function CalendarioPage() {
           .gte('data', today).lte('data', endDate).neq('annullato', true).order('data'),
       ])
       const filtered = (events) => {
-        if (!squadreAllenatore) return events ?? []
-        return (events ?? []).filter(e => squadreAllenatore.includes(e.squadra))
+        if (!myCoachSquadre?.length) return events ?? []
+        return (events ?? []).filter(e => myCoachSquadre.includes(e.squadra))
       }
       const icsEvents = [
         ...filtered(partite).map(partitaToEvent),
@@ -1180,7 +1205,7 @@ export default function CalendarioPage() {
             stato:      editingEvent.stato      ?? 'provvisoria',
           } : null}
           squadre={squadre}
-          squadreAllenatore={squadreAllenatore}
+          squadreAllenatore={myCoachSquadre}
           saving={saveMutation.isPending}
           saveError={saveMutation.isError ? (saveMutation.error?.message ?? 'Errore sconosciuto') : null}
           onSave={(formData) => saveMutation.mutate(formData)}
