@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Trophy, Dumbbell, Users, Settings, LayoutDashboard, Bell, Activity } from 'lucide-react'
+import { Trophy, Users, Settings, LayoutDashboard, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 
@@ -21,12 +21,6 @@ export default function AdminLayout() {
           </NavLink>
           <NavLink to="/admin/partite" className={cls}>
             <Trophy size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Partite</span>
-          </NavLink>
-          <NavLink to="/admin/allenamenti" className={cls}>
-            <Dumbbell size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Allenamenti</span>
-          </NavLink>
-          <NavLink to="/admin/presenze" className={cls}>
-            <Activity size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Presenze</span>
           </NavLink>
           <NavLink to="/admin/persone" className={cls}>
             <Users size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Persone</span>

@@ -187,7 +187,7 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
       const dateStr = format(day, 'yyyy-MM-dd')
       const events  = (weekData.eventsByDate?.[dateStr] ?? [])
         .filter(e => !e.annullato && (e._tipo === 'allenamento' || e._tipo === 'partita'))
-        .filter(e => !squadreFilter?.length || squadreFilter.includes(e.squadra))
+        .filter(e => squadreFilter === null || squadreFilter.includes(e.squadra))
       const usedSet       = new Set(events.map(e => e.palestra?.trim()).filter(Boolean))
       const hasNoPalestra = events.some(e => !e.palestra?.trim())
       const palestre = [

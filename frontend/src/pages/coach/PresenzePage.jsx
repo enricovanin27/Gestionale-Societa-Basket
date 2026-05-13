@@ -109,9 +109,12 @@ export default function PresenzePage() {
         presente:       presMap[g.id] ?? false,
         societa_id:     societaId,
       }))
-      const { error } = await supabase
+      const { error: delErr } = await supabase
         .from('presenze')
-        .upsert(records, { onConflict: 'allenamento_id,giocatore_id' })
+        .delete()
+        .eq('allenamento_id', selectedId)
+      if (delErr) throw delErr
+      const { error } = await supabase.from('presenze').insert(records)
       if (error) throw error
     },
     onSuccess: () => {

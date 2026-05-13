@@ -18,7 +18,7 @@ import { PALETTE } from '../lib/constants'
 import { useWeekEvents, useSquadre } from '../hooks/useWeekEvents'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageHeader from '../components/PageHeader'
-import { saveAllenamento, inviaNotificaModifica } from '../hooks/useAllenamenti'
+import { saveAllenamento, annullaAllenamento, inviaNotificaModifica, inviaNotificaAnnullamento } from '../hooks/useAllenamenti'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -482,7 +482,7 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
 // ─── Training mini card (vista completa) ─────────────────────────────────────
 
 function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenamenti, onEdit }) {
-  const borderCls = isConflicted ? 'border-red-500 bg-red-50' : `${teamColor?.border ?? 'border-gray-300'} ${teamColor?.bg ?? 'bg-gray-50'}`
+  const borderCls = isConflicted ? 'border-red-500 bg-red-50' : `${teamColor?.border ?? 'border-gray-300'} bg-white`
   return (
     <div className={`w-full rounded-lg p-2 mb-1 shadow-sm border-l-4 ${borderCls}`}>
       <div className="flex items-start justify-between gap-1">
@@ -525,7 +525,7 @@ function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, e
     const map = {}
     data.events
       .filter(e => {
-        if (effectiveSquadre?.length && !effectiveSquadre.includes(e.squadra)) return false
+        if (effectiveSquadre !== null && !effectiveSquadre.includes(e.squadra)) return false
         if (squadraFilter && e.squadra !== squadraFilter) return false
         if (e.annullato && e._tipo !== 'partita') return false
         return true
@@ -611,6 +611,15 @@ function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, e
 function TrainingEditModal({ training, onClose, onSaved }) {
   const { societaId } = useAuth()
   const qc = useQueryClient()
+
+  const deleteMut = useMutation({
+    mutationFn: () => annullaAllenamento(training, societaId),
+    onSuccess: () => {
+      inviaNotificaAnnullamento(training.squadra, societaId, training.data)
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      onSaved()
+    },
+  })
   const [form, setForm] = useState({
     ora_inizio: formatTime(training.ora_inizio) || '',
     ora_fine:   formatTime(training.ora_fine)   || '',
@@ -692,14 +701,31 @@ function TrainingEditModal({ training, onClose, onSaved }) {
           {saveMut.isError && (
             <p className="text-xs text-red-600">Errore: {saveMut.error?.message}</p>
           )}
+          {deleteMut.isError && (
+            <p className="text-xs text-red-600">Errore eliminazione: {deleteMut.error?.message}</p>
+          )}
 
           <Button
             className="w-full"
             size="lg"
             onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending || !form.ora_inizio || !form.ora_fine}
+            disabled={saveMut.isPending || deleteMut.isPending || !form.ora_inizio || !form.ora_fine}
           >
             {saveMut.isPending ? 'Salvataggio...' : 'Salva modifica'}
+          </Button>
+
+          <Button
+            variant="destructive"
+            className="w-full"
+            size="lg"
+            onClick={() => {
+              if (window.confirm(`Eliminare l'allenamento di ${training.squadra} del ${formatDate(training.data, 'EEE d MMM')}?`))
+                deleteMut.mutate()
+            }}
+            disabled={saveMut.isPending || deleteMut.isPending}
+          >
+            <Trash2 size={15} />
+            {deleteMut.isPending ? 'Eliminazione...' : 'Elimina allenamento'}
           </Button>
         </div>
       </div>
@@ -752,7 +778,7 @@ export default function CalendarioPage() {
   const { data: squadre = [] }      = useSquadre()
 
   const effectiveSquadre = useMemo(
-    () => (soloMieSquadre && squadreAllenatore?.length) ? squadreAllenatore : null,
+    () => soloMieSquadre ? (squadreAllenatore ?? []) : null,
     [soloMieSquadre, squadreAllenatore]
   )
 
