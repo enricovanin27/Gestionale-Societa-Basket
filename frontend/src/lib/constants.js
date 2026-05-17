@@ -12,7 +12,7 @@ export const RUOLI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocator
 
 export const RUOLI_LABEL = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', segreteria: 'Segreteria', genitore: 'Genitore', giocatore: 'Giocatore' }
 
-export const RUOLI_EXTRA_DISPONIBILI = ['admin', 'allenatore', 'segreteria']
+export const RUOLI_EXTRA_DISPONIBILI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore']
 
 export const PALETTE = [
   { border: 'border-l-blue-500',    bg: 'bg-blue-50',    title: 'text-blue-900',    gameBorder: 'border-l-blue-600',    gameBg: 'bg-blue-100'    },

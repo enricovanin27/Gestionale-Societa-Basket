@@ -1084,9 +1084,10 @@ function UtentiTab() {
             const isDisabled = u.attivo === false
             return (
               <div key={u.id} className={`bg-white border rounded-xl p-3 transition-opacity ${isDisabled ? 'opacity-50 border-gray-100' : 'border-gray-200'}`}>
+                {/* Riga 1: nome + controlli rapidi */}
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-sm text-gray-900">{nomeCompleto}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RUOLO_COLORS[u.ruolo] ?? 'bg-gray-100 text-gray-600'}`}>
                         {RUOLI_LABEL[u.ruolo] ?? u.ruolo}
@@ -1096,137 +1097,31 @@ function UtentiTab() {
                           +{RUOLI_LABEL[r] ?? r}
                         </span>
                       ))}
-                      {isDisabled && (
-                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Disabilitato</span>
-                      )}
-                      {u.id === me?.id && (
-                        <span className="text-xs text-blue-400">(tu)</span>
-                      )}
+                      {isDisabled && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Disabilitato</span>}
+                      {u.id === me?.id && <span className="text-xs text-blue-400">(tu)</span>}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5 truncate">{u.email}</p>
-                    {u.ruolo === 'allenatore' && (
-                      <div className="mt-1 space-y-0.5">
-                        {u.squadre_capo && (
-                          <div className="flex flex-wrap gap-1 items-center">
-                            <span className="text-xs text-gray-400">Capo:</span>
-                            {u.squadre_capo.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                              <span key={s} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{s}</span>
-                            ))}
-                          </div>
-                        )}
-                        {u.squadre_vice && (
-                          <div className="flex flex-wrap gap-1 items-center">
-                            <span className="text-xs text-gray-400">Vice:</span>
-                            {u.squadre_vice.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                              <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s}</span>
-                            ))}
-                          </div>
-                        )}
-                        {!u.squadre_capo && !u.squadre_vice && (
-                          <p className="text-xs text-gray-400 italic">Squadre da assegnare → tab Allenatori</p>
-                        )}
-                      </div>
-                    )}
-                    {u.ruolo === 'genitore' && (
-                      <div className="mt-1 space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-400">Sq 1:</span>
-                          {u.squadra
-                            ? <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
-                            : <span className="text-xs text-gray-400 italic">–</span>}
-                        </div>
-                        {u.squadra2 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-gray-400">Sq 2:</span>
-                            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra2}</span>
-                          </div>
-                        )}
-                        {u.squadra3 && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-gray-400">Sq 3:</span>
-                            <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{u.squadra3}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {u.ruolo === 'giocatore' && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {u.squadra
-                          ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">{u.squadra}</span>
-                          : <span className="text-xs text-gray-400 italic">–</span>}
-                        {u.squadra2 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{u.squadra2}</span>}
-                        {u.squadra3 && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{u.squadra3}</span>}
-                      </div>
-                    )}
                   </div>
-
                   {u.id !== me?.id && (
-                    <div className="flex flex-col gap-1.5 items-end">
+                    <div className="flex items-center gap-1 shrink-0">
                       <select
                         value={u.ruolo ?? ''}
                         onChange={e => ruoloMut.mutate({ id: u.id, ruolo: e.target.value })}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
                       >
                         {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
                       </select>
-                      {/* Ruoli extra */}
-                      <div className="flex flex-col gap-0.5 items-end">
-                        {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
-                          const checked = (u.ruoli_extra ?? []).includes(r)
-                          return (
-                            <label key={r} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 select-none">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
-                                className="w-3 h-3 rounded accent-blue-600"
-                              />
-                              +{RUOLI_LABEL[r]}
-                            </label>
-                          )
-                        })}
-                      </div>
-                      {u.ruolo === 'giocatore' && squadreDisp.length > 0 && (<>
-                        <select
-                          value={u.squadra ?? ''}
-                          onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        >
-                          <option value="">– Squadra 1 –</option>
-                          {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <select
-                          value={u.squadra2 ?? ''}
-                          onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        >
-                          <option value="">– Sq 2 –</option>
-                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <select
-                          value={u.squadra3 ?? ''}
-                          onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        >
-                          <option value="">– Sq 3 –</option>
-                          {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </>)}
                       <button
                         onClick={() => disabledMut.mutate({ id: u.id, attivo: !u.attivo })}
-                        className={`text-xs px-2 py-1 rounded-lg border font-medium transition-colors ${
-                          isDisabled
-                            ? 'text-green-600 border-green-200 bg-green-50'
-                            : 'text-gray-500 border-gray-200 hover:bg-gray-50'
+                        className={`text-xs px-2 py-1.5 rounded-lg border font-medium transition-colors ${
+                          isDisabled ? 'text-green-600 border-green-200 bg-green-50' : 'text-gray-400 border-gray-200 hover:bg-gray-50'
                         }`}
+                        title={isDisabled ? 'Abilita utente' : 'Disabilita utente'}
                       >
-                        {isDisabled ? 'Abilita' : 'Disabilita'}
+                        {isDisabled ? 'On' : 'Off'}
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm(`Eliminare ${nomeCompleto}? Questa azione non può essere annullata.`))
-                            deleteMut.mutate(u)
-                        }}
+                        onClick={() => { if (window.confirm(`Eliminare ${nomeCompleto}?`)) deleteMut.mutate(u) }}
                         className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg border border-red-100 transition-colors"
                         title="Elimina utente"
                       >
@@ -1234,27 +1129,87 @@ function UtentiTab() {
                       </button>
                     </div>
                   )}
-                  {/* Ruoli extra per se stessi (ruolo primario non modificabile per evitare self-lockout) */}
-                  {u.id === me?.id && (
-                    <div className="flex flex-col gap-0.5 items-end">
-                      <p className="text-xs text-gray-400 mb-1">Ruoli extra:</p>
-                      {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
-                        const checked = (u.ruoli_extra ?? []).includes(r)
-                        return (
-                          <label key={r} className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 select-none">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
-                              className="w-3 h-3 rounded accent-blue-600"
-                            />
-                            +{RUOLI_LABEL[r]}
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
                 </div>
+
+                {/* Info squadre allenatore */}
+                {u.ruolo === 'allenatore' && (
+                  <div className="mt-1.5 space-y-0.5">
+                    {u.squadre_capo && (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        <span className="text-xs text-gray-400">Capo:</span>
+                        {u.squadre_capo.split(',').map(s => s.trim()).filter(Boolean).map(s => (
+                          <span key={s} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    {u.squadre_vice && (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        <span className="text-xs text-gray-400">Vice:</span>
+                        {u.squadre_vice.split(',').map(s => s.trim()).filter(Boolean).map(s => (
+                          <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    {!u.squadre_capo && !u.squadre_vice && (
+                      <p className="text-xs text-gray-400 italic">Squadre da assegnare → tab Allenatori</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Ruoli extra (riga orizzontale) */}
+                {u.id !== me?.id && (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
+                    <span className="text-[10px] text-gray-400 self-center">Ruoli extra:</span>
+                    {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
+                      const checked = (u.ruoli_extra ?? []).includes(r)
+                      return (
+                        <label key={r} className="flex items-center gap-1 cursor-pointer text-xs text-gray-500 select-none">
+                          <input type="checkbox" checked={checked}
+                            onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
+                            className="w-3.5 h-3.5 rounded accent-blue-600" />
+                          {RUOLI_LABEL[r]}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+                {u.id === me?.id && (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
+                    <span className="text-[10px] text-gray-400 self-center">Ruoli extra:</span>
+                    {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
+                      const checked = (u.ruoli_extra ?? []).includes(r)
+                      return (
+                        <label key={r} className="flex items-center gap-1 cursor-pointer text-xs text-gray-500 select-none">
+                          <input type="checkbox" checked={checked}
+                            onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
+                            className="w-3.5 h-3.5 rounded accent-blue-600" />
+                          {RUOLI_LABEL[r]}
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Squadre giocatore/genitore (3 select in griglia) */}
+                {u.id !== me?.id && (u.ruolo === 'giocatore' || u.ruolo === 'genitore') && squadreDisp.length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-1.5">
+                    <select value={u.squadra ?? ''} onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                      <option value="">Sq. 1</option>
+                      {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select value={u.squadra2 ?? ''} onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                      <option value="">Sq. 2</option>
+                      {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select value={u.squadra3 ?? ''} onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                      <option value="">Sq. 3</option>
+                      {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
             )
           })}

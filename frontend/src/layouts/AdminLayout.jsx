@@ -20,7 +20,7 @@ export default function AdminLayout() {
             <LayoutDashboard size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Dashboard</span>
           </NavLink>
           <NavLink to="/admin/partite" className={cls}>
-            <Trophy size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Partite</span>
+            <Trophy size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Calendario</span>
           </NavLink>
           <NavLink to="/admin/presenze" className={cls}>
             <Activity size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Presenze</span>
