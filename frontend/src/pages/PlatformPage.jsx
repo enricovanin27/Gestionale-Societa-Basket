@@ -25,8 +25,9 @@ function toSlug(nome) {
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
 
 function DashboardTab({ societa, profiles }) {
-  const proCount  = societa.filter(s => s.piano === 'pro').length
-  const freeCount = societa.length - proCount
+  const proCount    = societa.filter(s => s.piano === 'pro').length
+  const freeCount   = societa.length - proCount
+  const pendingCount = societa.filter(s => s.stato === 'pending').length
 
   const societaStats = useMemo(() => societa.map(s => {
     const sp = profiles.filter(p => p.societa_id === s.id)
@@ -40,7 +41,7 @@ function DashboardTab({ societa, profiles }) {
   return (
     <div className="space-y-6">
       {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${pendingCount > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
           <Building2 size={20} className="text-blue-500 mx-auto mb-1" />
           <div className="text-2xl font-bold text-gray-900">{societa.length}</div>
@@ -56,6 +57,13 @@ function DashboardTab({ societa, profiles }) {
           <div className="text-2xl font-bold text-gray-900">{proCount}</div>
           <div className="text-xs text-gray-400">Pro</div>
         </div>
+        {pendingCount > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 text-center">
+            <span className="text-xl">⏳</span>
+            <div className="text-2xl font-bold text-orange-600 mt-1">{pendingCount}</div>
+            <div className="text-xs text-gray-400">In attesa</div>
+          </div>
+        )}
       </div>
 
       {/* Piano breakdown */}
@@ -131,6 +139,11 @@ function SocietaTab() {
   const [showForm, setShowForm] = useState(false)
   const [editRow,  setEditRow]  = useState(null)
   const [form, setForm] = useState({ nome: '', piano: 'free' })
+  const [approveRow,     setApproveRow]     = useState(null)
+  const [approveForm,    setApproveForm]    = useState({ nome: '', cognome: '', password: '' })
+  const [approvingId,    setApprovingId]    = useState(null)
+  const [approveErr,     setApproveErr]     = useState(null)
+  const [showApprovePwd, setShowApprovePwd] = useState(false)
 
   const { data: societa = [], isLoading } = useQuery({
     queryKey: ['platform-societa'],
@@ -170,6 +183,85 @@ function SocietaTab() {
     },
   })
 
+  function openApprove(s) {
+    setApproveRow(s)
+    setApproveForm({ nome: s.ref_nome ?? '', cognome: s.ref_cognome ?? '', password: '' })
+    setApproveErr(null)
+  }
+
+  function closeApprove() {
+    setApproveRow(null)
+    setApproveErr(null)
+    setShowApprovePwd(false)
+  }
+
+  function generateApprovePwd() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
+    let pwd = ''
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)]
+    setApproveForm(f => ({ ...f, password: pwd }))
+    setShowApprovePwd(true)
+  }
+
+  async function handleApprove(e) {
+    e.preventDefault()
+    if (!approveRow) return
+    setApprovingId(approveRow.id)
+    setApproveErr(null)
+    try {
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: approveRow.ref_email,
+        password: approveForm.password,
+        options: {
+          data: {
+            nome:       approveForm.nome.trim(),
+            cognome:    approveForm.cognome.trim(),
+            ruolo:      'admin',
+            societa_id: approveRow.id,
+          },
+        },
+      })
+      if (signUpErr) throw signUpErr
+
+      if (signUpData?.user?.id) {
+        const { error: profErr } = await supabase.from('profiles').upsert([{
+          id:         signUpData.user.id,
+          email:      approveRow.ref_email,
+          nome:       approveForm.nome.trim()    || null,
+          cognome:    approveForm.cognome.trim() || null,
+          ruolo:      'admin',
+          societa_id: approveRow.id,
+          attivo:     true,
+        }], { onConflict: 'id' })
+        if (profErr) throw profErr
+      }
+
+      const { error: stateErr } = await supabase
+        .from('societa').update({ stato: 'attiva' }).eq('id', approveRow.id)
+      if (stateErr) throw stateErr
+
+      qc.invalidateQueries({ queryKey: ['platform-societa'] })
+      qc.invalidateQueries({ queryKey: ['platform-all'] })
+      qc.invalidateQueries({ queryKey: ['platform-admins'] })
+      closeApprove()
+    } catch (err) {
+      setApproveErr(err.message)
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  const rifiutaMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('societa').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['platform-societa'] })
+      qc.invalidateQueries({ queryKey: ['platform-all'] })
+    },
+  })
+
   function openAdd()  { setEditRow(null); setForm({ nome: '', piano: 'free' }); setShowForm(true) }
   function openEdit(s) { setEditRow(s); setForm({ nome: s.nome, piano: s.piano }); setShowForm(true) }
   function closeForm() { setShowForm(false); setEditRow(null) }
@@ -197,26 +289,50 @@ function SocietaTab() {
             <div key={s.id} className="bg-white rounded-xl border border-gray-200 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-sm text-gray-900">{s.nome}</span>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       s.piano === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
                     }`}>
                       {s.piano === 'pro' ? '⭐ Pro' : 'Free'}
                     </span>
+                    {s.stato === 'pending' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700">
+                        ⏳ In attesa
+                      </span>
+                    )}
                   </div>
+                  {s.stato === 'pending' && s.ref_email && (
+                    <p className="text-xs text-blue-500 mt-0.5 truncate">{s.ref_email}</p>
+                  )}
                   <p className="text-xs text-gray-300 mt-0.5 font-mono truncate">{s.id}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => openEdit(s)}
-                    className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => window.confirm(`Eliminare "${s.nome}"?\nTutti i dati associati (utenti, allenamenti, partite) saranno persi.`) && delMut.mutate(s.id)}
-                    className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 size={14} />
-                  </button>
+                  {s.stato === 'pending' ? (
+                    <>
+                      <button onClick={() => openApprove(s)}
+                        className="px-2 py-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg text-xs font-semibold transition-colors">
+                        Approva
+                      </button>
+                      <button
+                        onClick={() => window.confirm(`Rifiutare la richiesta di "${s.nome}"?`) && rifiutaMut.mutate(s.id)}
+                        className="px-2 py-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-semibold transition-colors">
+                        Rifiuta
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => openEdit(s)}
+                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => window.confirm(`Eliminare "${s.nome}"?\nTutti i dati associati (utenti, allenamenti, partite) saranno persi.`) && delMut.mutate(s.id)}
+                        className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -245,6 +361,57 @@ function SocietaTab() {
             <button type="submit" disabled={saveMut.isPending}
               className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
               {saveMut.isPending ? 'Salvataggio...' : (editRow ? 'Salva modifiche' : 'Crea società')}
+            </button>
+          </form>
+        </Modal>
+      )}
+
+      {approveRow && (
+        <Modal title={`Approva — ${approveRow.nome}`} onClose={closeApprove}>
+          <form onSubmit={handleApprove} className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+              Account admin per: <strong>{approveRow.ref_email}</strong>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome">
+                <input value={approveForm.nome}
+                  onChange={e => setApproveForm(f => ({ ...f, nome: e.target.value }))}
+                  className={inp} placeholder="Mario" />
+              </Field>
+              <Field label="Cognome">
+                <input value={approveForm.cognome}
+                  onChange={e => setApproveForm(f => ({ ...f, cognome: e.target.value }))}
+                  className={inp} placeholder="Rossi" />
+              </Field>
+            </div>
+            <Field label="Password iniziale *">
+              <div className="flex gap-2">
+                <input
+                  type={showApprovePwd ? 'text' : 'password'}
+                  value={approveForm.password}
+                  onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))}
+                  className={`${inp} flex-1`}
+                  placeholder="Almeno 6 caratteri"
+                  required minLength={6}
+                />
+                <button type="button" onClick={generateApprovePwd}
+                  className="shrink-0 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-200">
+                  Genera
+                </button>
+              </div>
+              <button type="button" onClick={() => setShowApprovePwd(v => !v)}
+                className="text-xs text-blue-500 mt-1">
+                {showApprovePwd ? 'Nascondi' : 'Mostra'} password
+              </button>
+            </Field>
+            {approveErr && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600">
+                {approveErr}
+              </div>
+            )}
+            <button type="submit" disabled={!!approvingId}
+              className="w-full py-3 bg-green-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+              {approvingId ? 'Approvazione...' : 'Approva e crea account'}
             </button>
           </form>
         </Modal>
