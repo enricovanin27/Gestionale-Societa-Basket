@@ -35,6 +35,8 @@ import HomeAdmin from './pages/home/HomeAdmin'
 import AdminPersone from './pages/admin/AdminPersone'
 import SetupMenu from './pages/admin/SetupMenu'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
+import LandingPage       from './pages/LandingPage'
+import RegistrazionePage from './pages/RegistrazionePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -131,10 +133,15 @@ function AppShell() {
   return (
     <div className="min-h-screen bg-gray-50 max-w-lg mx-auto relative">
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login"      element={<LoginPage />} />
+        <Route path="/registrati" element={<RegistrazionePage />} />
 
-        {/* Root â†’ redirect al namespace del ruolo attivo */}
-        <Route path="/" element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
+        {/* Root → landing se non autenticato, redirect ruolo se autenticato */}
+        <Route path="/"
+          element={user
+            ? <ProtectedRoute><RoleRedirect /></ProtectedRoute>
+            : <LandingPage />}
+        />
 
         {/* â”€â”€ Genitore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
