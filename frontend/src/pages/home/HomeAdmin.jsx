@@ -133,7 +133,7 @@ export default function HomeAdmin() {
   return (
     <div className="pb-20">
       <AppHeader
-        title="Dashboard"
+        title="Home"
         subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
         displayName={displayName}
         logout={logout}

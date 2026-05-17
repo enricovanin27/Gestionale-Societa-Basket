@@ -33,7 +33,7 @@ export default function AppHeader({ title, subtitle, displayName, logout, societ
   }
 
   return (
-    <div className="bg-gradient-to-r from-amber-800 to-amber-600 text-white px-4 pt-10 pb-5">
+    <div className="bg-gradient-to-r from-amber-800 to-amber-600 text-white px-4 pt-10 pb-5 sticky top-0 z-[110]">
       {/* Identity row: society name left, user controls right */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 min-w-0">

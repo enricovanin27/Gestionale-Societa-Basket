@@ -44,7 +44,7 @@ function SquadraDetail({ squadra, allSquadre, onBack }) {
       if (!giocatori.length) return []
 
       const { data: presenze, error: pe } = await supabase
-        .from('presenze')
+        .from('presenze_allenamento')
         .select('giocatore_id, presente')
         .in('giocatore_id', giocatori.map(g => g.id))
       if (pe) throw pe

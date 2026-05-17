@@ -549,6 +549,17 @@ export function QuickEditAllenamentoModal({ training, onClose, onSaved }) {
     },
   })
 
+  const deleteMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('orario_settimana').delete().eq('id', training.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      onSaved()
+    },
+  })
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
@@ -594,10 +605,20 @@ export function QuickEditAllenamentoModal({ training, onClose, onSaved }) {
             Modifica solo questa data — la settimana tipo rimane invariata.
           </p>
           {saveMut.isError && <p className="text-xs text-destructive">{saveMut.error?.message}</p>}
-          <Button className="w-full" size="lg" onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending || !form.ora_inizio || !form.ora_fine}>
-            {saveMut.isPending ? 'Salvataggio...' : 'Salva modifica'}
-          </Button>
+          {deleteMut.isError && <p className="text-xs text-destructive">{deleteMut.error?.message}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.confirm('Eliminare questo allenamento?') && deleteMut.mutate()}
+              disabled={deleteMut.isPending || saveMut.isPending}
+              className="flex-1 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
+            >
+              {deleteMut.isPending ? 'Eliminazione...' : '🗑️ Elimina'}
+            </button>
+            <Button className="flex-1" size="lg" onClick={() => saveMut.mutate()}
+              disabled={saveMut.isPending || deleteMut.isPending || !form.ora_inizio || !form.ora_fine}>
+              {saveMut.isPending ? 'Salvataggio...' : 'Salva'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -117,7 +117,7 @@ function PresenzeTab({ mySquadre, societaId }) {
     queryKey: ['presenze-existing', societaId, selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
-      const { data } = await supabase.from('presenze')
+      const { data } = await supabase.from('presenze_allenamento')
         .select('giocatore_id, presente')
         .eq('allenamento_id', selectedId)
       return data ?? []
@@ -186,11 +186,11 @@ function PresenzeTab({ mySquadre, societaId }) {
         presente:       presMap[g.id] ?? false,
         societa_id:     societaId,
       }))
-      const { error: delErr } = await supabase.from('presenze')
+      const { error: delErr } = await supabase.from('presenze_allenamento')
         .delete()
         .eq('allenamento_id', selectedId)
       if (delErr) throw delErr
-      const { error } = await supabase.from('presenze').insert(records)
+      const { error } = await supabase.from('presenze_allenamento').insert(records)
       if (error) throw error
     },
     onSuccess: () => {

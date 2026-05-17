@@ -21,7 +21,7 @@ export default function GuideDrawer() {
       {/* Bottone ? fisso */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 w-11 h-11 rounded-full text-white shadow-lg
+        className="fixed bottom-20 left-4 w-11 h-11 rounded-full text-white shadow-lg
           flex items-center justify-center z-[200] active:scale-95 transition-transform"
         style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}
         aria-label="Apri guida"

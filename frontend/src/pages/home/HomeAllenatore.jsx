@@ -12,7 +12,7 @@ import AppHeader from '../../components/AppHeader'
 import { GIORNI as GIORNI_W, GIORNO_FULL as GIORNI_LABEL_W } from '../../lib/constants'
 import { saveAllenamento, annullaAllenamento } from '../../hooks/useAllenamenti'
 import {
-  AllenatoreEditModal, AllenatoreEventModal, parseList, GIORNO_OFFSET_W,
+  AllenatoreEditModal, AllenatoreEventModal, parseList, GIORNO_OFFSET_W, timesOverlap,
 } from './shared'
 
 // ─── Add partita modal ─────────────────────────────────────────────────────────
@@ -353,53 +353,52 @@ export default function HomeAllenatore() {
     return [...parseList(allenatoreRow.squadre_capo), ...parseList(allenatoreRow.squadre_vice)]
   }, [allenatoreRow])
 
-  const [selectedSquadra, setSelectedSquadra] = useState('')
-
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
-
-  const { data: prossimeGare = [] } = useQuery({
-    queryKey: ['prossime-gare', selectedSquadra, mySquadre, todayStr, societaId],
-    enabled: !!societaId && mySquadre.length > 0,
-    queryFn: async () => {
-      let q = supabase
-        .from('calendario').select('*')
-        .eq('societa_id', societaId)
-        .gte('data', todayStr)
-        .order('data').order('ora_inizio')
-      q = selectedSquadra
-        ? q.eq('squadra', selectedSquadra).limit(2)
-        : q.in('squadra', mySquadre).limit(3)
-      const { data } = await q
-      return data ?? []
-    },
-    staleTime: 2 * 60 * 1000,
-  })
-
   const { data: weekData, isLoading: weekLoading } = useWeekEvents(weekStart)
-  const nextWeekStart = useMemo(() => addWeeks(weekStart, 1), [weekStart])
-  const { data: nextWeekData, isLoading: nextWeekLoading } = useWeekEvents(nextWeekStart)
 
-  const allenamenti = useMemo(() => {
+  const todayEvents = useMemo(() => {
     if (!weekData) return []
-    const squads = selectedSquadra ? [selectedSquadra] : mySquadre
     return (weekData.events ?? [])
       .filter(e =>
-        e._tipo === 'allenamento' && !e.annullato &&
-        squads.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+        e.data === todayStr &&
+        (e._tipo !== 'allenamento' || !e.annullato) &&
+        mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
       )
-      .sort((a, b) => (a.data + (a.ora_inizio ?? '')).localeCompare(b.data + (b.ora_inizio ?? '')))
-  }, [weekData, selectedSquadra, mySquadre])
+      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
+  }, [weekData, mySquadre, todayStr])
 
-  const prossimiAllenamenti = useMemo(() => {
-    if (!nextWeekData) return []
-    const squads = selectedSquadra ? [selectedSquadra] : mySquadre
-    return (nextWeekData.events ?? [])
+  const partiteSettimana = useMemo(() => {
+    if (!weekData) return []
+    return (weekData.events ?? [])
       .filter(e =>
-        e._tipo === 'allenamento' && !e.annullato &&
-        squads.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+        e._tipo === 'partita' && e.data >= todayStr &&
+        mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
       )
       .sort((a, b) => (a.data + (a.ora_inizio ?? '')).localeCompare(b.data + (b.ora_inizio ?? '')))
-  }, [nextWeekData, selectedSquadra, mySquadre])
+  }, [weekData, mySquadre, todayStr])
+
+  const conflictsCoach = useMemo(() => {
+    if (!weekData) return []
+    const allEvents = weekData.events ?? []
+    const partite = allEvents.filter(e =>
+      e._tipo === 'partita' && e.stato === 'definitiva' && e.data >= todayStr &&
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+    )
+    const allenamenti = allEvents.filter(e =>
+      e._tipo === 'allenamento' && !e.annullato &&
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+    )
+    const result = []
+    for (const p of partite) {
+      const conf = allenamenti.filter(t =>
+        t.data === p.data &&
+        timesOverlap(p.ora_inizio, p.ora_fine, t.ora_inizio, t.ora_fine) &&
+        (t.squadra ?? '').toLowerCase() === (p.squadra ?? '').toLowerCase()
+      )
+      if (conf.length) result.push({ partita: p, allenamenti: conf })
+    }
+    return result
+  }, [weekData, mySquadre, todayStr])
 
   const [editingEvent,   setEditingEvent]   = useState(null)
   const [selectedEvent,  setSelectedEvent]  = useState(null)
@@ -445,120 +444,108 @@ export default function HomeAllenatore() {
         displayName={displayName}
         logout={logout}
         societaNome={societaNome}
-      >
-        {mySquadre.length > 0 && (
-          <div className="mt-3">
-            <select
-              value={selectedSquadra}
-              onChange={e => setSelectedSquadra(e.target.value)}
-              className="w-full bg-amber-700 text-white border border-amber-400 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="">Tutte le squadre</option>
-              {mySquadre.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        )}
-      </AppHeader>
+      />
 
-      <div className="px-4 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="px-4 pt-4 space-y-4">
 
-        {/* Prossima gara */}
+        {/* Impegni di oggi */}
         <div>
-          <div className="bg-amber-600 text-white font-bold text-center py-3 rounded-t-xl text-sm tracking-wide">
-            PROSSIMA GARA CAMPIONATO
-          </div>
-          <div className="border-2 border-amber-600 rounded-b-xl overflow-hidden bg-white">
-            {prossimeGare.length === 0 ? (
-              <div className="p-5 text-sm text-gray-400 text-center">Nessuna gara in programma</div>
-            ) : (
-              prossimeGare.map((p, i) => (
-                <div key={p.id} className={`p-4 text-center ${i > 0 ? 'border-t border-amber-100' : ''}`}>
-                  <p className="text-sm font-semibold text-gray-800 mb-1">
-                    {format(parseISO(p.data), 'EEEE d MMMM', { locale: it }).toUpperCase()}
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {(p.casa_fuori ?? '') === 'Casa' ? 'Casa' : 'Trasferta'}
-                  </p>
-                  {p.ora_inizio && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {formatTime(p.ora_inizio)}{p.palestra ? ` · ${p.palestra}` : ''}
-                    </p>
-                  )}
-                  {p.stato === 'provvisoria' && (
-                    <p className="text-xs text-yellow-600 mt-1">⚠️ Provvisoria</p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Allenamenti settimana */}
-        <div>
-          <div className="bg-orange-500 text-white font-bold text-center py-3 rounded-t-xl text-sm tracking-wide">
-            ALLENAMENTI DELLA SETTIMANA
-          </div>
-          <div className="border-2 border-orange-500 rounded-b-xl overflow-hidden bg-white">
-            {weekLoading ? (
-              <div className="p-4 flex justify-center"><LoadingSpinner /></div>
-            ) : allenamenti.length === 0 ? (
-              <div className="p-5 text-sm text-gray-400 text-center">Nessun allenamento questa settimana</div>
-            ) : (
-              allenamenti.map((e, i) => (
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Impegni di oggi</p>
+          {weekLoading ? (
+            <div className="py-4 flex justify-center"><LoadingSpinner /></div>
+          ) : todayEvents.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-400 text-center shadow-sm">
+              Nessun impegno oggi
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {todayEvents.map((e, i) => (
                 <button
                   key={`${e._source}-${e.id ?? i}`}
-                  onClick={() => setEditingEvent(e)}
-                  className={`w-full p-4 text-center ${i > 0 ? 'border-t border-orange-100' : ''} active:bg-orange-50 transition-colors`}
+                  onClick={() => e._tipo === 'allenamento' ? setEditingEvent(e) : undefined}
+                  className="w-full bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm text-left active:scale-[0.99] transition-transform"
                 >
-                  <p className="text-sm font-semibold text-gray-800 mb-1">
-                    {format(parseISO(e.data), 'EEEE d MMMM', { locale: it }).toUpperCase()}
-                  </p>
-                  <p className="text-sm text-gray-700">{e.squadra}</p>
-                  {e.ora_inizio && (
-                    <p className="text-sm text-gray-600 mt-0.5">
-                      {formatTime(e.ora_inizio)} – {formatTime(e.ora_fine)}{e.palestra ? ` · ${e.palestra}` : ''}
+                  <span className="text-lg">{e._tipo === 'allenamento' ? '🏋️' : '🏀'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">{e.squadra}</p>
+                    <p className="text-xs text-gray-500">
+                      {e._tipo === 'allenamento' ? 'Allenamento' : `vs ${e.avversario ?? ''}`}
+                      {e.ora_inizio ? ` · ${formatTime(e.ora_inizio)}–${formatTime(e.ora_fine)}` : ''}
+                      {e.palestra ? ` · ${e.palestra}` : ''}
                     </p>
-                  )}
+                  </div>
                 </button>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Allenamenti prossima settimana */}
-      <div className="px-4 pt-2">
-        <div className="bg-green-600 text-white font-bold text-center py-3 rounded-t-xl text-sm tracking-wide">
-          ALLENAMENTI PROSSIMA SETTIMANA
-        </div>
-        <div className="border-2 border-green-600 rounded-b-xl overflow-hidden bg-white">
-          {nextWeekLoading ? (
-            <div className="p-4 flex justify-center"><LoadingSpinner /></div>
-          ) : prossimiAllenamenti.length === 0 ? (
-            <div className="p-5 text-sm text-gray-400 text-center">Nessun allenamento la prossima settimana</div>
-          ) : (
-            prossimiAllenamenti.map((e, i) => (
-              <button
-                key={`${e._source}-${e.id ?? i}`}
-                onClick={() => setEditingEvent(e)}
-                className={`w-full p-4 text-center ${i > 0 ? 'border-t border-green-100' : ''} active:bg-green-50 transition-colors`}
-              >
-                <p className="text-sm font-semibold text-gray-800 mb-1">
-                  {format(parseISO(e.data), 'EEEE d MMMM', { locale: it }).toUpperCase()}
-                </p>
-                <p className="text-sm text-gray-700">{e.squadra}</p>
-                {e.ora_inizio && (
-                  <p className="text-sm text-gray-600 mt-0.5">
-                    {formatTime(e.ora_inizio)} – {formatTime(e.ora_fine)}{e.palestra ? ` · ${e.palestra}` : ''}
-                  </p>
-                )}
-              </button>
-            ))
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Partite della settimana */}
+        <div>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Partite della settimana</p>
+          {partiteSettimana.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-400 text-center shadow-sm">
+              Nessuna partita questa settimana
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {partiteSettimana.map((p, i) => (
+                <div key={p.id ?? i} className="bg-white rounded-xl border border-gray-100 px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-gray-800">
+                    {p.squadra}{p.avversario ? ` vs ${p.avversario}` : ''}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {format(parseISO(p.data), 'EEE d MMM', { locale: it })}
+                    {p.ora_inizio ? ` · ${formatTime(p.ora_inizio)}` : ''}
+                    {p.palestra ? ` · ${p.palestra}` : ''}
+                    {p.casa_fuori ? ` · ${p.casa_fuori}` : ''}
+                  </p>
+                  {p.stato === 'provvisoria' && (
+                    <span className="text-[10px] text-amber-600 font-medium">⚠️ Provvisoria</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Conflitti settimana */}
+        {conflictsCoach.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2 px-1">⚠️ Conflitti settimana</p>
+            <div className="space-y-2">
+              {conflictsCoach.map(c => (
+                <div key={c.partita.id} className="rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-sm font-semibold text-red-700 mb-0.5">
+                    🏀 {c.partita.squadra}{c.partita.avversario ? ` vs ${c.partita.avversario}` : ''}
+                  </p>
+                  <p className="text-xs text-red-400 mb-2">
+                    {format(parseISO(c.partita.data), 'EEE d MMM', { locale: it })}
+                    {' · '}{formatTime(c.partita.ora_inizio)}–{formatTime(c.partita.ora_fine)}
+                  </p>
+                  {c.allenamenti.map(t => (
+                    <div key={t.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 mb-1 border border-red-200">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{t.squadra}</p>
+                        <p className="text-xs text-gray-500">
+                          Allenamento · {formatTime(t.ora_inizio)}–{formatTime(t.ora_fine)}
+                          {t.palestra ? ` · ${t.palestra}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setEditingEvent(t)}
+                        className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg font-medium active:scale-95 transition-transform ml-3 shrink-0"
+                      >
+                        Modifica
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* FAB */}
