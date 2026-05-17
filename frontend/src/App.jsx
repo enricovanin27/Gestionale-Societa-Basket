@@ -28,6 +28,7 @@ import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
 import CalendarioPlayer from './pages/player/CalendarioPlayer'
+import CalendarioGenitore from './pages/parent/CalendarioGenitore'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
@@ -138,6 +139,7 @@ function AppShell() {
         {/* â”€â”€ Genitore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
           <Route index                element={<HomeGenitore />} />
+          <Route path="calendario"    element={<CalendarioGenitore />} />
           <Route path="comunicazioni" element={<ComunicazioniPage />} />
           <Route path="bacheca"       element={<BachecaPage />} />
           <Route path="quote"         element={<QuoteGenitore />} />

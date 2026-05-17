@@ -1,45 +1,36 @@
-﻿import { useState, useMemo, useRef } from 'react'
-import { format, addDays, addWeeks, startOfWeek } from 'date-fns'
+import { useState, useMemo } from 'react'
+import { format, addDays, startOfWeek } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
-import { formatDate, isDateToday } from '../../lib/utils'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
 import { PALETTE } from '../../lib/constants'
 
 export default function HomeGenitore() {
   const { profile, societaId, displayName, logout, societaNome } = useAuth()
-  const [weekOffset,      setWeekOffset]      = useState(0)
   const [selectedSquadra, setSelectedSquadra] = useState('')
-  const touchStartX = useRef(null)
 
-  const today     = new Date()
-  const mySquadre = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
-  const colorMap  = Object.fromEntries(mySquadre.map((s, i) => [s.toLowerCase(), PALETTE[i % PALETTE.length]]))
+  const today      = new Date()
+  const todayStr   = format(today, 'yyyy-MM-dd')
+  const mySquadre  = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  const colorMap   = Object.fromEntries(mySquadre.map((s, i) => [s.toLowerCase(), PALETTE[i % PALETTE.length]]))
 
-  const thisWeekStart = useMemo(
-    () => startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 }),
-    [weekOffset]
-  )
-  const nextWeekStart = useMemo(() => addWeeks(thisWeekStart, 1), [thisWeekStart])
-
-  const { data: thisWeekData, isLoading: l1 } = useWeekEvents(thisWeekStart)
-  const { data: nextWeekData, isLoading: l2 } = useWeekEvents(nextWeekStart)
-
+  const thisWeekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
   const thisWeekStr   = format(thisWeekStart, 'yyyy-MM-dd')
-  const endDateStr    = format(addDays(thisWeekStart, 13), 'yyyy-MM-dd')
+  const weekEndStr    = format(addDays(thisWeekStart, 6), 'yyyy-MM-dd')
 
   const squadreFiltro = useMemo(
     () => selectedSquadra ? [selectedSquadra] : mySquadre,
     [selectedSquadra, mySquadre.join(',')]
   )
 
+  const { data: weekData, isLoading } = useWeekEvents(thisWeekStart)
+
   const { data: annullati = [] } = useQuery({
-    queryKey: ['annullati-parent', societaId, thisWeekStr, endDateStr, squadreFiltro.join(',')],
+    queryKey: ['annullati-parent', societaId, thisWeekStr, weekEndStr, squadreFiltro.join(',')],
     enabled: !!societaId && mySquadre.length > 0,
     queryFn: async () => {
       if (!squadreFiltro.length) return []
@@ -49,60 +40,30 @@ export default function HomeGenitore() {
         .eq('societa_id', societaId)
         .eq('annullato', true)
         .gte('data', thisWeekStr)
-        .lte('data', endDateStr)
+        .lte('data', weekEndStr)
         .in('squadra', squadreFiltro)
       return data ?? []
     },
     staleTime: 60 * 1000,
   })
 
-  function filterMine(events) {
-    return (events ?? []).filter(e =>
-      !e.annullato &&
-      squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
-    )
-  }
-
-  const agendaDays = useMemo(() => {
-    const allEvents = [...filterMine(thisWeekData?.events), ...filterMine(nextWeekData?.events)]
-    const byDate = {}
-    for (const e of allEvents) {
-      if (!byDate[e.data]) byDate[e.data] = []
-      byDate[e.data].push(e)
-    }
-    return Array.from({ length: 14 }, (_, i) => {
-      const dateStr = format(addDays(thisWeekStart, i), 'yyyy-MM-dd')
-      return { dateStr, events: byDate[dateStr] ?? [] }
-    })
-  }, [thisWeekData, nextWeekData, squadreFiltro, thisWeekStart])
-
   const variazioni = useMemo(() => {
-    const allEvents = [
-      ...(thisWeekData?.events ?? []),
-      ...(nextWeekData?.events ?? []),
-    ].filter(e => squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase()))
+    const allEvents = (weekData?.events ?? [])
+      .filter(e => squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase()))
     return {
       spostati:      allEvents.filter(e => e._source === 'override'),
       aggiunti:      allEvents.filter(e => e._source === 'extra'),
       annullatiList: annullati,
     }
-  }, [thisWeekData, nextWeekData, annullati, squadreFiltro])
+  }, [weekData, annullati, selectedSquadra, mySquadre.join(',')])
 
   const hasVariazioni = variazioni.spostati.length > 0 || variazioni.aggiunti.length > 0 || variazioni.annullatiList.length > 0
 
-  const weekLabel = useMemo(() => {
-    const s = format(thisWeekStart, 'd MMM', { locale: it })
-    const e = format(addDays(thisWeekStart, 13), 'd MMM yyyy', { locale: it })
-    return `${s} - ${e}`
-  }, [thisWeekStart])
-
-  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
-  const handleTouchEnd   = (e) => {
-    if (touchStartX.current === null) return
-    const dx = e.changedTouches[0].clientX - touchStartX.current
-    if (Math.abs(dx) > 60) setWeekOffset(w => w + (dx < 0 ? 2 : -2))
-    touchStartX.current = null
-  }
+  const todayEvents = useMemo(() =>
+    (weekData?.eventsByDate?.[todayStr] ?? [])
+      .filter(e => !e.annullato && squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())),
+    [weekData, todayStr, squadreFiltro]
+  )
 
   if (!mySquadre.length) {
     return (
@@ -137,26 +98,10 @@ export default function HomeGenitore() {
         )}
       </AppHeader>
 
-      <div className="bg-white border-b px-4 py-2 flex items-center justify-between"
-        onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        <button onClick={() => setWeekOffset(w => w - 2)}
-          className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
-          <ChevronLeft size={20} className="text-gray-600" />
-        </button>
-        <div className="text-center">
-          <div className="text-sm font-semibold text-gray-800">{weekLabel}</div>
-          {weekOffset === 0 && <div className="text-xs text-amber-600 font-medium">Prossimi 14 giorni</div>}
-        </div>
-        <button onClick={() => setWeekOffset(w => w + 2)}
-          className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200">
-          <ChevronRight size={20} className="text-gray-600" />
-        </button>
-      </div>
-
-      {(l1 || l2) ? (
+      {isLoading ? (
         <div className="pt-6"><LoadingSpinner /></div>
       ) : (
-        <div className="pt-3 space-y-4 pb-4">
+        <div className="pt-3 space-y-4 pb-24">
           {hasVariazioni && (
             <div className="mx-4 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
               <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide mb-2">📌 Variazioni settimana</p>
@@ -193,29 +138,23 @@ export default function HomeGenitore() {
             </div>
           )}
 
-          {agendaDays.map(({ dateStr, events }) => {
-            const isToday = isDateToday(dateStr)
-            const label   = formatDate(dateStr, 'EEEE d MMMM')
-            return (
-              <section key={dateStr}>
-                <div className="px-4 mb-2 flex items-center gap-2">
-                  <span className={`text-xs font-semibold uppercase tracking-wider ${isToday ? 'text-amber-700' : 'text-gray-400'}`}>
-                    {label}
-                  </span>
-                  {isToday && <span className="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">oggi</span>}
-                </div>
-                {events.length === 0 ? (
-                  <div className="mx-4 text-sm text-gray-300 py-1">–</div>
-                ) : (
-                  <div className="px-4 space-y-2">
-                    {events.map(e => (
-                      <EventCardParent key={`${e._source}-${e.id}`} event={e} colorMap={colorMap} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            )
-          })}
+          <section className="px-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+                {format(today, 'EEEE d MMMM', { locale: it })}
+              </span>
+              <span className="text-[9px] bg-amber-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">oggi</span>
+            </div>
+            {todayEvents.length === 0 ? (
+              <p className="text-sm text-gray-300 py-1">Nessun evento oggi</p>
+            ) : (
+              <div className="space-y-2">
+                {todayEvents.map(e => (
+                  <EventCardParent key={`${e._source}-${e.id}`} event={e} colorMap={colorMap} />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>
