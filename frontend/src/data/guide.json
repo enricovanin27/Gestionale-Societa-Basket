@@ -1,0 +1,149 @@
+{
+  "/admin": {
+    "titolo": "Dashboard Admin",
+    "sezioni": [
+      { "titolo": "Panoramica", "testo": "La dashboard mostra un riepilogo delle partite della settimana, degli allenamenti in programma e delle ultime comunicazioni." },
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso per spostarti tra Calendario, Presenze, Bacheca e Setup. Il tasto Setup apre le impostazioni della società." }
+    ]
+  },
+  "/admin/partite": {
+    "titolo": "Calendario",
+    "sezioni": [
+      { "titolo": "Aggiungere un evento", "testo": "Tocca il tasto + in alto a destra per creare una partita o un allenamento. Puoi scegliere squadra, orario e palestra." },
+      { "titolo": "Navigare le settimane", "testo": "Usa le frecce ‹ › per spostarti di settimana in settimana. Il tasto 'Oggi' torna alla settimana corrente." },
+      { "titolo": "Modificare un evento", "testo": "Tocca un evento nella griglia per aprire il pannello di modifica. Puoi cambiare orario, spostare la partita o annullarla." },
+      { "titolo": "Import FIP", "testo": "Vai su Coach → Importa Calendario per importare le gare dalla Federazione. Gli eventi FIP appaiono in blu." }
+    ]
+  },
+  "/admin/presenze": {
+    "titolo": "Presenze",
+    "sezioni": [
+      { "titolo": "Registrare le presenze", "testo": "Seleziona un allenamento dalla lista e spunta i giocatori presenti. Le modifiche si salvano automaticamente." },
+      { "titolo": "Statistiche", "testo": "Per ogni giocatore viene calcolata la percentuale di presenze sul totale degli allenamenti della stagione." }
+    ]
+  },
+  "/admin/bacheca": {
+    "titolo": "Bacheca",
+    "sezioni": [
+      { "titolo": "Pubblicare un avviso", "testo": "Tocca + per creare un nuovo annuncio. Puoi scegliere il destinatario (tutte le squadre o una specifica) e la priorità." },
+      { "titolo": "Chi può scrivere", "testo": "Solo Admin, Allenatori e Segreteria possono pubblicare. Genitori e Giocatori possono solo leggere." }
+    ]
+  },
+  "/admin/setup": {
+    "titolo": "Setup",
+    "sezioni": [
+      { "titolo": "Configurazione società", "testo": "Da qui puoi gestire squadre, utenti, palestre e le impostazioni generali della tua società." },
+      { "titolo": "Invitare nuovi utenti", "testo": "Vai in 'Utenti' per aggiungere allenatori, segreteria, genitori e giocatori. Ogni utente riceve un'email con le credenziali." }
+    ]
+  },
+  "/admin/persone": {
+    "titolo": "Gestione Utenti",
+    "sezioni": [
+      { "titolo": "Aggiungere un utente", "testo": "Tocca + per invitare un nuovo membro. Scegli il ruolo (allenatore, segreteria, genitore, giocatore) e compila i dati." },
+      { "titolo": "Ruoli extra", "testo": "Un utente può avere più ruoli. Ad esempio un allenatore può avere anche il ruolo segreteria. I ruoli extra si aggiungono dalla card utente." }
+    ]
+  },
+  "/coach": {
+    "titolo": "Home Allenatore",
+    "sezioni": [
+      { "titolo": "I tuoi prossimi eventi", "testo": "La home mostra gli allenamenti e le partite delle tue squadre per la settimana corrente." },
+      { "titolo": "Accesso rapido", "testo": "Usa la barra in basso per passare a Calendario, Attività (presenze e statistiche) e Bacheca." }
+    ]
+  },
+  "/coach/calendario": {
+    "titolo": "Calendario Allenatore",
+    "sezioni": [
+      { "titolo": "Filtrare per squadra", "testo": "Il selettore in cima mostra solo gli eventi delle tue squadre assegnate. Puoi disattivarlo per vedere tutto." },
+      { "titolo": "Aggiungere un allenamento", "testo": "Tocca + per creare un nuovo allenamento. Solo le squadre di cui sei allenatore sono selezionabili." }
+    ]
+  },
+  "/coach/attivita": {
+    "titolo": "Attività",
+    "sezioni": [
+      { "titolo": "Registrare presenze", "testo": "Seleziona un allenamento dalla lista e spunta i giocatori presenti. Salva con il tasto in fondo." },
+      { "titolo": "Statistiche giocatori", "testo": "La tab 'Statistiche' mostra il riepilogo delle presenze per ogni giocatore delle tue squadre." }
+    ]
+  },
+  "/coach/bacheca": {
+    "titolo": "Bacheca",
+    "sezioni": [
+      { "titolo": "Pubblicare un avviso", "testo": "Tocca + per creare un annuncio. Come allenatore puoi scrivere a tutte le squadre o solo alle tue." }
+    ]
+  },
+  "/secretary": {
+    "titolo": "Dashboard Segreteria",
+    "sezioni": [
+      { "titolo": "Panoramica", "testo": "La dashboard mostra le scadenze imminenti: certificati medici in scadenza, quote non pagate e nuove iscrizioni." }
+    ]
+  },
+  "/secretary/giocatori": {
+    "titolo": "Giocatori",
+    "sezioni": [
+      { "titolo": "Cercare un giocatore", "testo": "Usa la barra di ricerca in cima per filtrare per nome o squadra. Tocca una riga per aprire il dettaglio." },
+      { "titolo": "Aggiungere un giocatore", "testo": "Tocca + per registrare un nuovo giocatore. Puoi associarlo subito a una squadra e a un genitore." }
+    ]
+  },
+  "/secretary/bacheca": {
+    "titolo": "Bacheca",
+    "sezioni": [
+      { "titolo": "Comunicazioni ufficiali", "testo": "La segreteria può pubblicare avvisi a tutta la società o a squadre specifiche." }
+    ]
+  },
+  "/parent": {
+    "titolo": "Home Genitore",
+    "sezioni": [
+      { "titolo": "I tuoi figli", "testo": "La home mostra i prossimi eventi per i figli registrati al tuo account. Se hai più figli, puoi passare da uno all'altro." },
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso per Calendario, Comunicazioni, Quote e Bacheca." }
+    ]
+  },
+  "/parent/calendario": {
+    "titolo": "Calendario Genitore",
+    "sezioni": [
+      { "titolo": "Visualizzazione", "testo": "Il calendario mostra partite e allenamenti del tuo figlio, ordinati per data. Gli eventi futuri sono in evidenza." }
+    ]
+  },
+  "/parent/comunicazioni": {
+    "titolo": "Comunicazioni",
+    "sezioni": [
+      { "titolo": "Leggere i messaggi", "testo": "Qui trovi tutti i messaggi inviati dalla società al tuo figlio o alla sua squadra." }
+    ]
+  },
+  "/parent/quote": {
+    "titolo": "Quote",
+    "sezioni": [
+      { "titolo": "Stato pagamenti", "testo": "Visualizza le quote associate al tuo figlio e il relativo stato (pagato, in attesa, scaduto)." }
+    ]
+  },
+  "/parent/bacheca": {
+    "titolo": "Bacheca",
+    "sezioni": [
+      { "titolo": "Avvisi della società", "testo": "Qui appaiono gli annunci pubblicati dall'amministrazione, dagli allenatori e dalla segreteria." }
+    ]
+  },
+  "/player": {
+    "titolo": "Home Giocatore",
+    "sezioni": [
+      { "titolo": "I tuoi prossimi eventi", "testo": "La home mostra i prossimi allenamenti e partite della tua squadra con data, orario e palestra." },
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso per Comunicazioni, Calendario e Bacheca." }
+    ]
+  },
+  "/player/comunicazioni": {
+    "titolo": "Comunicazioni",
+    "sezioni": [
+      { "titolo": "Messaggi ricevuti", "testo": "Qui trovi i messaggi inviati dall'allenatore o dalla società alla tua squadra." }
+    ]
+  },
+  "/player/calendario": {
+    "titolo": "Calendario Giocatore",
+    "sezioni": [
+      { "titolo": "Visualizzazione verticale", "testo": "Gli eventi sono elencati in ordine cronologico. Allenamenti in arancione, partite in blu." },
+      { "titolo": "Dettaglio evento", "testo": "Tocca un evento per vedere indirizzo della palestra, orario e note dell'allenatore." }
+    ]
+  },
+  "/player/bacheca": {
+    "titolo": "Bacheca",
+    "sezioni": [
+      { "titolo": "Avvisi", "testo": "Qui appaiono gli annunci pubblicati dall'allenatore e dalla società rivolti alla tua squadra." }
+    ]
+  }
+}
