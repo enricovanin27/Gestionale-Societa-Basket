@@ -2,6 +2,7 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
+import GuideDrawer from '../components/GuideDrawer'
 
 const cls = ({ isActive }) =>
   `flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl min-w-[56px] ${
@@ -35,6 +36,7 @@ export default function SecretaryLayout() {
           </NavLink>
         </div>
       </nav>
+      <GuideDrawer />
     </div>
   )
 }

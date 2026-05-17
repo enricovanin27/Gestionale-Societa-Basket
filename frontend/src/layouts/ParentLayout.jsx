@@ -2,6 +2,7 @@
 import { Home, MessageCircle, DollarSign, Bell, Calendar } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
+import GuideDrawer from '../components/GuideDrawer'
 
 const cls = ({ isActive }) =>
   `flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl min-w-[36px] ${
@@ -41,6 +42,7 @@ export default function ParentLayout() {
           </NavLink>
         </div>
       </nav>
+      <GuideDrawer />
     </div>
   )
 }
