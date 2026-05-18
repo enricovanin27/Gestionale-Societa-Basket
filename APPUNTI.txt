@@ -1,38 +1,102 @@
---CAMBIARE RUOLO
-  UPDATE profiles             
-     SET ruolo = 'super_admin'
-  WHERE email = 'enrico.vanin.work@gmail.com';
+? Committed. Here's a summary of what was done across all 13 tasks:
+
+  Tasks 1-4 (done in prior session): amber palette in CSS, extracted CambiaPasswordButton, created AppHeader, updated   BottomNav active color.
+                                                                                                                       Tasks 5-13 (done this session):
+  - shared.jsx — extracted all reusable event components (EventRow, AllenatoreEventCard, AllenatoreMonthGrid,          AllenatoreEventModal, AllenatoreEditModal, QuickEditAllenamentoModal, DaySection, SectionTitle, helpers) with
+  indigo?amber color changes
+  - HomeAdmin.jsx — extracted AdminHome, now reads displayName/logout/societaNome from useAuth() directly, uses
+  AppHeader
+  - HomeAllenatore.jsx — extracted NuovaHome with AllenatoreAddModal and AllenatoreAddPartitaModal local, FAB is
+  amber
+  - HomeGenitore.jsx — new 14-day agenda view (vs old week/month grid), shows presence toggle on tap, amber accents
+  - HomePage.jsx — reduced from 2387 lines to ~15 lines thin orchestrator
+  - SegreteriePage.jsx — removed duplicate CambiaPasswordButton, uses AppHeader
+  - LoginPage.jsx — amber palette throughout
+  - BachecaPage.jsx, AllenamentiPage.jsx — headers and key buttons converted to amber
+
+  Build passes clean.
 
 
 
-----COME ARRIVANO LE NOTIFICHE---
-Flusso completo in 3 passaggi:
+OTTIMIZZAZIONE APP REDESIGN: HO SCELTO B
+Approccio B — Reskin + Home ottimizzata per ruolo (raccomandato, ~3-5 giorni)
+  Palette ambra + HomePage.jsx spezzato in componenti separati per ruolo (HomeAdmin, HomeAllenatore,
+  HomeGenitore, HomeGiocatore, HomeSegreteria). Genitore e Giocatore ottengono l'agenda 7 giorni come
+  elemento principale. Admin ottiene una card riassuntiva (n. squadre, cert. scaduti, prossime partite).
+   CambiaPasswordButton estratto come componente condiviso (oggi è duplicato in almeno 2 file).
 
-  ---
-  1. Registrazione (una volta al login)
-
-  Quando l'utente fa login, useAuth chiama initPushNotifications. Il browser chiede il permesso per le
-  notifiche. Se l'utente accetta, il browser genera un oggetto "subscription" (un indirizzo univoco per
-  quel browser su quel dispositivo) e lo salva nella tabella push_subscriptions su Supabase, insieme
-  alla/e squadra/e dell'utente.
-
-  ---
-  2. Trigger (chi manda la notifica)
-
-  Oggi c'è un solo trigger: quando un allenatore annulla un allenamento da AllenamentiPage. In quel
-  momento il frontend chiama il tuo backend FastAPI (POST /api/notifica/allenamento) passando squadra,
-  societa_id, titolo e testo.
-
-  ---
-  3. Invio (backend ? browser)
-
-  Il backend:
-  1. Legge da push_subscriptions tutti gli utenti con quella squadra nell'array squadre
-  2. Per ognuno chiama webpush(...) con la chiave VAPID privata
-  3. Il servizio push di Google/Mozilla/Apple recapita la notifica al browser — anche se l'app è chiusa
-
-  Il service worker (sw.js) riceve il messaggio e mostra la notifica di sistema sul telefono.
+  Pro: ogni ruolo vede esattamente quello che serve, codice molto più gestibile.
+  Contro: richiede più lavoro.
 
   ---
-  Limite attuale: il backend gira in locale, quindi le notifiche funzionano solo quando il tuo PC è
-  acceso. Appena fai il deploy su Render, funzionano sempre.
+  Approccio C — Redesign completo (ambizioso, ~2 settimane)
+  Come B, ma include anche il rifacimento completo di tutte le pagine (Calendario, Allenamenti,
+  Segreteria, Setup), nuova navigazione con icone e label ottimizzate per ruolo, e una guida di stile
+  applicata uniformemente.
+
+  Contro: lungo, rischioso da fare tutto in una volta, molte parti che si sovrappongono.
+
+  ---
+  Raccomando B: il rapporto impatto/rischio è ottimo. Si migliora sia l'estetica che l'usabilità senza
+  toccare la logica di business. L'Approccio C si può fare a pezzi successivamente partendo da B come
+  base.
+
+  Cosa ne pensi?
+
+
+
+
+SICUREZZA
+
+Allora il problema e' chiaro: le variabili VITE_* devono essere configurate nella piattaforma di
+  hosting, non solo nel file .env locale (che non viene mai deployato).
+
+  Prima pero' — avviso sicurezza importante:                                                              La SUPABASE_SERVICE_ROLE_KEY in un'app Vite e' visibile a chiunque ispeziona il JavaScript del
+  browser. Questa chiave bypassa tutte le RLS policies di Supabase — esporla e' un rischio serio.       
+  Hai gia' api.py con funzioni backend create_supabase_user e delete_supabase_user che usano la service
+  role lato server. Sarebbe molto meglio far passare la creazione utenti dal backend invece che dal
+  frontend.
+
+  Nel breve termine, dove hai deployato il frontend? (Netlify, Vercel, Render, altro?) Cosi' ti dico
+  dove aggiungere la variabile d'ambiente nella dashboard del hosting.
+
+  Nel medio termine, ti consiglio di:
+  1. Spostare la creazione utenti su un endpoint FastAPI (usando le funzioni gia' in api.py)
+  2. Rimuovere VITE_SUPABASE_SERVICE_ROLE_KEY dal frontend completamente
+  3. Il frontend chiama /api/create-user con JWT dell'admin ? il backend usa la service role
+
+
+
+
+
+Cosa è stato fatto
+                                                                                                                      
+1. Tendine "Partite questa/prossima settimana" (AdminHome)
+
+  Il tab Partite dell'admin ora mostra due sezioni collassabili invece di una lista piatta:
+  - Partite questa settimana — dalla data odierna a domenica
+  - Partite settimana prossima — da lunedì a domenica della settimana successiva
+
+  Entrambe aperte di default, chiudibili con click sull'header (freccia su/giù). Il conteggio è visibile anche da
+  chiuse.
+
+  ---
+  2. Ruolo Segreteria
+
+  - Nuovo ruolo segreteria disponibile nell'invito utenti
+  - SegreteriePage: due tab — Giocatori e Quote
+    - Giocatori: lista con certificato medico color-coded (verde >30gg, arancione <30gg, rosso scaduto) + quote
+  aperte per ciascuno. Sezione "Urgenze" in cima
+    - Quote: quote non pagate divise in Scadute / In scadenza / Altre, con importo e data
+    - Filtro per squadra su entrambe le tab
+  - L'admin vede il link Segreteria nel nav in basso se ha il ruolo
+  - Chi ha segreteria come ruolo principale viene reindirizzato direttamente a /segreteria
+
+  ---
+  3. Multi-ruolo (ruoli_extra)
+
+  Un utente può ora avere ruoli aggiuntivi oltre al ruolo principale:
+  - In Setup ? Utenti, ogni utente (non te stesso) mostra checkbox per aggiungere ruoli extra (+Admin, +Allenatore,
+  +Segreteria)
+  - I ruoli extra sono visibili come badge tratteggiati nella lista utenti
+  - Tutti i controlli di accesso (nav, route, flags isAdmin/isAllenatore/isSegreteria) tengono conto dei ruoli extra
