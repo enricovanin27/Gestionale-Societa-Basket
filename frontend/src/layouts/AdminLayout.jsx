@@ -18,7 +18,7 @@ export default function AdminLayout() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
         <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-1">
           <NavLink to="/admin" end className={cls}>
-            <LayoutDashboard size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Dashboard</span>
+            <LayoutDashboard size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Home</span>
           </NavLink>
           <NavLink to="/admin/partite" className={cls}>
             <Trophy size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Calendario</span>

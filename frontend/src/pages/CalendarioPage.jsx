@@ -753,7 +753,7 @@ export default function CalendarioPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
-  const [calTab,           setCalTab]           = useState('partite') // 'partite' | 'settimana' | 'importa'
+  const [calTab,           setCalTab]           = useState('settimana') // 'partite' | 'settimana' | 'importa'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [squadraFilter,    setSquadraFilter]    = useState('')
   const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!isAllenatore)
@@ -949,7 +949,7 @@ export default function CalendarioPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-20 bg-gray-50">
+    <div className="min-h-screen pb-20 bg-gray-50">
 
       {/* ── Sticky header ── */}
       <PageHeader
@@ -969,7 +969,7 @@ export default function CalendarioPage() {
         {/* Tab switcher */}
         <div className="px-4 pb-3">
           <div className="flex bg-amber-700/40 rounded-xl p-1 gap-1">
-            {[['partite', 'Partite'], ['settimana', 'Orario Settimanale'], ['importa', 'Importa']].map(([v, label]) => (
+            {[['settimana', 'Orario Settimanale'], ['partite', 'Partite'], ['importa', 'Importa']].map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
                 className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
                   calTab === v
@@ -984,7 +984,7 @@ export default function CalendarioPage() {
       </PageHeader>
 
       {/* ── Filters + Navigation (below sticky header) ── */}
-      <div className="bg-white border-b shadow-sm">
+      <div className="bg-white border-b shadow-sm isolate">
         {(calTab === 'partite' || calTab === 'settimana') && (
           <div className="px-4 pt-2 pb-2 space-y-2">
             {isAllenatore && (

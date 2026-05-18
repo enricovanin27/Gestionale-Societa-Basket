@@ -263,7 +263,7 @@ export default function HomeAdmin() {
       )}
 
       {conflictModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mt-4 mb-20">
 
             {/* Header */}
