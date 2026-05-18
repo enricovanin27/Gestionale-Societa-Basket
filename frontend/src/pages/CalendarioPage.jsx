@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Plus, X, Edit2, Trash2,
   MapPin, Clock, Users, AlertCircle, RefreshCw, AlertTriangle, Download, CheckCircle,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import { useAuth } from '../hooks/useAuth'
@@ -750,13 +750,15 @@ const LEGEND = [
 
 export default function CalendarioPage() {
   const { user, isAdmin, isAllenatore, societaId } = useAuth()
+  const location = useLocation()
+  const actingAsAllenatore = location.pathname.startsWith('/coach') && isAllenatore
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   const [calTab,           setCalTab]           = useState('settimana') // 'partite' | 'settimana' | 'importa'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [squadraFilter,    setSquadraFilter]    = useState('')
-  const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!isAllenatore)
+  const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!actingAsAllenatore)
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
@@ -783,7 +785,7 @@ export default function CalendarioPage() {
 
   const { data: allenatoreRow } = useQuery({
     queryKey: ['my-allenatore', user?.email],
-    enabled: !!user?.email && isAllenatore,
+    enabled: !!user?.email && actingAsAllenatore,
     queryFn: async () => {
       const { data } = await supabase.from('allenatori')
         .select('squadre_capo, squadre_vice')
@@ -802,10 +804,10 @@ export default function CalendarioPage() {
 
   const effectiveSquadre = useMemo(() => {
     if (!soloMieSquadre) return null
-    if (!isAllenatore) return null
+    if (!actingAsAllenatore) return null
     if (myCoachSquadre === null) return [] // ancora in caricamento
     return myCoachSquadre.length > 0 ? myCoachSquadre : null
-  }, [soloMieSquadre, isAllenatore, myCoachSquadre])
+  }, [soloMieSquadre, actingAsAllenatore, myCoachSquadre])
 
   const displayEvents = useMemo(() => {
     if (!data) return []
@@ -921,7 +923,7 @@ export default function CalendarioPage() {
     setShowForm(true)
   }
 
-  const canModify = isAdmin || isAllenatore
+  const canModify = isAdmin || actingAsAllenatore
 
   async function handleExportICS() {
     setExportingICS(true)
@@ -987,7 +989,7 @@ export default function CalendarioPage() {
       <div className="bg-white border-b shadow-sm isolate">
         {(calTab === 'partite' || calTab === 'settimana') && (
           <div className="px-4 pt-2 pb-2 space-y-2">
-            {isAllenatore && (
+            {actingAsAllenatore && (
               <button
                 onClick={() => { setSoloMieSquadre(v => !v); setSquadraFilter('') }}
                 className={`text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
