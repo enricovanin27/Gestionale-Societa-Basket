@@ -115,11 +115,12 @@ function PresenzeTab({ mySquadre, societaId }) {
 
   const { data: existingPresenze = [] } = useQuery({
     queryKey: ['presenze-existing', societaId, selectedId],
-    enabled: !!selectedId,
+    enabled: !!selectedId && !!selectedAlHeader,
     queryFn: async () => {
       const { data } = await supabase.from('presenze_allenamento')
         .select('giocatore_id, presente')
-        .eq('allenamento_id', selectedId)
+        .eq('data', selectedAlHeader.data)
+        .eq('squadra', selectedSquadra)
       return data ?? []
     },
   })
@@ -181,14 +182,16 @@ function PresenzeTab({ mySquadre, societaId }) {
     mutationFn: async () => {
       if (!selectedId || giocatori.length === 0) return
       const records = giocatori.map(g => ({
-        allenamento_id: selectedId,
-        giocatore_id:   g.id,
-        presente:       presMap[g.id] ?? false,
-        societa_id:     societaId,
+        giocatore_id: g.id,
+        data:         selectedAlHeader.data,
+        squadra:      selectedSquadra,
+        presente:     presMap[g.id] ?? false,
+        societa_id:   societaId,
       }))
       const { error: delErr } = await supabase.from('presenze_allenamento')
         .delete()
-        .eq('allenamento_id', selectedId)
+        .eq('data', selectedAlHeader.data)
+        .eq('squadra', selectedSquadra)
       if (delErr) throw delErr
       const { error } = await supabase.from('presenze_allenamento').insert(records)
       if (error) throw error

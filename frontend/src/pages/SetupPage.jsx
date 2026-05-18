@@ -1528,7 +1528,6 @@ function SquadreTab() {
         </Modal>
       )}
 
-      <DoppioSection squadreList={squadre.map(s => s.categoria).filter(Boolean)} />
     </div>
   )
 }
@@ -1537,11 +1536,22 @@ function SquadreTab() {
 // DOPPIO CAMPIONATO — sezione configurazione coppie
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function DoppioSection({ squadreList }) {
+function DoppioSection({ squadreList: squadreListProp }) {
   const qc = useQueryClient()
   const { societaId } = useAuth()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState({ squadra_a: '', squadra_b: '', note: '' })
+
+  const { data: squadreDB = [] } = useQuery({
+    queryKey: ['squadre-categorie', societaId],
+    enabled: !squadreListProp && !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase.from('squadre').select('categoria').eq('societa_id', societaId).order('categoria')
+      return (data ?? []).map(s => s.categoria).filter(Boolean)
+    },
+  })
+
+  const squadreList = squadreListProp ?? squadreDB
 
   const { data: pairs = [], isLoading } = useQuery({
     queryKey: ['doppio-campionato'],
@@ -2924,7 +2934,7 @@ export default function SetupPage() {
         {tab === 'allenatori'         && <AllenatoriTab />}
         {tab === 'giocatori'          && <GiocatoriTab />}
         {tab === 'utenti'             && <UtentiTab />}
-        {tab === 'squadre_allenatori' && <SquadreAllenatoriTab />}
+        {tab === 'squadre_allenatori' && <DoppioSection />}
         {tab === 'settimana_tipo'     && <SettimanaTipoTab isAdmin={isAdmin} />}
       </div>
     </div>
