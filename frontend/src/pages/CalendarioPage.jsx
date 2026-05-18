@@ -265,16 +265,16 @@ const EMPTY_FORM = {
   stato:      'provvisoria',
 }
 
-function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, saving, saveError }) {
+export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, saving, saveError }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const squadreDisp = squadreAllenatore?.length ? squadreAllenatore : squadre
 
-  // Solo palestre abilitate alle gare (solo_allenamento = false)
   const { data: palestreList = [] } = useQuery({
-    queryKey: ['palestre-gara'],
+    queryKey: ['palestre-form', form.tipo],
     queryFn: async () => {
       const { data } = await supabase.from('palestre').select('nome, solo_allenamento').order('nome')
+      if (form.tipo === 'allenamento') return (data ?? []).map(p => p.nome).filter(Boolean)
       return (data ?? []).filter(p => !p.solo_allenamento).map(p => p.nome).filter(Boolean)
     },
     staleTime: 10 * 60 * 1000,
@@ -324,9 +324,12 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
       if (!a0 || !a1 || !b0 || !b1 || !(a0 < b1 && a1 > b0)) continue
       if ((e.squadra ?? '').toLowerCase() === (form.squadra ?? '').toLowerCase()) {
         errors.push(`${e.squadra} ha già un ${e._tipo === 'partita' ? 'partita' : 'allenamento'} (${n(e.ora_inizio)}–${n(e.ora_fine)})`)
-      } else if (form.casa_fuori === 'Casa' && form.palestra?.trim() && e.palestra?.trim() &&
-                 form.palestra.trim().toLowerCase() === e.palestra.trim().toLowerCase()) {
-        errors.push(`${form.palestra} già occupata da ${e.squadra} (${n(e.ora_inizio)}–${n(e.ora_fine)})`)
+      } else {
+        const isHomeEvent = form.tipo === 'allenamento' || form.casa_fuori === 'Casa'
+        if (isHomeEvent && form.palestra?.trim() && e.palestra?.trim() &&
+            form.palestra.trim().toLowerCase() === e.palestra.trim().toLowerCase()) {
+          errors.push(`${form.palestra} già occupata da ${e.squadra} (${n(e.ora_inizio)}–${n(e.ora_fine)})`)
+        }
       }
     }
     return { errors, hasConflicts: errors.length > 0 }
@@ -342,22 +345,52 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900">
-            {initial?.id ? 'Modifica partita' : '🏀 Nuova partita'}
+            {initial?.id
+              ? (form.tipo === 'allenamento' ? 'Modifica allenamento' : 'Modifica partita')
+              : (form.tipo === 'allenamento' ? '🏋️ Nuovo allenamento' : '🏀 Nuova partita')}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
             <X size={20} className="text-gray-400" />
           </button>
         </div>
 
+        {/* Toggle tipo — solo per nuovi eventi */}
+        {!initial?.id && (
+          <div className="px-5 pb-3 flex-shrink-0">
+            <div className="flex gap-2">
+              {[
+                { val: 'partita',    label: '🏀 Partita'      },
+                { val: 'allenamento', label: '🏋️ Allenamento' },
+              ].map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => set('tipo', val)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    form.tipo === val
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="overflow-y-auto flex-1 px-5 pb-2">
           <form id="event-form" onSubmit={e => {
-          e.preventDefault()
-          if (conflictCheck.hasConflicts && !forceInsert) return
-          const saveData = form.casa_fuori === 'Fuori Casa'
-            ? { ...form, palestra: form.avversario || '' }
-            : form
-          onSave(saveData)
-        }} className="space-y-4">
+            e.preventDefault()
+            if (conflictCheck.hasConflicts && !forceInsert) return
+            const saveData = form.tipo === 'allenamento'
+              ? { tipo: 'allenamento', data: form.data, squadra: form.squadra,
+                  ora_inizio: form.ora_inizio, ora_fine: form.ora_fine, palestra: form.palestra }
+              : form.casa_fuori === 'Fuori Casa'
+                ? { ...form, palestra: form.avversario || '' }
+                : form
+            onSave(saveData)
+          }} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Data *</label>
@@ -387,28 +420,32 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Avversario</label>
-              <input value={form.avversario} onChange={e => set('avversario', e.target.value)}
-                placeholder="Nome squadra avversaria"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-2 block">Casa / Trasferta</label>
-              <div className="flex gap-2">
-                {[{ val: 'Casa', label: '🏠 Casa' }, { val: 'Fuori Casa', label: '✈️ Trasferta' }].map(({ val, label }) => (
-                  <button key={val} type="button" onClick={() => set('casa_fuori', val)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      form.casa_fuori === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
-                    }`}>
-                    {label}
-                  </button>
-                ))}
+            {form.tipo !== 'allenamento' && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Avversario</label>
+                <input value={form.avversario} onChange={e => set('avversario', e.target.value)}
+                  placeholder="Nome squadra avversaria"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-            </div>
+            )}
 
-            {form.casa_fuori === 'Casa' && (
+            {form.tipo !== 'allenamento' && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-2 block">Casa / Trasferta</label>
+                <div className="flex gap-2">
+                  {[{ val: 'Casa', label: '🏠 Casa' }, { val: 'Fuori Casa', label: '✈️ Trasferta' }].map(({ val, label }) => (
+                    <button key={val} type="button" onClick={() => set('casa_fuori', val)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        form.casa_fuori === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(form.tipo !== 'allenamento' ? form.casa_fuori === 'Casa' : true) && (
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Palestra / Luogo</label>
                 {palestreList.length > 0 ? (
@@ -425,13 +462,15 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
               </div>
             )}
 
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Stato</label>
-              <select value={form.stato} onChange={e => set('stato', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {Object.entries(STATO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
+            {form.tipo !== 'allenamento' && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Stato</label>
+                <select value={form.stato} onChange={e => set('stato', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {Object.entries(STATO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+            )}
           </form>
         </div>
 
@@ -471,7 +510,11 @@ function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, savin
             size="lg"
             disabled={saving || (conflictCheck.hasConflicts && !forceInsert)}
           >
-            {saving ? 'Salvataggio...' : (initial?.id ? 'Salva modifiche' : 'Aggiungi partita')}
+            {saving
+              ? 'Salvataggio...'
+              : initial?.id
+                ? (form.tipo === 'allenamento' ? 'Salva allenamento' : 'Salva modifiche')
+                : (form.tipo === 'allenamento' ? 'Aggiungi allenamento' : 'Aggiungi partita')}
           </Button>
         </div>
       </div>
@@ -873,8 +916,14 @@ export default function CalendarioPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async ({ id, _tipo, _source, _table, _id, spostato, ...formData }) => {
-      if (id) {
+    mutationFn: async ({ id, tipo, _tipo, _source, _table, _id, spostato, ...formData }) => {
+      if (tipo === 'allenamento') {
+        const { error } = await supabase.from('orario_settimana').upsert(
+          [{ ...formData, annullato: false, societa_id: societaId }],
+          { onConflict: 'societa_id,data,squadra' }
+        )
+        if (error) throw error
+      } else if (id) {
         const { error } = await supabase.from('calendario').update(formData).eq('id', id)
         if (error) throw error
       } else {
@@ -1196,6 +1245,7 @@ export default function CalendarioPage() {
       {showForm && (
         <EventForm
           initial={editingEvent && editingEvent._table === 'calendario' ? {
+            tipo:       'partita',
             id:         editingEvent.id,
             data:       editingEvent.data ?? '',
             ora_inizio: formatTime(editingEvent.ora_inizio),
