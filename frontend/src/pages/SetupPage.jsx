@@ -1082,6 +1082,11 @@ function UtentiTab() {
           {utenti.map(u => {
             const nomeCompleto = [u.nome, u.cognome].filter(Boolean).join(' ') || 'Utente'
             const isDisabled = u.attivo === false
+            const needsSquadre = u.id !== me?.id && squadreDisp.length > 0 && (
+              u.ruolo === 'giocatore' || u.ruolo === 'genitore' ||
+              (u.ruoli_extra ?? []).some(r => r === 'giocatore' || r === 'genitore')
+            )
+            const squadraLabel = [u.ruolo, ...(u.ruoli_extra ?? [])].includes('genitore') ? 'genitore' : 'giocatore'
             return (
               <div key={u.id} className={`bg-white border rounded-xl p-3 transition-opacity ${isDisabled ? 'opacity-50 border-gray-100' : 'border-gray-200'}`}>
                 {/* Riga 1: nome + controlli rapidi */}
@@ -1191,23 +1196,26 @@ function UtentiTab() {
                 )}
 
                 {/* Squadre giocatore/genitore (3 select in griglia) */}
-                {u.id !== me?.id && (u.ruolo === 'giocatore' || u.ruolo === 'genitore') && squadreDisp.length > 0 && (
-                  <div className="mt-2 grid grid-cols-3 gap-1.5">
-                    <select value={u.squadra ?? ''} onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
-                      <option value="">Sq. 1</option>
-                      {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={u.squadra2 ?? ''} onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
-                      <option value="">Sq. 2</option>
-                      {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={u.squadra3 ?? ''} onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
-                      <option value="">Sq. 3</option>
-                      {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                {needsSquadre && (
+                  <div className="mt-2 border-t border-gray-100 pt-2">
+                    <p className="text-[10px] text-gray-400 mb-1.5">Squadre ({squadraLabel}):</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <select value={u.squadra ?? ''} onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                        <option value="">Sq. 1</option>
+                        {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <select value={u.squadra2 ?? ''} onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                        <option value="">Sq. 2</option>
+                        {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <select value={u.squadra3 ?? ''} onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+                        <option value="">Sq. 3</option>
+                        {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
