@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
 import { format, addDays, addWeeks, startOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { CheckCircle2, X } from 'lucide-react'
+import { CheckCircle2, X, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { useWeekEvents } from '../../hooks/useWeekEvents'
+import { useWeekEvents, useSquadre } from '../../hooks/useWeekEvents'
+import { EventForm } from '../CalendarioPage'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
 import { EventRow, timesOverlap, QuickEditAllenamentoModal } from './shared'
@@ -17,6 +18,9 @@ export default function HomeAdmin() {
   const [editingConflictTraining, setEditingConflictTraining] = useState(null)
   const [conflictModalOpen, setConflictModalOpen] = useState(false)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [showAddForm, setShowAddForm] = useState(false)
+  const { data: squadre = [] } = useSquadre()
 
   useEffect(() => {
     if (conflictModalOpen) document.body.style.overflow = 'hidden'
@@ -129,6 +133,26 @@ export default function HomeAdmin() {
   const totalConflicts = conflictsAll.reduce((n, c) => n + c.allenamenti.length, 0)
   const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN
   const isLoading      = loadingP || loadingProv || loadingG
+
+  const addEventMutation = useMutation({
+    mutationFn: async ({ id, tipo, _tipo, _source, _table, _id, spostato, ...formData }) => {
+      if (tipo === 'allenamento') {
+        const { error } = await supabase.from('orario_settimana').upsert(
+          [{ ...formData, annullato: false, societa_id: societaId }],
+          { onConflict: 'societa_id,data,squadra' }
+        )
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('calendario').insert([{ ...formData, societa_id: societaId }])
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-partite-future'] })
+      queryClient.invalidateQueries({ queryKey: ['weekEvents'] })
+      setShowAddForm(false)
+    },
+  })
 
   return (
     <div className="pb-20">
@@ -260,6 +284,27 @@ export default function HomeAdmin() {
           </div>
 
         </div>
+      )}
+
+      {/* FAB aggiungi evento */}
+      <button
+        onClick={() => setShowAddForm(true)}
+        className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
+        aria-label="Aggiungi evento"
+      >
+        <Plus size={28} />
+      </button>
+
+      {showAddForm && (
+        <EventForm
+          initial={null}
+          squadre={squadre}
+          squadreAllenatore={null}
+          saving={addEventMutation.isPending}
+          saveError={addEventMutation.isError ? (addEventMutation.error?.message ?? 'Errore sconosciuto') : null}
+          onSave={(formData) => addEventMutation.mutate(formData)}
+          onClose={() => { setShowAddForm(false); addEventMutation.reset() }}
+        />
       )}
 
       {conflictModalOpen && (
