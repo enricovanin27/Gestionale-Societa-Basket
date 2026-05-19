@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
@@ -28,6 +28,56 @@ export default function HomeGiocatore() {
   )
 
   const { data: weekData, isLoading } = useWeekEvents(thisWeekStart)
+
+  const qc = useQueryClient()
+  const [rpeSelezionato, setRpeSelezionato] = useState(null)
+  const [rpeSalvato, setRpeSalvato] = useState(false)
+
+  const { data: mioGiocatore } = useQuery({
+    queryKey: ['mio-giocatore', societaId, profile?.id],
+    enabled: !!societaId && !!profile?.id,
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('giocatori').select('id, squadra')
+        .eq('societa_id', societaId)
+        .eq('user_id', profile.id)
+        .maybeSingle()
+      return data
+    },
+  })
+
+  const { data: rpeOggi } = useQuery({
+    queryKey: ['rpe-oggi', mioGiocatore?.id, todayStr],
+    enabled: !!mioGiocatore?.id,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('rpe_sessioni').select('id, valore_rpe')
+        .eq('giocatore_id', mioGiocatore.id)
+        .eq('data', todayStr)
+        .eq('tipo_sessione', 'allenamento')
+        .maybeSingle()
+      return data
+    },
+  })
+
+  const rpeInsertMut = useMutation({
+    mutationFn: async (valore) => {
+      const { error } = await supabase.from('rpe_sessioni').insert({
+        giocatore_id: mioGiocatore.id,
+        data: todayStr,
+        tipo_sessione: 'allenamento',
+        valore_rpe: valore,
+        societa_id: societaId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rpe-oggi', mioGiocatore?.id] })
+      setRpeSalvato(true)
+    },
+  })
 
   const { data: annullati = [] } = useQuery({
     queryKey: ['annullati-player', societaId, thisWeekStr, weekEndStr, squadreFiltro.join(',')],
@@ -64,6 +114,17 @@ export default function HomeGiocatore() {
       .filter(e => !e.annullato && squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())),
     [weekData, todayStr, squadreFiltro]
   )
+
+  const allenamentiOggi = useMemo(() => {
+    if (!weekData?.eventsByDate) return []
+    return (weekData.eventsByDate[todayStr] ?? []).filter(e =>
+      e._tipo === 'allenamento' &&
+      !e.annullato &&
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+    )
+  }, [weekData, todayStr, mySquadre.join(',')])
+
+  const showRpeBox = !!mioGiocatore && allenamentiOggi.length > 0 && !rpeOggi && !rpeSalvato
 
   if (!mySquadre.length) {
     return (
@@ -102,6 +163,47 @@ export default function HomeGiocatore() {
         <div className="pt-6"><LoadingSpinner /></div>
       ) : (
         <div className="pt-3 space-y-4 pb-24">
+          {showRpeBox && (
+            <div className="mx-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <div className="font-bold text-amber-900 text-sm mb-0.5">Come ti sei sentito oggi?</div>
+              <div className="text-xs text-gray-500 mb-3">
+                Allenamento {allenamentiOggi[0]?.squadra} · {format(today, 'EEEE d MMMM', { locale: it })}
+              </div>
+              <div className="flex justify-center gap-1.5 mb-3 flex-wrap">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map(n => {
+                  const isSelected = rpeSelezionato === n
+                  const color = n <= 3
+                    ? isSelected ? 'bg-green-500 border-green-600 text-white' : 'bg-green-100 border-green-300 text-green-700'
+                    : n <= 7
+                    ? isSelected ? 'bg-yellow-400 border-yellow-500 text-white' : 'bg-yellow-100 border-yellow-300 text-yellow-700'
+                    : isSelected ? 'bg-red-500 border-red-600 text-white' : 'bg-red-100 border-red-300 text-red-700'
+                  return (
+                    <button key={n}
+                      onClick={() => setRpeSelezionato(n)}
+                      className={`w-8 h-8 rounded-full border-2 text-xs font-bold transition-all ${color} ${isSelected ? 'scale-110 shadow-md' : ''}`}>
+                      {n}
+                    </button>
+                  )
+                })}
+              </div>
+              {rpeSelezionato && (
+                <button
+                  onClick={() => rpeInsertMut.mutate(rpeSelezionato)}
+                  disabled={rpeInsertMut.isPending}
+                  className="w-full py-2.5 bg-amber-500 text-white rounded-xl font-semibold text-sm disabled:opacity-60">
+                  {rpeInsertMut.isPending ? 'Salvataggio...' : `Salva RPE — ${rpeSelezionato}`}
+                </button>
+              )}
+            </div>
+          )}
+
+          {rpeSalvato && (
+            <div className="mx-4 bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
+              <div className="text-green-700 font-semibold text-sm">RPE registrato ✓</div>
+              <div className="text-xs text-green-500 mt-0.5">Grazie! I dati sono stati inviati al preparatore.</div>
+            </div>
+          )}
+
           {hasVariazioni && (
             <div className="mx-4 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1.5">
               <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide mb-2">📌 Variazioni settimana</p>
