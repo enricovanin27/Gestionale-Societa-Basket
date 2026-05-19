@@ -53,7 +53,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// â”€â”€â”€ Pagina di reset password (dopo click sul link nell'email) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€ Pagina di reset password (dopo click sul link nell'email) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function NuovaPasswordPage({ onDone }) {
   const [form, setForm] = useState({ nuova: '', conferma: '' })
@@ -117,7 +117,7 @@ function NuovaPasswordPage({ onDone }) {
   )
 }
 
-// â”€â”€â”€ Shell principale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€ Shell principale â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function AppShell() {
   const { user, loading, isSuperAdmin, isPasswordRecovery, clearPasswordRecovery } = useAuth()
@@ -152,7 +152,7 @@ function AppShell() {
             : <LandingPage />}
         />
 
-        {/* â”€â”€ Genitore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* â"€â"€ Genitore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/parent" element={<ProtectedRoute requiredRole="genitore"><ParentLayout /></ProtectedRoute>}>
           <Route index                element={<HomeGenitore />} />
           <Route path="calendario"    element={<CalendarioGenitore />} />
@@ -161,7 +161,7 @@ function AppShell() {
           <Route path="quote"         element={<QuoteGenitore />} />
         </Route>
 
-        {/* â”€â”€ Giocatore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* â"€â"€ Giocatore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/player" element={<ProtectedRoute requiredRole="giocatore"><PlayerLayout /></ProtectedRoute>}>
           <Route index                  element={<HomeGiocatore />} />
           <Route path="comunicazioni"   element={<ComunicazioniPage />} />
@@ -170,7 +170,7 @@ function AppShell() {
           <Route path="statistiche"     element={<Navigate to="/player/comunicazioni" replace />} />
         </Route>
 
-        {/* â”€â”€ Segreteria â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* â"€â"€ Segreteria â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/secretary" element={<ProtectedRoute requiredRole="segreteria"><SecretaryLayout /></ProtectedRoute>}>
           <Route index                  element={<SegreteriaDashboard />} />
           <Route path="giocatori"       element={<GiocatoriPage />} />
@@ -179,7 +179,7 @@ function AppShell() {
           <Route path="quote"           element={<Navigate to="/secretary/giocatori" replace />} />
         </Route>
 
-        {/* â”€â”€ Allenatore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* â"€â"€ Allenatore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/coach" element={<ProtectedRoute requiredRole="allenatore"><CoachLayout /></ProtectedRoute>}>
           <Route index         element={<HomeAllenatore />} />
           <Route path="calendario"  element={<CalendarioPage />} />
@@ -188,7 +188,7 @@ function AppShell() {
           <Route path="importa"     element={<ImportaCalendarioPage />} />
         </Route>
 
-        {/* â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* â"€â"€ Admin â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>}>
           <Route index          element={<HomeAdmin />} />
           <Route path="partite"     element={<CalendarioPage />} />
@@ -200,19 +200,19 @@ function AppShell() {
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 
-        {/* ── Preparatore Atletico ─────────────────────────────── */}
-        <Route path=”/prep” element={<ProtectedRoute requiredRole=”preparatore_atletico”><PrepLayout /></ProtectedRoute>}>
+        {/* -- Preparatore Atletico -------------------------------- */}
+        <Route path="/prep" element={<ProtectedRoute requiredRole="preparatore_atletico"><PrepLayout /></ProtectedRoute>}>
           <Route index                element={<HomePrep />} />
-          <Route path=”test”          element={<TestFisiciPage />} />
-          <Route path=”infortuni”     element={<InfortuniPage />} />
-          <Route path=”antropometria” element={<AntropometriaPage />} />
-          <Route path=”schede”        element={<SchedeAtletichePage />} />
-          <Route path=”spazi”         element={<SpaziPage />} />
-          <Route path=”carichi”       element={<CarichiPage />} />
+          <Route path="test"          element={<TestFisiciPage />} />
+          <Route path="infortuni"     element={<InfortuniPage />} />
+          <Route path="antropometria" element={<AntropometriaPage />} />
+          <Route path="schede"        element={<SchedeAtletichePage />} />
+          <Route path="spazi"         element={<SpaziPage />} />
+          <Route path="carichi"       element={<CarichiPage />} />
         </Route>
 
-        {/* ── Tab Atletica allenatore ──────────────────────────── */}
-        <Route path=”/coach/atletica” element={<ProtectedRoute requiredRole=”allenatore”><AtleticaCoach /></ProtectedRoute>} />
+        {/* -- Tab Atletica allenatore ----------------------------- */}
+        <Route path="/coach/atletica" element={<ProtectedRoute requiredRole="allenatore"><AtleticaCoach /></ProtectedRoute>} />
 
         {/* ── Legacy redirects ─────────────────────────────────── */}
         <Route path="/bacheca"    element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
