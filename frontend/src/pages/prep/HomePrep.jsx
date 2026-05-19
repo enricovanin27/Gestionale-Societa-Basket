@@ -44,7 +44,7 @@ export default function HomePrep() {
   })
 
   const { data: prossimiSlot = [] } = useQuery({
-    queryKey: ['home-prep-spazi', societaId, todayIdx],
+    queryKey: ['home-prep-spazi', societaId, todayStr],
     enabled: !!societaId,
     staleTime: 60_000,
     queryFn: async () => {
@@ -178,7 +178,7 @@ export default function HomePrep() {
           ) : (
             prossimiTest.map(t => (
               <div key={t.id} className="text-xs text-gray-700 leading-tight">
-                {t.test?.nome} — {t.squadra} · {format(new Date(t.data + 'T00:00:00'), 'd/MM')}
+                {t.test?.nome} — {t.squadra} · {t.data ? format(new Date(t.data + 'T00:00:00'), 'd/MM') : '—'}
               </div>
             ))
           )}
