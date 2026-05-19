@@ -38,7 +38,7 @@ export default function TestFisiciPage() {
     },
   })
 
-  const { data: testDef = [], isLoading: loadingDef } = useQuery({
+  const { data: testDef = [] } = useQuery({
     queryKey: ['test-definizioni', societaId],
     enabled: !!societaId,
     staleTime: 60_000,
