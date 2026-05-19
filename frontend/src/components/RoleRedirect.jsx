@@ -7,6 +7,7 @@ const ROLE_PATH = {
   giocatore:  '/player',
   segreteria: '/secretary',
   allenatore: '/coach',
+  preparatore_atletico: '/prep',
   admin:      '/admin',
   super_admin: '/platform',
 }

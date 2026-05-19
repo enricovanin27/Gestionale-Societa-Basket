@@ -137,6 +137,7 @@ export function AuthProvider({ children }) {
     isGenitore:         allRuoli.includes('genitore'),
     isGiocatore:        allRuoli.includes('giocatore'),
     isSegreteria:       allRuoli.includes('segreteria'),
+    isPreparatore:      allRuoli.includes('preparatore_atletico'),
     isPasswordRecovery,
     clearPasswordRecovery,
   }

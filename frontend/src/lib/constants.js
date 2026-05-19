@@ -8,11 +8,19 @@ export const GIORNO_FULL = { lunedi: 'Lunedì', martedi: 'Martedì', mercoledi: 
 
 export const TIPO_PALESTRA = ['Principale', 'Secondaria', 'Esterna']
 
-export const RUOLI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore']
+export const RUOLI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore', 'preparatore_atletico']
 
-export const RUOLI_LABEL = { super_admin: 'Super Admin', admin: 'Admin', allenatore: 'Allenatore', segreteria: 'Segreteria', genitore: 'Genitore', giocatore: 'Giocatore' }
+export const RUOLI_LABEL = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  allenatore: 'Allenatore',
+  segreteria: 'Segreteria',
+  genitore: 'Genitore',
+  giocatore: 'Giocatore',
+  preparatore_atletico: 'Preparatore Atletico',
+}
 
-export const RUOLI_EXTRA_DISPONIBILI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore']
+export const RUOLI_EXTRA_DISPONIBILI = ['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore', 'preparatore_atletico']
 
 export const PALETTE = [
   { border: 'border-l-blue-500',    bg: 'bg-blue-50',    title: 'text-blue-900',    gameBorder: 'border-l-blue-600',    gameBg: 'bg-blue-100'    },
