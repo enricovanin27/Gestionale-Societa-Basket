@@ -87,12 +87,15 @@ export default function InfortuniPage() {
     e.preventDefault()
     if (!form.giocatore_id || !form.tipo) return
     setSaving(true)
-    await insertMut.mutateAsync({
-      ...form,
-      data_rientro_prevista: form.data_rientro_prevista || null,
-      societa_id: societaId,
-    })
-    setSaving(false)
+    try {
+      await insertMut.mutateAsync({
+        ...form,
+        data_rientro_prevista: form.data_rientro_prevista || null,
+        societa_id: societaId,
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400'
