@@ -556,7 +556,7 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
 
 // ─── Training mini card (vista completa) ─────────────────────────────────────
 
-function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenamenti, onEdit }) {
+function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenamenti, onEdit, sessioneAtletica }) {
   const borderCls = isConflicted ? 'border-red-500 bg-red-50' : `${teamColor?.border ?? 'border-gray-300'} bg-white`
   return (
     <div className={`w-full rounded-lg p-2 mb-1 shadow-sm border-l-4 ${borderCls}`}>
@@ -579,6 +579,13 @@ function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenam
       {training.palestra && (
         <div className="text-xs text-gray-400 truncate">{training.palestra}</div>
       )}
+      {sessioneAtletica && (
+        <div className="mt-1">
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
+            ⚡ Atletica · {sessioneAtletica.quando === 'standalone' ? 'libera' : sessioneAtletica.quando} · {sessioneAtletica.durata_min}min
+          </span>
+        </div>
+      )}
       {isConflicted && (
         <button
           onClick={onNavigateAllenamenti}
@@ -594,7 +601,7 @@ function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenam
 
 // ─── Vista settimana completa (partite + allenamenti) ────────────────────────
 
-function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, effectiveSquadre, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit }) {
+function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, effectiveSquadre, conflictedTrainingKeys, conflictMap, onPartitaClick, onNavigateAllenamenti, onTrainingEdit, getSessioneAtletica }) {
   const allEventsByDate = useMemo(() => {
     if (!data) return {}
     const map = {}
@@ -669,6 +676,7 @@ function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, e
                       teamColor={col}
                       onNavigateAllenamenti={onNavigateAllenamenti}
                       onEdit={onTrainingEdit ? () => onTrainingEdit(event) : undefined}
+                      sessioneAtletica={getSessioneAtletica ? getSessioneAtletica(event.squadra, event.data) : undefined}
                     />
                   )
                 })
@@ -869,6 +877,31 @@ export default function CalendarioPage() {
       return data
     },
   })
+
+  const weekStartStr = weekDays[0] ? format(weekDays[0], 'yyyy-MM-dd') : null
+  const weekEndStr   = weekDays[6] ? format(weekDays[6], 'yyyy-MM-dd') : null
+
+  const { data: sessioniAtletica = [] } = useQuery({
+    queryKey: ['prep-sessioni-admin', societaId, weekStartStr, weekEndStr],
+    enabled: !!societaId && isAdmin && !!weekStartStr && !!weekEndStr,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_sessioni')
+        .select('id, squadra, data, quando, su_campo, durata_min')
+        .eq('societa_id', societaId)
+        .eq('su_campo', true)
+        .gte('data', weekStartStr)
+        .lte('data', weekEndStr)
+      return data ?? []
+    },
+  })
+
+  function getSessioneAtletica(squadra, data) {
+    return sessioniAtletica.find(s =>
+      s.squadra?.toLowerCase() === squadra?.toLowerCase() && s.data === data
+    )
+  }
 
   const myCoachSquadre = useMemo(() => {
     if (!allenatoreRow) return null
@@ -1167,6 +1200,7 @@ export default function CalendarioPage() {
             onPartitaClick={setSelectedEvent}
             onNavigateAllenamenti={() => navigate('/allenamenti')}
             onTrainingEdit={canModify ? setEditingTraining : undefined}
+            getSessioneAtletica={isAdmin ? getSessioneAtletica : null}
           />
         )
       )}
