@@ -194,6 +194,7 @@ export default function StatoPage() {
         {squadreAssegnate.length > 1 && (
           <select className={inp} value={squadraFiltro}
             onChange={e => setSquadraFiltro(e.target.value)}>
+            <option value="">Tutte le squadre</option>
             {squadreAssegnate.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         )}
