@@ -36,13 +36,9 @@ import AdminPersone from './pages/admin/AdminPersone'
 import SetupMenu from './pages/admin/SetupMenu'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
 import PrepLayout from './layouts/PrepLayout'
-import HomePrep from './pages/prep/HomePrep'
-import TestFisiciPage from './pages/prep/TestFisiciPage'
-import InfortuniPage from './pages/prep/InfortuniPage'
-import AntropometriaPage from './pages/prep/AntropometriaPage'
+import AgendaPrep from './pages/prep/AgendaPrep'
+import StatoPage from './pages/prep/StatoPage'
 import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
-import SpaziPage from './pages/prep/SpaziPage'
-import CarichiPage from './pages/prep/CarichiPage'
 import AtleticaCoach from './pages/coach/AtleticaCoach'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
@@ -202,13 +198,9 @@ function AppShell() {
 
         {/* -- Preparatore Atletico -------------------------------- */}
         <Route path="/prep" element={<ProtectedRoute requiredRole="preparatore_atletico"><PrepLayout /></ProtectedRoute>}>
-          <Route index                element={<HomePrep />} />
-          <Route path="test"          element={<TestFisiciPage />} />
-          <Route path="infortuni"     element={<InfortuniPage />} />
-          <Route path="antropometria" element={<AntropometriaPage />} />
-          <Route path="schede"        element={<SchedeAtletichePage />} />
-          <Route path="spazi"         element={<SpaziPage />} />
-          <Route path="carichi"       element={<CarichiPage />} />
+          <Route index          element={<AgendaPrep />} />
+          <Route path="stato"   element={<StatoPage />} />
+          <Route path="schede"  element={<SchedeAtletichePage />} />
         </Route>
 
         {/* -- Tab Atletica allenatore ----------------------------- */}
