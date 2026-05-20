@@ -22,13 +22,11 @@ function rpeStyle(v) {
 }
 
 const GIORNI_BREVI = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
-const GIORNI_FULL = { lunedi: 'Lunedì', martedi: 'Martedì', mercoledi: 'Mercoledì', giovedi: 'Giovedì', venerdi: 'Venerdì', sabato: 'Sabato', domenica: 'Domenica' }
 
 export default function AtleticaCoach() {
   const { societaId, squadreAllenatore } = useAuth()
   const [tab, setTab] = useState('infortuni')
   const [weekRef, setWeekRef] = useState(new Date())
-  const [testFiltro, setTestFiltro] = useState('')
 
   const weekStart = startOfWeek(weekRef, { weekStartsOn: 1 })
   const weekEnd = addDays(weekStart, 6)
@@ -68,43 +66,6 @@ export default function AtleticaCoach() {
     },
   })
 
-  const { data: testDef = [] } = useQuery({
-    queryKey: ['test-definizioni', societaId],
-    enabled: !!societaId,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await supabase.from('test_definizioni').select('*')
-        .eq('societa_id', societaId).order('ordine')
-      return data ?? []
-    },
-  })
-
-  const { data: risultati = [], isLoading: loadRis } = useQuery({
-    queryKey: ['coach-test-risultati', societaId, testFiltro, gids.join(',')],
-    enabled: !!societaId && !!testFiltro && gids.length > 0,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('test_risultati')
-        .select('valore, data, giocatore:giocatore_id(id, nome, cognome, squadra)')
-        .eq('societa_id', societaId).eq('test_id', testFiltro)
-        .in('giocatore_id', gids).order('data')
-      return data ?? []
-    },
-  })
-
-  const colDate = useMemo(() => [...new Set(risultati.map(r => r.data))].sort().slice(-4), [risultati])
-  const pivot = useMemo(() => {
-    const map = {}
-    for (const r of risultati) {
-      const gid = r.giocatore?.id
-      if (!gid) continue
-      if (!map[gid]) map[gid] = { giocatore: r.giocatore, valori: {} }
-      map[gid].valori[r.data] = r.valore
-    }
-    return Object.values(map)
-  }, [risultati])
-
   const { data: rpeRows = [], isLoading: loadRpe } = useQuery({
     queryKey: ['coach-rpe', societaId, weekStartStr, weekEndStr, gids.join(',')],
     enabled: !!societaId && gids.length > 0,
@@ -128,17 +89,20 @@ export default function AtleticaCoach() {
     return map
   }, [rpeRows])
 
-  const { data: prossimiSlot = [] } = useQuery({
-    queryKey: ['coach-spazi', societaId, squadreAllenatore?.join(',')],
-    enabled: !!societaId && !!squadreAllenatore?.length,
-    staleTime: 60_000,
+  const { data: sessioni = [], isLoading: loadSes } = useQuery({
+    queryKey: ['coach-sessioni', societaId, (squadreAllenatore ?? []).join(','), weekStartStr, weekEndStr],
+    enabled: !!societaId && !!(squadreAllenatore ?? []).length,
+    staleTime: 30_000,
     queryFn: async () => {
       const { data } = await supabase
-        .from('spazi_orario_fisso').select('*, spazio:spazio_id(nome)')
+        .from('prep_sessioni')
+        .select('*, preparatore:preparatore_id(nome, cognome)')
         .eq('societa_id', societaId)
         .in('squadra', squadreAllenatore ?? [])
-        .order('ora_inizio')
-      return (data ?? []).slice(0, 5)
+        .gte('data', weekStartStr)
+        .lte('data', weekEndStr)
+        .order('data').order('ora_inizio')
+      return data ?? []
     },
   })
 
@@ -152,7 +116,7 @@ export default function AtleticaCoach() {
 
       <div className="p-4">
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-          {['infortuni', 'test', 'carichi', 'spazi'].map(t => (
+          {['infortuni', 'carichi', 'sessioni'].map(t => (
             <button key={t} className={tabCls(t)} onClick={() => setTab(t)}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -183,38 +147,6 @@ export default function AtleticaCoach() {
               ))}
             </div>
           )
-        )}
-
-        {tab === 'test' && (
-          <div>
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"
-              value={testFiltro} onChange={e => setTestFiltro(e.target.value)}>
-              <option value="">Seleziona tipo di test</option>
-              {testDef.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-            </select>
-            {!testFiltro ? (
-              <p className="text-center text-gray-400 text-sm py-6">Seleziona un test</p>
-            ) : loadRis ? <LoadingSpinner /> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-amber-50">
-                      <th className="text-left p-2 text-xs text-amber-900 font-semibold">Giocatore</th>
-                      {colDate.map(d => <th key={d} className="p-2 text-xs text-amber-900 font-semibold">{format(new Date(d + 'T00:00:00'), 'd/MM')}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pivot.map(row => (
-                      <tr key={row.giocatore?.id} className="border-b border-gray-100">
-                        <td className="p-2 font-medium text-gray-800 text-sm">{row.giocatore?.cognome} {row.giocatore?.nome?.charAt(0)}.</td>
-                        {colDate.map(d => <td key={d} className="p-2 text-center text-gray-600 text-sm">{row.valori[d] ?? '—'}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         )}
 
         {tab === 'carichi' && (
@@ -259,21 +191,40 @@ export default function AtleticaCoach() {
           </div>
         )}
 
-        {tab === 'spazi' && (
-          <div className="space-y-2">
-            {prossimiSlot.length === 0
-              ? <p className="text-center text-gray-400 text-sm py-8">Nessuno slot configurato</p>
-              : prossimiSlot.map(s => (
-                  <div key={s.id} className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2">
-                    <div className="text-sm text-gray-700">
-                      <span className="font-medium">{GIORNI_FULL[s.giorno]}</span>
-                      {' '}{s.ora_inizio?.slice(0,5)}–{s.ora_fine?.slice(0,5)}
+        {tab === 'sessioni' && (
+          loadSes ? <LoadingSpinner /> : (
+            <div className="space-y-2">
+              {sessioni.length === 0 && (
+                <p className="text-center text-gray-400 text-sm py-8">Nessuna sessione atletica questa settimana</p>
+              )}
+              {sessioni.map(s => (
+                <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold text-sm text-gray-900">{s.squadra}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {format(new Date(s.data + 'T00:00:00'), 'd/MM')} ·{' '}
+                        {s.quando === 'standalone' ? 'Sessione libera' : `${s.quando.charAt(0).toUpperCase() + s.quando.slice(1)} allenamento`}
+                        {' · '}{s.durata_min} min
+                      </div>
+                      <div className="text-xs mt-1">
+                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                          s.su_campo ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {s.su_campo ? '⚠ Su campo' : 'Fuori campo'}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-500">{s.spazio?.nome}</span>
+                    {s.preparatore && (
+                      <div className="text-xs text-gray-400 text-right">
+                        {s.preparatore.cognome}<br />{s.preparatore.nome}
+                      </div>
+                    )}
                   </div>
-                ))
-            }
-          </div>
+                </div>
+              ))}
+            </div>
+          )
         )}
 
         <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-xl p-3">
