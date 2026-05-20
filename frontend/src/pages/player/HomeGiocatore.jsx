@@ -97,6 +97,23 @@ export default function HomeGiocatore() {
     staleTime: 60 * 1000,
   })
 
+  const { data: schedeAssegnate = [] } = useQuery({
+    queryKey: ['schede-giocatore', mioGiocatore?.id, societaId],
+    enabled: !!mioGiocatore?.id && !!societaId,
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      const today = format(new Date(), 'yyyy-MM-dd')
+      const { data } = await supabase
+        .from('schede_assegnazioni')
+        .select('*, scheda:scheda_id(nome, categoria, esercizi)')
+        .eq('societa_id', societaId)
+        .or(`giocatore_id.eq.${mioGiocatore.id},squadra.eq.${mioGiocatore.squadra}`)
+        .lte('data_inizio', today)
+        .or(`data_fine.is.null,data_fine.gte.${today}`)
+      return data ?? []
+    },
+  })
+
   const variazioni = useMemo(() => {
     const allEvents = (weekData?.events ?? [])
       .filter(e => squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase()))
@@ -201,6 +218,34 @@ export default function HomeGiocatore() {
             <div className="mx-4 bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
               <div className="text-green-700 font-semibold text-sm">RPE registrato ✓</div>
               <div className="text-xs text-green-500 mt-0.5">Grazie! I dati sono stati inviati al preparatore.</div>
+            </div>
+          )}
+
+          {schedeAssegnate.length > 0 && (
+            <div className="mx-4 space-y-2">
+              {schedeAssegnate.map(ass => (
+                <div key={ass.id} className="bg-white border border-gray-100 shadow-sm rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold text-sm text-gray-900">{ass.scheda?.nome}</div>
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold capitalize">
+                      {ass.scheda?.categoria}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(ass.scheda?.esercizi ?? []).map((es, i) => (
+                      <div key={i} className="bg-amber-50 rounded-lg px-3 py-2">
+                        <div className="text-xs font-semibold text-gray-800">{es.nome}</div>
+                        <div className="text-xs text-gray-500">
+                          {es.serie && `${es.serie} serie`}
+                          {es.reps && ` × ${es.reps} reps`}
+                          {es.carico && ` @ ${es.carico} kg`}
+                          {es.note && <span className="text-gray-400"> — {es.note}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
