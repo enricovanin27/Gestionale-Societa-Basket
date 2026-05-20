@@ -2907,6 +2907,145 @@ function GuidaRapida() {
   )
 }
 
+function PreparatoriTab() {
+  const qc = useQueryClient()
+  const { societaId } = useAuth()
+  const [editingId, setEditingId] = useState(null)
+  const [selectedSquadre, setSelectedSquadre] = useState([])
+  const [saving, setSaving] = useState(false)
+
+  const { data: preparatori = [], isLoading } = useQuery({
+    queryKey: ['preparatori-tab', societaId],
+    enabled: !!societaId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, cognome, email')
+        .eq('societa_id', societaId)
+        .or("ruolo.eq.preparatore_atletico,ruoli_extra.cs.{preparatore_atletico}")
+        .order('cognome')
+      return data ?? []
+    },
+  })
+
+  const { data: assegnazioni = [] } = useQuery({
+    queryKey: ['prep-squadre-admin', societaId],
+    enabled: !!societaId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_squadre').select('preparatore_id, squadra')
+        .eq('societa_id', societaId)
+      return data ?? []
+    },
+  })
+
+  const { data: squadreDisp = [] } = useQuery({
+    queryKey: ['squadre-nomi'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from('squadre').select('categoria').order('categoria')
+      return (data ?? []).map(r => r.categoria).filter(Boolean)
+    },
+  })
+
+  function getSquadrePrep(prepId) {
+    return assegnazioni.filter(a => a.preparatore_id === prepId).map(a => a.squadra)
+  }
+
+  async function handleSave(prepId) {
+    setSaving(true)
+    try {
+      await supabase.from('prep_squadre').delete().eq('preparatore_id', prepId).eq('societa_id', societaId)
+      if (selectedSquadre.length > 0) {
+        const inserts = selectedSquadre.map(s => ({ preparatore_id: prepId, squadra: s, societa_id: societaId }))
+        const { error } = await supabase.from('prep_squadre').insert(inserts)
+        if (error) throw error
+      }
+      qc.invalidateQueries({ queryKey: ['prep-squadre-admin', societaId] })
+      qc.invalidateQueries({ queryKey: ['prep-squadre-mie'] })
+      setEditingId(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openEdit(prepId) {
+    setEditingId(prepId)
+    setSelectedSquadre(getSquadrePrep(prepId))
+  }
+
+  if (isLoading) return <LoadingSpinner />
+
+  return (
+    <div className="space-y-3">
+      {preparatori.length === 0 && (
+        <p className="text-center text-gray-400 text-sm py-8">
+          Nessun preparatore atletico. Assegna il ruolo tramite Utenti &amp; Accessi.
+        </p>
+      )}
+      {preparatori.map(p => {
+        const sq = getSquadrePrep(p.id)
+        const isEditing = editingId === p.id
+        return (
+          <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="font-semibold text-gray-900 text-sm">{p.cognome} {p.nome}</div>
+                <div className="text-xs text-gray-400">{p.email}</div>
+              </div>
+              {!isEditing && (
+                <button onClick={() => openEdit(p.id)}
+                  className="text-xs text-blue-600 font-semibold px-3 py-1.5 rounded-lg border border-blue-200">
+                  Modifica
+                </button>
+              )}
+            </div>
+            {isEditing ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-gray-500 mb-1">Squadre assegnate</div>
+                <div className="flex flex-wrap gap-2">
+                  {squadreDisp.map(s => (
+                    <button key={s} type="button"
+                      onClick={() => setSelectedSquadre(prev =>
+                        prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+                      )}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                        selectedSquadre.includes(s)
+                          ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-white text-gray-600 border-gray-200'
+                      }`}>{s}</button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => setEditingId(null)}
+                    className="flex-1 py-2 rounded-lg text-sm border border-gray-200 text-gray-600">
+                    Annulla
+                  </button>
+                  <button onClick={() => handleSave(p.id)} disabled={saving}
+                    className="flex-1 py-2 rounded-lg text-sm bg-amber-500 text-white font-semibold disabled:opacity-60">
+                    {saving ? '...' : 'Salva'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1">
+                {sq.length === 0
+                  ? <span className="text-xs text-gray-400">Nessuna squadra assegnata</span>
+                  : sq.map(s => (
+                      <span key={s} className="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-medium">{s}</span>
+                    ))
+                }
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const ALL_TABS = [
   { id: 'squadre',            label: 'Squadre',          icon: Users     },
   { id: 'palestre',           label: 'Palestre',          icon: Building2 },
@@ -2915,6 +3054,7 @@ const ALL_TABS = [
   { id: 'utenti',             label: 'Utenti & Accessi',  icon: Shield    },
   { id: 'squadre_allenatori', label: 'Doppio Campionato', icon: GitFork   },
   { id: 'settimana_tipo',     label: 'Settimana Tipo',    icon: Calendar  },
+  { id: 'preparatori',        label: 'Preparatori',       icon: Activity  },
 ]
 
 export default function SetupPage() {
@@ -2944,6 +3084,7 @@ export default function SetupPage() {
         {tab === 'utenti'             && <UtentiTab />}
         {tab === 'squadre_allenatori' && <DoppioSection />}
         {tab === 'settimana_tipo'     && <SettimanaTipoTab isAdmin={isAdmin} />}
+        {tab === 'preparatori'        && <PreparatoriTab />}
       </div>
     </div>
   )

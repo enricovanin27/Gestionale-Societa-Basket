@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Users, Dumbbell, UserCheck, Trophy, Building2, GitFork, ChevronRight, CalendarDays } from 'lucide-react'
+import { Users, Dumbbell, UserCheck, Trophy, Building2, GitFork, ChevronRight, CalendarDays, Activity } from 'lucide-react'
 import AppHeader from '../../components/AppHeader'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -24,6 +24,7 @@ const SECTIONS = [
     items: [
       { icon: GitFork,      label: 'Doppio Campionato', desc: 'Squadre con giocatori comuni',  tab: 'squadre_allenatori' },
       { icon: CalendarDays, label: 'Settimana Tipo',    desc: 'Template orario settimanale',   tab: 'settimana_tipo' },
+      { icon: Activity,     label: 'Preparatori',       desc: 'Assegna preparatori alle squadre', tab: 'preparatori' },
     ],
   },
 ]
