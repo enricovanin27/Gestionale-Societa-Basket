@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import GrigliaSettimanale from '../components/GrigliaSettimanale'
+import PrepSesioneInlineForm from '../components/PrepSesioneInlineForm'
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -269,6 +270,8 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
   const [form, setForm] = useState(initial ?? EMPTY_FORM)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const squadreDisp = squadreAllenatore?.length ? squadreAllenatore : squadre
+  const [hasAtletica, setHasAtletica] = useState(false)
+  const [prepData, setPrepData] = useState({ quando: 'prima', durata_min: 30, su_campo: false })
 
   const { data: palestreList = [] } = useQuery({
     queryKey: ['palestre-form', form.tipo],
@@ -310,6 +313,19 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
     },
     enabled: !!form.data,
     staleTime: 30 * 1000,
+  })
+
+  const { data: prepAssegnato } = useQuery({
+    queryKey: ['prep-per-squadra', form.squadra],
+    enabled: !!form.squadra && form.tipo === 'allenamento',
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_squadre').select('preparatore_id')
+        .eq('squadra', form.squadra)
+        .limit(1).maybeSingle()
+      return data
+    },
   })
 
   const [forceInsert, setForceInsert] = useState(false)
@@ -389,7 +405,7 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
               : form.casa_fuori === 'Fuori Casa'
                 ? { ...form, palestra: form.avversario || '' }
                 : form
-            onSave(saveData)
+            onSave(saveData, hasAtletica ? { ...prepData, squadra: form.squadra, data: form.data } : null)
           }} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -469,6 +485,22 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {Object.entries(STATO_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
+              </div>
+            )}
+            {form.tipo === 'allenamento' && (
+              <div className="border-t border-gray-100 pt-3">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox"
+                    checked={hasAtletica}
+                    disabled={!prepAssegnato}
+                    onChange={e => setHasAtletica(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500" />
+                  <span className={!prepAssegnato ? 'text-gray-400' : ''}>
+                    Parte di preparazione atletica
+                    {!prepAssegnato && <span className="text-xs text-gray-400 ml-1">(nessun preparatore assegnato)</span>}
+                  </span>
+                </label>
+                {hasAtletica && <PrepSesioneInlineForm onChange={setPrepData} />}
               </div>
             )}
           </form>
@@ -1260,7 +1292,33 @@ export default function CalendarioPage() {
           squadreAllenatore={myCoachSquadre}
           saving={saveMutation.isPending}
           saveError={saveMutation.isError ? (saveMutation.error?.message ?? 'Errore sconosciuto') : null}
-          onSave={(formData) => saveMutation.mutate(formData)}
+          onSave={async (formData, prepSessionData) => {
+            saveMutation.mutate(formData, {
+              onSuccess: async () => {
+                if (prepSessionData?.squadra) {
+                  const { data: prepRec } = await supabase
+                    .from('prep_squadre')
+                    .select('preparatore_id')
+                    .eq('squadra', prepSessionData.squadra)
+                    .eq('societa_id', societaId)
+                    .limit(1).maybeSingle()
+
+                  if (prepRec?.preparatore_id) {
+                    await supabase.from('prep_sessioni').insert({
+                      societa_id:     societaId,
+                      preparatore_id: prepRec.preparatore_id,
+                      squadra:        prepSessionData.squadra,
+                      data:           prepSessionData.data,
+                      ora_inizio:     '00:00',
+                      durata_min:     prepSessionData.durata_min,
+                      quando:         prepSessionData.quando,
+                      su_campo:       prepSessionData.su_campo,
+                    })
+                  }
+                }
+              },
+            })
+          }}
           onClose={() => { setShowForm(false); setEditingEvent(null); saveMutation.reset() }}
         />
       )}
