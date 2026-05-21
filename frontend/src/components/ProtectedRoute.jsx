@@ -7,7 +7,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
   if (loading) return <LoadingSpinner message="Verifica accesso..." />
 
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/" replace />
 
   if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]

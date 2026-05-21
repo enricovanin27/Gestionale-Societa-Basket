@@ -3,6 +3,7 @@ import { Trophy, Activity, Settings, LayoutDashboard, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
+import AppSidebar from '../components/AppSidebar'
 
 const cls = ({ isActive }) =>
   `flex flex-col items-center gap-0.5 px-1 py-1 rounded-xl min-w-[36px] ${
@@ -12,10 +13,18 @@ const cls = ({ isActive }) =>
 export default function AdminLayout() {
   const { societaId } = useAuth()
   const { data: unread = 0 } = useUnreadAnnunci(societaId)
+  const sidebarItems = [
+    { to: '/admin', end: true, icon: LayoutDashboard, label: 'Home' },
+    { to: '/admin/partite',  icon: Trophy,          label: 'Calendario' },
+    { to: '/admin/presenze', icon: Activity,         label: 'Presenze' },
+    { to: '/admin/bacheca',  icon: Bell,             label: 'Bacheca', badge: unread },
+    { to: '/admin/setup',    icon: Settings,         label: 'Setup' },
+  ]
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="pb-20"><Outlet /></div>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+      <AppSidebar items={sidebarItems} accentColor="amber" />
+      <div className="pb-20 lg:pb-0 lg:pl-56"><Outlet /></div>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
         <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-1">
           <NavLink to="/admin" end className={cls}>
             <LayoutDashboard size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Home</span>
