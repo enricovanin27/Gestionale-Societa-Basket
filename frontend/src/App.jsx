@@ -136,7 +136,7 @@ function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-lg mx-auto relative">
+    <div className="min-h-screen bg-gray-50 max-w-lg mx-auto lg:max-w-none relative">
       <Routes>
         <Route path="/login"      element={<LoginPage />} />
         <Route path="/registrati" element={<RegistrazionePage />} />
