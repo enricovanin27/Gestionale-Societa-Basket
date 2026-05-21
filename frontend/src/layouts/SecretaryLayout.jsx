@@ -1,12 +1,12 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
 import AppSidebar from '../components/AppSidebar'
 
 const cls = ({ isActive }) =>
-  `flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl min-w-[56px] ${
+  `flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl min-w-[44px] ${
     isActive ? 'text-purple-600' : 'text-gray-400 hover:text-gray-600'
   }`
 
@@ -16,6 +16,7 @@ export default function SecretaryLayout() {
   const sidebarItems = [
     { to: '/secretary',           end: true, icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/secretary/giocatori',            icon: Users,            label: 'Giocatori' },
+    { to: '/secretary/quote',                icon: Receipt,          label: 'Quote' },
     { to: '/secretary/bacheca',              icon: Bell,             label: 'Bacheca', badge: unread },
   ]
   return (
@@ -29,6 +30,9 @@ export default function SecretaryLayout() {
           </NavLink>
           <NavLink to="/secretary/giocatori" className={cls}>
             <Users size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Giocatori</span>
+          </NavLink>
+          <NavLink to="/secretary/quote" className={cls}>
+            <Receipt size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Quote</span>
           </NavLink>
           <NavLink to="/secretary/bacheca" className={cls}>
             <div className="relative">

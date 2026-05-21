@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronLeft, Send, Plus } from 'lucide-react'
+import { ChevronLeft, Send, Plus, Check, Trash2, Upload, FileText, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -16,6 +16,10 @@ function certStatus(dataScadenza) {
   return { label: format(parseISO(dataScadenza), 'd MMM yyyy', { locale: it }), cls: 'bg-green-100 text-green-700' }
 }
 
+const TIPI_QUOTA = ['iscrizione', 'mensile', 'trasferta', 'attrezzatura', 'altro']
+const TIPO_LABEL = { iscrizione: 'Iscrizione', mensile: 'Mensile', trasferta: 'Trasferta', attrezzatura: 'Attrezzatura', altro: 'Altro' }
+const QUOTA_EMPTY = { tipo: 'iscrizione', descrizione: '', importo: '', data_scadenza: '' }
+
 const TABS = [
   { id: 'note',  label: 'Note' },
   { id: 'quote', label: 'Quote' },
@@ -27,10 +31,15 @@ export default function GiocatoreDetail() {
   const navigate = useNavigate()
   const { societaId, displayName } = useAuth()
   const qc = useQueryClient()
+
   const [activeTab, setActiveTab]   = useState('note')
   const [nuovaNota, setNuovaNota]   = useState('')
   const [editCert, setEditCert]     = useState(false)
   const [certInput, setCertInput]   = useState('')
+  const [showAddQuota, setShowAddQuota] = useState(false)
+  const [quotaForm, setQuotaForm]   = useState(QUOTA_EMPTY)
+  const [savingQuota, setSavingQuota] = useState(false)
+  const [uploading, setUploading]   = useState(false)
 
   const { data: giocatore, isLoading: loadingG } = useQuery({
     queryKey: ['giocatore-detail', id],
@@ -38,10 +47,8 @@ export default function GiocatoreDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
-        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza')
-        .eq('id', id)
-        .eq('societa_id', societaId)
-        .single()
+        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza, cert_medico_url')
+        .eq('id', id).eq('societa_id', societaId).single()
       return data
     },
   })
@@ -53,8 +60,7 @@ export default function GiocatoreDetail() {
       const { data } = await supabase
         .from('note_giocatore')
         .select('id, testo, autore_nome, created_at')
-        .eq('giocatore_id', id)
-        .eq('societa_id', societaId)
+        .eq('giocatore_id', id).eq('societa_id', societaId)
         .order('created_at', { ascending: false })
       return data ?? []
     },
@@ -67,9 +73,8 @@ export default function GiocatoreDetail() {
       const { data } = await supabase
         .from('quote')
         .select('id, tipo, descrizione, importo, data_scadenza, pagato')
-        .eq('giocatore_id', id)
-        .eq('societa_id', societaId)
-        .order('data_scadenza')
+        .eq('giocatore_id', id).eq('societa_id', societaId)
+        .order('pagato').order('data_scadenza')
       return data ?? []
     },
   })
@@ -77,17 +82,12 @@ export default function GiocatoreDetail() {
   const addNotaMut = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from('note_giocatore').insert([{
-        societa_id:   societaId,
-        giocatore_id: id,
-        testo:        nuovaNota.trim(),
-        autore_nome:  displayName,
+        societa_id: societaId, giocatore_id: id,
+        testo: nuovaNota.trim(), autore_nome: displayName,
       }])
       if (error) throw error
     },
-    onSuccess: () => {
-      setNuovaNota('')
-      qc.invalidateQueries({ queryKey: ['note-giocatore', id] })
-    },
+    onSuccess: () => { setNuovaNota(''); qc.invalidateQueries({ queryKey: ['note-giocatore', id] }) },
   })
 
   const certMut = useMutation({
@@ -103,11 +103,84 @@ export default function GiocatoreDetail() {
     },
   })
 
+  const togglePagatoMut = useMutation({
+    mutationFn: async ({ id: qid, pagato }) => {
+      const { error } = await supabase.from('quote').update({ pagato }).eq('id', qid)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote-giocatore', id] })
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+    },
+  })
+
+  const deleteQuotaMut = useMutation({
+    mutationFn: async (qid) => {
+      const { error } = await supabase.from('quote').delete().eq('id', qid)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote-giocatore', id] })
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+    },
+  })
+
+  async function handleAddQuota(e) {
+    e.preventDefault()
+    if (!quotaForm.importo) return
+    setSavingQuota(true)
+    try {
+      const { error } = await supabase.from('quote').insert({
+        societa_id:    societaId,
+        giocatore_id:  id,
+        tipo:          quotaForm.tipo,
+        descrizione:   quotaForm.descrizione || TIPO_LABEL[quotaForm.tipo],
+        importo:       parseFloat(quotaForm.importo),
+        data_scadenza: quotaForm.data_scadenza || null,
+        pagato:        false,
+      })
+      if (error) throw error
+      qc.invalidateQueries({ queryKey: ['quote-giocatore', id] })
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+      setShowAddQuota(false)
+      setQuotaForm(QUOTA_EMPTY)
+    } finally {
+      setSavingQuota(false)
+    }
+  }
+
+  async function handleUploadCert(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const path = `${societaId}/${id}/cert_medico.pdf`
+      const { error: upErr } = await supabase.storage
+        .from('certificati')
+        .upload(path, file, { upsert: true, contentType: 'application/pdf' })
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = supabase.storage.from('certificati').getPublicUrl(path)
+      const { error: dbErr } = await supabase
+        .from('giocatori').update({ cert_medico_url: publicUrl }).eq('id', id).eq('societa_id', societaId)
+      if (dbErr) throw dbErr
+      qc.invalidateQueries({ queryKey: ['giocatore-detail', id] })
+    } catch (err) {
+      alert('Errore upload: ' + err.message)
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
   if (loadingG) return <div className="pt-8"><LoadingSpinner /></div>
   if (!giocatore) return <div className="px-4 pt-8 text-center text-sm text-gray-400">Giocatore non trovato</div>
 
   const squadre = [giocatore.squadra, giocatore.squadra2, giocatore.squadra3].filter(Boolean)
   const cert = certStatus(giocatore.cert_medico_scadenza)
+  const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500'
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
@@ -125,126 +198,193 @@ export default function GiocatoreDetail() {
 
       <div className="bg-white border-b flex sticky top-0 z-10">
         {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={`flex-1 py-3 text-sm font-medium transition-colors ${
               activeTab === t.id ? 'text-purple-600 border-b-2 border-purple-600' : 'text-gray-400'
-            }`}
-          >
+            }`}>
             {t.label}
           </button>
         ))}
       </div>
 
       <div className="flex-1 px-4 py-4 pb-24">
+
+        {/* ── NOTE ── */}
         {activeTab === 'note' && (
           <div className="space-y-3">
             <div className="bg-white rounded-xl border border-gray-200 p-3">
-              <textarea
-                value={nuovaNota}
-                onChange={e => setNuovaNota(e.target.value)}
+              <textarea value={nuovaNota} onChange={e => setNuovaNota(e.target.value)}
                 placeholder="Es. Avvisato per mail il 03/04 — rinnovo certificato..."
                 rows={3}
-                className="w-full text-sm border-0 outline-none resize-none text-gray-700 placeholder-gray-300"
-              />
+                className="w-full text-sm border-0 outline-none resize-none text-gray-700 placeholder-gray-300" />
               <div className="flex justify-end">
-                <button
-                  onClick={() => addNotaMut.mutate()}
+                <button onClick={() => addNotaMut.mutate()}
                   disabled={!nuovaNota.trim() || addNotaMut.isPending}
-                  className="flex items-center gap-1.5 text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 active:scale-95 transition-transform"
-                >
+                  className="flex items-center gap-1.5 text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 active:scale-95 transition-transform">
                   <Send size={12} /> Salva nota
                 </button>
               </div>
             </div>
             {loadingNote ? <LoadingSpinner /> : note.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-8">Nessuna nota registrata</p>
-            ) : (
-              note.map(n => (
-                <div key={n.id} className="bg-white rounded-xl border border-gray-200 p-4">
-                  <p className="text-sm text-gray-800 leading-relaxed">{n.testo}</p>
-                  <p className="text-xs text-gray-400 mt-2">
-                    {n.autore_nome} · {format(parseISO(n.created_at), 'd MMM yyyy, HH:mm', { locale: it })}
-                  </p>
-                </div>
-              ))
-            )}
+            ) : note.map(n => (
+              <div key={n.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-800 leading-relaxed">{n.testo}</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {n.autore_nome} · {format(parseISO(n.created_at), 'd MMM yyyy, HH:mm', { locale: it })}
+                </p>
+              </div>
+            ))}
           </div>
         )}
 
+        {/* ── QUOTE ── */}
         {activeTab === 'quote' && (
           <div className="space-y-2">
+            {/* Add quota inline form */}
+            {showAddQuota ? (
+              <div className="bg-white rounded-xl border border-purple-200 p-4 mb-2">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-800">Aggiungi quota</p>
+                  <button onClick={() => { setShowAddQuota(false); setQuotaForm(QUOTA_EMPTY) }}>
+                    <X size={16} className="text-gray-400" />
+                  </button>
+                </div>
+                <form onSubmit={handleAddQuota} className="space-y-3">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {TIPI_QUOTA.map(t => (
+                      <button key={t} type="button"
+                        onClick={() => setQuotaForm(f => ({ ...f, tipo: t }))}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                          quotaForm.tipo === t
+                            ? 'bg-purple-600 text-white border-purple-600'
+                            : 'bg-white text-gray-600 border-gray-200'
+                        }`}>
+                        {TIPO_LABEL[t]}
+                      </button>
+                    ))}
+                  </div>
+                  <input className={inp} placeholder="Descrizione (opzionale)"
+                    value={quotaForm.descrizione}
+                    onChange={e => setQuotaForm(f => ({ ...f, descrizione: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" min="0" step="0.01" className={inp} placeholder="Importo €" required
+                      value={quotaForm.importo}
+                      onChange={e => setQuotaForm(f => ({ ...f, importo: e.target.value }))} />
+                    <input type="date" className={inp} value={quotaForm.data_scadenza}
+                      onChange={e => setQuotaForm(f => ({ ...f, data_scadenza: e.target.value }))} />
+                  </div>
+                  <button type="submit" disabled={savingQuota}
+                    className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-60">
+                    {savingQuota ? 'Salvataggio...' : 'Aggiungi'}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <button onClick={() => setShowAddQuota(true)}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-purple-300 rounded-xl text-sm text-purple-600 font-medium hover:bg-purple-50 transition-colors">
+                <Plus size={14} /> Aggiungi quota
+              </button>
+            )}
+
             {loadingQ ? <LoadingSpinner /> : quote.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-8">Nessuna quota registrata</p>
-            ) : (
-              quote.map(q => (
-                <div key={q.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{q.descrizione || q.tipo}</p>
-                    {q.data_scadenza && (
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Scadenza: {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    {q.importo != null && <p className="text-sm font-bold text-gray-900">€{q.importo}</p>}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      q.pagato ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {q.pagato ? 'Pagato' : 'Da pagare'}
-                    </span>
-                  </div>
+            ) : quote.map(q => (
+              <div key={q.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3 ${q.pagato ? 'opacity-55' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}</p>
+                  {q.data_scadenza && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Scadenza: {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })}
+                    </p>
+                  )}
                 </div>
-              ))
-            )}
+                <div className="text-right shrink-0 mr-1">
+                  {q.importo != null && <p className="text-sm font-bold text-gray-900">€{q.importo}</p>}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                    q.pagato ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>{q.pagato ? 'Pagato' : 'Da pagare'}</span>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    onClick={() => togglePagatoMut.mutate({ id: q.id, pagato: !q.pagato })}
+                    title={q.pagato ? 'Segna non pagato' : 'Segna pagato'}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                      q.pagato ? 'bg-gray-100 text-gray-400' : 'bg-green-100 text-green-600 hover:bg-green-200'
+                    }`}>
+                    <Check size={14} />
+                  </button>
+                  <button onClick={() => deleteQuotaMut.mutate(q.id)}
+                    className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
+        {/* ── CERTIFICATO ── */}
         {activeTab === 'cert' && (
           <div className="space-y-4">
+            {/* Stato scadenza */}
             <div className="bg-white rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-medium text-gray-500 mb-3">Stato certificato medico</p>
               <span className={`text-sm px-3 py-1 rounded-full font-semibold ${cert.cls}`}>
                 {cert.label}
               </span>
               {!editCert ? (
-                <button
-                  onClick={() => { setEditCert(true); setCertInput(giocatore.cert_medico_scadenza ?? '') }}
-                  className="mt-4 flex items-center gap-1.5 text-sm text-purple-600 font-medium"
-                >
+                <button onClick={() => { setEditCert(true); setCertInput(giocatore.cert_medico_scadenza ?? '') }}
+                  className="mt-4 flex items-center gap-1.5 text-sm text-purple-600 font-medium">
                   <Plus size={14} /> {giocatore.cert_medico_scadenza ? 'Aggiorna data' : 'Inserisci data'}
                 </button>
               ) : (
                 <div className="mt-4 space-y-2">
                   <label className="text-xs text-gray-500">Nuova scadenza</label>
-                  <input
-                    type="date"
-                    value={certInput}
-                    onChange={e => setCertInput(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
+                  <input type="date" value={certInput} onChange={e => setCertInput(e.target.value)}
+                    className={inp} />
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => certMut.mutate(certInput || null)}
+                    <button onClick={() => certMut.mutate(certInput || null)}
                       disabled={certMut.isPending}
-                      className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-60"
-                    >
+                      className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-60">
                       Salva
                     </button>
-                    <button
-                      onClick={() => setEditCert(false)}
-                      className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-500"
-                    >
+                    <button onClick={() => setEditCert(false)}
+                      className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-500">
                       Annulla
                     </button>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* PDF certificato */}
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-medium text-gray-500 mb-3">PDF Certificato</p>
+
+              {giocatore.cert_medico_url && (
+                <a href={giocatore.cert_medico_url} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-purple-600 font-medium mb-3 hover:underline">
+                  <FileText size={16} /> Visualizza / Scarica PDF
+                </a>
+              )}
+
+              <label className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-dashed cursor-pointer transition-colors ${
+                uploading
+                  ? 'border-gray-200 text-gray-400'
+                  : 'border-purple-300 text-purple-600 hover:bg-purple-50'
+              }`}>
+                <Upload size={16} />
+                <span className="text-sm font-medium">
+                  {uploading ? 'Caricamento...' : giocatore.cert_medico_url ? 'Sostituisci PDF' : 'Carica PDF'}
+                </span>
+                <input type="file" accept="application/pdf" className="hidden"
+                  disabled={uploading} onChange={handleUploadCert} />
+              </label>
+            </div>
           </div>
         )}
+
       </div>
     </div>
   )

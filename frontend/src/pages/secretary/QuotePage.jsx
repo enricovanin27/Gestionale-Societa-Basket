@@ -1,0 +1,272 @@
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { format, parseISO } from 'date-fns'
+import { it } from 'date-fns/locale'
+import { Plus, X, Check, Trash2 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import PageHeader from '../../components/PageHeader'
+import LoadingSpinner from '../../components/LoadingSpinner'
+
+const TIPI = ['iscrizione', 'mensile', 'trasferta', 'attrezzatura', 'altro']
+const TIPO_LABEL = {
+  iscrizione: 'Iscrizione', mensile: 'Mensile', trasferta: 'Trasferta',
+  attrezzatura: 'Attrezzatura', altro: 'Altro',
+}
+const FORM_EMPTY = { tipo: 'iscrizione', descrizione: '', importo: '', data_scadenza: '', squadra: '' }
+
+export default function QuotePage() {
+  const { societaId } = useAuth()
+  const qc = useQueryClient()
+  const [showModal, setShowModal] = useState(false)
+  const [form, setForm] = useState(FORM_EMPTY)
+  const [filtroSquadra, setFiltroSquadra] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const { data: allQuote = [], isLoading: loadingQ } = useQuery({
+    queryKey: ['quote-segreteria', societaId],
+    enabled: !!societaId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('quote')
+        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato')
+        .eq('societa_id', societaId)
+        .order('pagato').order('data_scadenza', { nullsFirst: false })
+      return data ?? []
+    },
+  })
+
+  const { data: giocatori = [] } = useQuery({
+    queryKey: ['segreteria-giocatori', societaId],
+    enabled: !!societaId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome, squadra')
+        .eq('societa_id', societaId)
+        .eq('attivo', true)
+        .order('cognome')
+      return data ?? []
+    },
+  })
+
+  const giocatoreMap = useMemo(() => Object.fromEntries(giocatori.map(g => [g.id, g])), [giocatori])
+  const squadreList  = useMemo(() => [...new Set(giocatori.map(g => g.squadra).filter(Boolean))].sort(), [giocatori])
+  const giocatoriSquadra = form.squadra ? giocatori.filter(g => g.squadra === form.squadra) : []
+
+  const quoteFiltered = filtroSquadra
+    ? allQuote.filter(q => giocatoreMap[q.giocatore_id]?.squadra === filtroSquadra)
+    : allQuote
+
+  const totaleAperto = allQuote.filter(q => !q.pagato).reduce((s, q) => s + (q.importo ?? 0), 0)
+
+  const togglePagatoMut = useMutation({
+    mutationFn: async ({ id, pagato }) => {
+      const { error } = await supabase.from('quote').update({ pagato }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+    },
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('quote').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+    },
+  })
+
+  async function handleBulkCreate(e) {
+    e.preventDefault()
+    if (!form.squadra || !form.importo || giocatoriSquadra.length === 0) return
+    setSaving(true)
+    try {
+      const rows = giocatoriSquadra.map(g => ({
+        societa_id:    societaId,
+        giocatore_id:  g.id,
+        tipo:          form.tipo,
+        descrizione:   form.descrizione || TIPO_LABEL[form.tipo],
+        importo:       parseFloat(form.importo),
+        data_scadenza: form.data_scadenza || null,
+        pagato:        false,
+      }))
+      const { error } = await supabase.from('quote').insert(rows)
+      if (error) throw error
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
+      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+      setShowModal(false)
+      setForm(FORM_EMPTY)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400'
+
+  return (
+    <div>
+      <PageHeader title="Quote" subtitle={`€${totaleAperto.toFixed(2)} da incassare`} />
+
+      <div className="px-4 pt-2 pb-24">
+        {/* Filtro squadra */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
+          <button
+            onClick={() => setFiltroSquadra('')}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              !filtroSquadra ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'
+            }`}>
+            Tutte
+          </button>
+          {squadreList.map(s => (
+            <button key={s} onClick={() => setFiltroSquadra(s)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                filtroSquadra === s ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'
+              }`}>
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {loadingQ ? <LoadingSpinner /> : quoteFiltered.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-16">
+            Nessuna quota. Usa il + per crearne una per squadra.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {quoteFiltered.map(q => {
+              const g = giocatoreMap[q.giocatore_id]
+              return (
+                <div key={q.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3 ${q.pagato ? 'opacity-55' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {g ? `${g.cognome} ${g.nome}` : '—'}
+                      {g?.squadra && (
+                        <span className="ml-1.5 text-[10px] text-purple-600 font-semibold bg-purple-50 px-1.5 py-0.5 rounded-full">
+                          {g.squadra}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}
+                      {q.data_scadenza && ` · scad. ${format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })}`}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 mr-1">
+                    <p className="text-sm font-bold text-gray-900">€{q.importo}</p>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                      q.pagato ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {q.pagato ? 'Pagato' : 'Da pagare'}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button
+                      onClick={() => togglePagatoMut.mutate({ id: q.id, pagato: !q.pagato })}
+                      title={q.pagato ? 'Segna non pagato' : 'Segna pagato'}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                        q.pagato
+                          ? 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          : 'bg-green-100 text-green-600 hover:bg-green-200'
+                      }`}>
+                      <Check size={14} />
+                    </button>
+                    <button
+                      onClick={() => deleteMut.mutate(q.id)}
+                      className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="fixed bottom-20 right-4 z-50 w-14 h-14 bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform">
+        <Plus size={24} />
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+          <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900">Nuova quota per squadra</h2>
+              <button onClick={() => setShowModal(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleBulkCreate} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-2 block">Tipo</label>
+                <div className="flex gap-2 flex-wrap">
+                  {TIPI.map(t => (
+                    <button key={t} type="button"
+                      onClick={() => setForm(f => ({ ...f, tipo: t }))}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                        form.tipo === t
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-200'
+                      }`}>
+                      {TIPO_LABEL[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Descrizione</label>
+                <input className={inp} value={form.descrizione}
+                  onChange={e => setForm(f => ({ ...f, descrizione: e.target.value }))}
+                  placeholder={`Es. ${TIPO_LABEL[form.tipo]} 2025/26`} />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Importo (€) *</label>
+                <input type="number" min="0" step="0.01" className={inp} required
+                  value={form.importo} onChange={e => setForm(f => ({ ...f, importo: e.target.value }))} />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Data scadenza</label>
+                <input type="date" className={inp} value={form.data_scadenza}
+                  onChange={e => setForm(f => ({ ...f, data_scadenza: e.target.value }))} />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Squadra *</label>
+                <select className={inp} required value={form.squadra}
+                  onChange={e => setForm(f => ({ ...f, squadra: e.target.value }))}>
+                  <option value="">Seleziona squadra</option>
+                  {squadreList.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                {form.squadra && giocatoriSquadra.length > 0 && (
+                  <p className="text-xs text-purple-600 mt-1 font-medium">
+                    Creerà {giocatoriSquadra.length} quote · {giocatoriSquadra.map(g => g.cognome).join(', ')}
+                  </p>
+                )}
+                {form.squadra && giocatoriSquadra.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">Nessun giocatore attivo in questa squadra</p>
+                )}
+              </div>
+
+              <button type="submit" disabled={saving || giocatoriSquadra.length === 0}
+                className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold text-sm disabled:opacity-60">
+                {saving ? 'Creazione...' : `Crea ${giocatoriSquadra.length || ''} quote`}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

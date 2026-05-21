@@ -24,6 +24,7 @@ import AttivitaPage from './pages/coach/AttivitaPage'
 import SegreteriaDashboard from './pages/secretary/SegreteriaDashboard'
 import GiocatoriPage   from './pages/secretary/GiocatoriPage'
 import GiocatoreDetail from './pages/secretary/GiocatoreDetail'
+import QuotePage       from './pages/secretary/QuotePage'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
@@ -172,7 +173,7 @@ function AppShell() {
           <Route path="giocatori"       element={<GiocatoriPage />} />
           <Route path="giocatori/:id"   element={<GiocatoreDetail />} />
           <Route path="bacheca"         element={<BachecaPage />} />
-          <Route path="quote"           element={<Navigate to="/secretary/giocatori" replace />} />
+          <Route path="quote"           element={<QuotePage />} />
         </Route>
 
         {/* â"€â"€ Allenatore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
