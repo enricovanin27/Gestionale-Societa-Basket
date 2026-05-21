@@ -82,6 +82,7 @@ export default function SchedeAtletichePage() {
   async function handleSave(e) {
     e.preventDefault()
     if (!form.nome) return
+    if (form.assegna === 'giocatore' && !form.giocatore_id) return
     setSaving(true)
     try {
       const { data: scheda, error } = await supabase

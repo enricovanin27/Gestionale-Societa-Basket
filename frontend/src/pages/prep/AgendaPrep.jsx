@@ -46,7 +46,7 @@ export default function AgendaPrep() {
   })
 
   const { data: sessioni = [], isLoading } = useQuery({
-    queryKey: ['prep-sessioni', societaId, profile?.id, weekStartStr],
+    queryKey: ['prep-sessioni', societaId, profile?.id, weekStartStr, weekEndStr],
     enabled: !!societaId && !!profile?.id,
     staleTime: 30_000,
     queryFn: async () => {

@@ -71,8 +71,8 @@ export default function StatoPage() {
   })
 
   const { data: infortuni = [], isLoading: loadInf } = useQuery({
-    queryKey: ['infortuni-prep', societaId, squadra],
-    enabled: !!societaId && !!squadra,
+    queryKey: ['infortuni-prep', societaId, squadra, giocatori.length],
+    enabled: !!societaId && !!squadra && giocatori.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
       const gids = giocatori.map(g => g.id)
@@ -88,8 +88,8 @@ export default function StatoPage() {
   })
 
   const { data: rpeRows = [], isLoading: loadRpe } = useQuery({
-    queryKey: ['rpe-settimana-prep', societaId, squadra, weekStartStr],
-    enabled: !!societaId && !!squadra,
+    queryKey: ['rpe-settimana-prep', societaId, squadra, weekStartStr, giocatori.length],
+    enabled: !!societaId && !!squadra && giocatori.length > 0,
     staleTime: 30_000,
     queryFn: async () => {
       const gids = giocatori.map(g => g.id)
