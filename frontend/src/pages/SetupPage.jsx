@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, X, Edit2, Trash2, Users, Building2, Settings,
-  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, Globe, UserPlus,
+  Calendar, Shield, Zap, Check, AlertCircle, Clock, MapPin, UserCheck, UserX, Globe, UserPlus,
   Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight, ChevronLeft, GitFork,
 } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
@@ -1067,8 +1067,8 @@ function UtentiTab() {
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{utenti.length} utenti registrati</p>
         <button onClick={() => setShowInvite(true)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
-          <Plus size={15} /> Invita
+          className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
+          <Plus size={15} /> Nuovo utente
         </button>
       </div>
 
@@ -1089,8 +1089,11 @@ function UtentiTab() {
             const squadraLabel = [u.ruolo, ...(u.ruoli_extra ?? [])].includes('genitore') ? 'genitore' : 'giocatore'
             return (
               <div key={u.id} className={`bg-white border rounded-xl p-3 transition-opacity ${isDisabled ? 'opacity-50 border-gray-100' : 'border-gray-200'}`}>
-                {/* Riga 1: nome + controlli rapidi */}
+                {/* Riga 1: avatar + nome + controlli rapidi */}
                 <div className="flex items-start gap-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-xs font-bold uppercase">
+                    {nomeCompleto.split(' ').map(w => w[0]).slice(0, 2).join('')}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-sm text-gray-900">{nomeCompleto}</span>
@@ -1118,12 +1121,12 @@ function UtentiTab() {
                       </select>
                       <button
                         onClick={() => disabledMut.mutate({ id: u.id, attivo: !u.attivo })}
-                        className={`text-xs px-2 py-1.5 rounded-lg border font-medium transition-colors ${
+                        className={`p-1.5 rounded-lg border transition-colors ${
                           isDisabled ? 'text-green-600 border-green-200 bg-green-50' : 'text-gray-400 border-gray-200 hover:bg-gray-50'
                         }`}
                         title={isDisabled ? 'Abilita utente' : 'Disabilita utente'}
                       >
-                        {isDisabled ? 'On' : 'Off'}
+                        {isDisabled ? <UserCheck size={14} /> : <UserX size={14} />}
                       </button>
                       <button
                         onClick={() => { if (window.confirm(`Eliminare ${nomeCompleto}?`)) deleteMut.mutate(u) }}
@@ -1162,38 +1165,20 @@ function UtentiTab() {
                 )}
 
                 {/* Ruoli extra (riga orizzontale) */}
-                {u.id !== me?.id && (
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
-                    <span className="text-[10px] text-gray-400 self-center">Ruoli extra:</span>
-                    {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
-                      const checked = (u.ruoli_extra ?? []).includes(r)
-                      return (
-                        <label key={r} className="flex items-center gap-1 cursor-pointer text-xs text-gray-500 select-none">
-                          <input type="checkbox" checked={checked}
-                            onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
-                            className="w-3.5 h-3.5 rounded accent-blue-600" />
-                          {RUOLI_LABEL[r]}
-                        </label>
-                      )
-                    })}
-                  </div>
-                )}
-                {u.id === me?.id && (
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
-                    <span className="text-[10px] text-gray-400 self-center">Ruoli extra:</span>
-                    {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
-                      const checked = (u.ruoli_extra ?? []).includes(r)
-                      return (
-                        <label key={r} className="flex items-center gap-1 cursor-pointer text-xs text-gray-500 select-none">
-                          <input type="checkbox" checked={checked}
-                            onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
-                            className="w-3.5 h-3.5 rounded accent-blue-600" />
-                          {RUOLI_LABEL[r]}
-                        </label>
-                      )
-                    })}
-                  </div>
-                )}
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
+                  <span className="text-[10px] text-gray-400 self-center">Ruoli extra:</span>
+                  {RUOLI_EXTRA_DISPONIBILI.filter(r => r !== u.ruolo).map(r => {
+                    const checked = (u.ruoli_extra ?? []).includes(r)
+                    return (
+                      <label key={r} className="flex items-center gap-1 cursor-pointer text-xs text-gray-500 select-none">
+                        <input type="checkbox" checked={checked}
+                          onChange={() => toggleRuoloExtra(u.id, u.ruolo, u.ruoli_extra, r)}
+                          className="w-3.5 h-3.5 rounded accent-amber-500" />
+                        {RUOLI_LABEL[r]}
+                      </label>
+                    )
+                  })}
+                </div>
 
                 {/* Squadre giocatore/genitore (3 select in griglia) */}
                 {needsSquadre && (
@@ -1273,7 +1258,7 @@ function UtentiTab() {
                   )}
                 </div>
                 <button type="button" onClick={() => setShowPwd(v => !v)}
-                  className="text-xs text-blue-500 mt-1">
+                  className="text-xs text-amber-600 mt-1">
                   {showPwd ? 'Nascondi' : 'Mostra'} password
                 </button>
               </Field>
@@ -1291,8 +1276,8 @@ function UtentiTab() {
                 </Field>
               )}
               {inviteForm.ruolo === 'allenatore' && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                  <p className="text-xs text-blue-600">
+                <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-700">
                     Le squadre (capo/vice) si assegnano dalla tab <strong>Allenatori</strong> dopo la creazione dell'account.
                   </p>
                 </div>
@@ -1412,7 +1397,7 @@ function UtentiTab() {
                 </div>
               )}
               <button type="submit" disabled={inviting}
-                className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
+                className="w-full py-3 bg-amber-500 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
                 {inviting ? 'Creazione account...' : 'Crea account'}
               </button>
             </form>

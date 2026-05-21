@@ -587,13 +587,18 @@ function TrainingMiniCard({ training, isConflicted, teamColor, onNavigateAllenam
         </div>
       )}
       {isConflicted && (
-        <button
-          onClick={onNavigateAllenamenti}
-          className="flex items-center gap-1 mt-1 pt-1 border-t border-red-200 text-xs text-red-600 font-medium w-full text-left active:opacity-70"
-        >
-          <AlertTriangle size={10} className="flex-shrink-0" />
-          Da spostare →
-        </button>
+        <div className="mt-1 pt-1 border-t border-red-200 flex items-center justify-between gap-1">
+          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full">
+            <AlertTriangle size={8} className="flex-shrink-0" />
+            Conflitto
+          </span>
+          {onNavigateAllenamenti && (
+            <button onClick={onNavigateAllenamenti}
+              className="text-[9px] text-red-500 font-medium active:opacity-70 underline underline-offset-1 shrink-0">
+              Gestisci →
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

@@ -3,7 +3,7 @@
     "titolo": "Dashboard Admin",
     "sezioni": [
       { "titolo": "Panoramica", "testo": "La dashboard mostra un riepilogo delle partite della settimana, degli allenamenti in programma e delle ultime comunicazioni." },
-      { "titolo": "Navigazione", "testo": "Usa la barra in basso per spostarti tra Calendario, Presenze, Bacheca e Setup. Il tasto Setup apre le impostazioni della società." }
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso (o la sidebar su desktop) per spostarti tra Calendario, Allenamenti, Presenze, Bacheca e Setup." }
     ]
   },
   "/admin/partite": {
@@ -12,7 +12,15 @@
       { "titolo": "Aggiungere un evento", "testo": "Tocca il tasto + in alto a destra per creare una partita o un allenamento. Puoi scegliere squadra, orario e palestra." },
       { "titolo": "Navigare le settimane", "testo": "Usa le frecce ‹ › per spostarti di settimana in settimana. Il tasto 'Oggi' torna alla settimana corrente." },
       { "titolo": "Modificare un evento", "testo": "Tocca un evento nella griglia per aprire il pannello di modifica. Puoi cambiare orario, spostare la partita o annullarla." },
-      { "titolo": "Import FIP", "testo": "Vai su Coach → Importa Calendario per importare le gare dalla Federazione. Gli eventi FIP appaiono in blu." }
+      { "titolo": "Import FIP", "testo": "Vai su Allenatore → Importa Calendario per importare le gare dalla Federazione. Gli eventi FIP appaiono in blu." }
+    ]
+  },
+  "/admin/allenamenti": {
+    "titolo": "Allenamenti",
+    "sezioni": [
+      { "titolo": "Settimana tipo", "testo": "La tab 'Settimana tipo' mostra la griglia degli allenamenti ricorrenti. Qui puoi definire gli orari fissi settimanali per ogni squadra." },
+      { "titolo": "Settimana corrente", "testo": "La tab 'Settimana' mostra gli allenamenti della settimana selezionata, con eventuali variazioni rispetto alla settimana tipo." },
+      { "titolo": "Modificare un allenamento", "testo": "Tocca una cella nella griglia per modificare orario, palestra o annullare la sessione per quella settimana." }
     ]
   },
   "/admin/presenze": {
@@ -40,7 +48,8 @@
     "titolo": "Gestione Utenti",
     "sezioni": [
       { "titolo": "Aggiungere un utente", "testo": "Tocca + per invitare un nuovo membro. Scegli il ruolo (allenatore, segreteria, genitore, giocatore) e compila i dati." },
-      { "titolo": "Ruoli extra", "testo": "Un utente può avere più ruoli. Ad esempio un allenatore può avere anche il ruolo segreteria. I ruoli extra si aggiungono dalla card utente." }
+      { "titolo": "Ruoli extra", "testo": "Un utente può avere più ruoli. Ad esempio un allenatore può avere anche il ruolo segreteria. I ruoli extra si aggiungono dalla card utente." },
+      { "titolo": "Squadre per genitori e giocatori", "testo": "Se un utente ha ruolo genitore o giocatore (anche come ruolo extra), compare la sezione per assegnargli fino a 3 squadre." }
     ]
   },
   "/coach": {
@@ -70,17 +79,44 @@
       { "titolo": "Pubblicare un avviso", "testo": "Tocca + per creare un annuncio. Come allenatore puoi scrivere a tutte le squadre o solo alle tue." }
     ]
   },
+  "/coach/importa": {
+    "titolo": "Importa Calendario FIP",
+    "sezioni": [
+      { "titolo": "Come importare", "testo": "Carica il file PDF o inserisci il link del calendario FIP. Il sistema analizza le gare e le mostra in anteprima prima dell'importazione." },
+      { "titolo": "Importazione provvisoria e definitiva", "testo": "Le gare importate inizialmente hanno stato 'provvisorio'. Una volta confermate diventano definitive e appaiono nel calendario in blu." },
+      { "titolo": "Gestione duplicati", "testo": "Se una gara è già presente nel calendario, il sistema lo segnala. Puoi scegliere se sovrascrivere o saltare il duplicato." }
+    ]
+  },
+  "/coach/atletica": {
+    "titolo": "Atletica",
+    "sezioni": [
+      { "titolo": "Infortuni", "testo": "La tab 'Infortuni' mostra lo stato degli infortuni attivi per i giocatori delle tue squadre, con gravità e data di rientro prevista." },
+      { "titolo": "RPE settimanale", "testo": "La tab 'RPE' mostra il carico percepito (Rating of Perceived Exertion) dei giocatori per la settimana corrente. Verde = basso, giallo = medio, rosso = alto." },
+      { "titolo": "Schede atletiche", "testo": "Visualizza le schede di allenamento atletico assegnate ai tuoi giocatori dal preparatore atletico." }
+    ]
+  },
   "/secretary": {
     "titolo": "Dashboard Segreteria",
     "sezioni": [
-      { "titolo": "Panoramica", "testo": "La dashboard mostra le scadenze imminenti: certificati medici in scadenza, quote non pagate e nuove iscrizioni." }
+      { "titolo": "Panoramica", "testo": "La dashboard mostra le scadenze imminenti: certificati medici in scadenza, quote non pagate e nuove iscrizioni." },
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso per accedere a Giocatori, Quote e Bacheca." }
     ]
   },
   "/secretary/giocatori": {
     "titolo": "Giocatori",
     "sezioni": [
       { "titolo": "Cercare un giocatore", "testo": "Usa la barra di ricerca in cima per filtrare per nome o squadra. Tocca una riga per aprire il dettaglio." },
-      { "titolo": "Aggiungere un giocatore", "testo": "Tocca + per registrare un nuovo giocatore. Puoi associarlo subito a una squadra e a un genitore." }
+      { "titolo": "Aggiungere un giocatore", "testo": "Tocca + per registrare un nuovo giocatore. Puoi associarlo subito a una squadra e a un genitore." },
+      { "titolo": "Certificato medico", "testo": "Nel dettaglio giocatore puoi caricare il PDF del certificato medico e impostare la data di scadenza. La dashboard segnala i certificati in scadenza entro 30 giorni." }
+    ]
+  },
+  "/secretary/quote": {
+    "titolo": "Quote",
+    "sezioni": [
+      { "titolo": "Gestione quote", "testo": "Visualizza tutte le quote della società: iscrizioni, mensili, trasferte e attrezzatura. Le quote non pagate appaiono in cima." },
+      { "titolo": "Creare una quota", "testo": "Tocca + per creare una nuova quota. Scegli il tipo, l'importo, la data di scadenza e a quale squadra si applica." },
+      { "titolo": "Segnare come pagato", "testo": "Tocca il segno di spunta su una quota per marcarla come pagata. Il cambio è immediato." },
+      { "titolo": "Filtrare per squadra", "testo": "Usa il selettore squadra in cima per vedere solo le quote di una squadra specifica." }
     ]
   },
   "/secretary/bacheca": {
@@ -111,7 +147,8 @@
   "/parent/quote": {
     "titolo": "Quote",
     "sezioni": [
-      { "titolo": "Stato pagamenti", "testo": "Visualizza le quote associate al tuo figlio e il relativo stato (pagato, in attesa, scaduto)." }
+      { "titolo": "Stato pagamenti", "testo": "Visualizza le quote associate al tuo figlio e il relativo stato (pagato, in attesa, scaduto)." },
+      { "titolo": "Quote scadute", "testo": "Le quote scadute e non pagate sono evidenziate in rosso. Contatta la segreteria per regolarizzare il pagamento." }
     ]
   },
   "/parent/bacheca": {
@@ -144,6 +181,32 @@
     "titolo": "Bacheca",
     "sezioni": [
       { "titolo": "Avvisi", "testo": "Qui appaiono gli annunci pubblicati dall'allenatore e dalla società rivolti alla tua squadra." }
+    ]
+  },
+  "/prep": {
+    "titolo": "Agenda Preparatore",
+    "sezioni": [
+      { "titolo": "Sessioni settimanali", "testo": "L'agenda mostra tutte le sessioni di preparazione atletica della settimana corrente. Usa le frecce ‹ › per navigare tra le settimane." },
+      { "titolo": "Sessione legata", "testo": "Una sessione legata è collegata a un allenamento di squadra (prima, durante o dopo). Seleziona la squadra, la data e il momento rispetto all'allenamento." },
+      { "titolo": "Sessione libera", "testo": "Una sessione libera è indipendente dagli allenamenti. Puoi impostare orario di inizio e durata." },
+      { "titolo": "Su campo", "testo": "Attiva 'Su campo' se la sessione atletica si svolge in palestra insieme alla squadra, anziché in sala pesi." }
+    ]
+  },
+  "/prep/stato": {
+    "titolo": "Stato Atletico",
+    "sezioni": [
+      { "titolo": "Infortuni", "testo": "Registra e monitora gli infortuni dei giocatori delle tue squadre. Per ogni infortunio puoi indicare tipo, gravità e data di rientro prevista." },
+      { "titolo": "Gravità", "testo": "Lieve (giallo), Moderato (arancione), Grave (rosso). La gravità aiuta a prioritizzare il follow-up." },
+      { "titolo": "RPE settimanale", "testo": "Il carico percepito (RPE) viene mostrato per ogni giocatore nella settimana selezionata. Verde fino a 5, giallo 6-7, rosso oltre 7." },
+      { "titolo": "Filtrare per squadra", "testo": "Usa il selettore in cima per visualizzare lo stato atletico di una squadra specifica." }
+    ]
+  },
+  "/prep/schede": {
+    "titolo": "Schede Atletiche",
+    "sezioni": [
+      { "titolo": "Creare una scheda", "testo": "Tocca + per creare una nuova scheda atletica. Scegli la categoria (riscaldamento, forza, mobilità, recupero) e aggiungi gli esercizi con serie, ripetizioni e carico." },
+      { "titolo": "Assegnazione", "testo": "Ogni scheda può essere assegnata a un'intera squadra o a un singolo giocatore. Puoi impostare un intervallo di date di validità." },
+      { "titolo": "Esercizi", "testo": "Per ogni esercizio nella scheda puoi specificare nome, serie, ripetizioni, carico e note aggiuntive." }
     ]
   }
 }
