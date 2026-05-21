@@ -19,10 +19,11 @@ export default function CalendarioGenitore() {
   const { profile } = useAuth()
   const [weekOffset, setWeekOffset] = useState(0)
 
-  const mySquadre = useMemo(
-    () => [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean),
-    [profile]
-  )
+  const mySquadre = useMemo(() => {
+    const genSquadre = [profile?.genitore_squadra, profile?.genitore_squadra2, profile?.genitore_squadra3].filter(Boolean)
+    if (genSquadre.length > 0) return genSquadre
+    return [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  }, [profile])
 
   const weekStart = useMemo(
     () => startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 }),

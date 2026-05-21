@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
       )
       const query = supabase
         .from('profiles')
-        .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, societa:societa_id(nome)')
+        .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, genitore_squadra, genitore_squadra2, genitore_squadra3, societa:societa_id(nome)')
         .eq('id', userId)
         .single()
 
