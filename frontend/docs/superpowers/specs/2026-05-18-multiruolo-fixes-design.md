@@ -7,7 +7,7 @@
 
 ## Contesto
 
-L'app ha 4 ruoli principali (admin, allenatore, genitore, giocatore) e supporta `ruoli_extra` per utenti con più ruoli. Sono stati identificati 5 bug/mancanze correlati a questa feature multi-ruolo e alla gestione degli eventi (partite/allenamenti).
+L'app ha 5 ruoli principali (admin, allenatore, segreteria, genitore, giocatore) e supporta `ruoli_extra` per utenti con più ruoli. Sono stati identificati 5 bug/mancanze correlati a questa feature multi-ruolo e alla gestione degli eventi (partite/allenamenti).
 
 ---
 
@@ -88,13 +88,13 @@ Sostituire tutti gli usi di `isAllenatore` con `actingAsAllenatore` all'interno 
 **3. Save mutation branched:**
 ```js
 if (form.tipo === 'allenamento') {
-  // INSERT su orario_settimana
-  await supabase.from('orario_settimana').insert([{
+  // UPSERT su orario_settimana — potrebbe già esistere una riga per data+squadra
+  await supabase.from('orario_settimana').upsert([{
     data: form.data, squadra: form.squadra,
     ora_inizio: form.ora_inizio, ora_fine: form.ora_fine,
     palestra: form.palestra, annullato: false,
     societa_id: societaId,
-  }])
+  }], { onConflict: 'societa_id,data,squadra' })
 } else {
   // esistente: INSERT/UPDATE su calendario
 }
