@@ -33,7 +33,7 @@ export default function HomeGenitore() {
     [selectedSquadra, mySquadre]
   )
 
-  const { data: weekData, isLoading } = useWeekEvents(thisWeekStart)
+  const { data: weekData, isLoading, isError } = useWeekEvents(thisWeekStart)
 
   const { data: annullati = [] } = useQuery({
     queryKey: ['annullati-parent', societaId, thisWeekStr, weekEndStr, squadreFiltro.join(',')],
@@ -130,6 +130,11 @@ export default function HomeGenitore() {
 
       {isLoading ? (
         <div className="pt-6"><LoadingSpinner /></div>
+      ) : isError ? (
+        <div className="mx-4 mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+          <p className="text-sm font-medium text-red-700">Errore nel caricamento</p>
+          <p className="text-xs text-red-400 mt-1">Controlla la connessione e riprova</p>
+        </div>
       ) : (
         <div className="pt-3 space-y-4 pb-24">
           {hasVariazioni && (

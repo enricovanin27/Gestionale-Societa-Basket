@@ -360,7 +360,7 @@ export default function HomeAllenatore() {
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
   const weekStartStr = format(weekStart, 'yyyy-MM-dd')
   const isYesterdayInWeek = yesterdayStr >= weekStartStr
-  const { data: weekData, isLoading: weekLoading } = useWeekEvents(weekStart)
+  const { data: weekData, isLoading: weekLoading, isError: weekError } = useWeekEvents(weekStart)
 
   const todayEvents = useMemo(() => {
     if (!weekData) return []
@@ -499,6 +499,10 @@ export default function HomeAllenatore() {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Impegni di oggi</p>
           {weekLoading ? (
             <div className="py-4 flex justify-center"><LoadingSpinner /></div>
+          ) : weekError ? (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600">
+              Errore nel caricamento degli eventi. Controlla la connessione.
+            </div>
           ) : todayEvents.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-400 text-center shadow-sm">
               Nessun impegno oggi

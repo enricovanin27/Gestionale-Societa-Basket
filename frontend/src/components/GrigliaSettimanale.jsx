@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { format, endOfWeek, eachDayOfInterval } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { useQuery } from '@tanstack/react-query'
@@ -10,6 +10,64 @@ import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 const NO_PAL = '—'
 const SEP_TH = 'bg-gray-300 border-gray-300'
 const SEP_TD = 'bg-gray-200'
+
+function EventDetailSheet({ event, onClose }) {
+  const isPartita = event._tipo === 'partita'
+  const isCasa    = (event.casa_fuori ?? '').toLowerCase() === 'casa'
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div className="relative bg-white rounded-t-2xl w-full max-w-lg p-5 pb-10 shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+            isPartita
+              ? isCasa ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+              : 'bg-amber-100 text-amber-700'
+          }`}>
+            {isPartita ? (isCasa ? '🏠 Casa' : '✈️ Trasferta') : 'Allenamento'}
+          </span>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 text-xl leading-none">×</button>
+        </div>
+        <h2 className="text-lg font-bold text-gray-900 mb-3">
+          {isPartita && event.avversario ? `${event.squadra} vs ${event.avversario}` : event.squadra}
+        </h2>
+        <div className="space-y-2 text-sm">
+          <div className="flex gap-3 text-gray-600">
+            <span className="w-20 shrink-0 text-gray-400">Orario</span>
+            <span className="font-medium text-gray-900">{hhmm(event.ora_inizio)} – {hhmm(event.ora_fine)}</span>
+          </div>
+          {event.palestra && (
+            <div className="flex gap-3 text-gray-600">
+              <span className="w-20 shrink-0 text-gray-400">Palestra</span>
+              <span className="font-medium text-gray-900">{event.palestra}</span>
+            </div>
+          )}
+          {!isPartita && event.allenatori && (
+            <div className="flex gap-3 text-gray-600">
+              <span className="w-20 shrink-0 text-gray-400">Allenatori</span>
+              <span className="font-medium text-gray-900">{event.allenatori}</span>
+            </div>
+          )}
+          {isPartita && event.stato && (
+            <div className="flex gap-3 text-gray-600">
+              <span className="w-20 shrink-0 text-gray-400">Stato</span>
+              <span className={`font-medium ${event.stato === 'provvisoria' ? 'text-yellow-600' : 'text-green-600'}`}>
+                {event.stato === 'provvisoria' ? '⚠️ Provvisoria' : '✅ Definitiva'}
+              </span>
+            </div>
+          )}
+          {!isPartita && String(event.condivisione).toUpperCase() === 'SI' && (
+            <div className="flex gap-3 text-gray-600">
+              <span className="w-20 shrink-0 text-gray-400">Note</span>
+              <span className="font-medium text-violet-600">Condivisione palestra</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function getColor(squadra, allSquadre) {
   const idx = allSquadre.indexOf(squadra)
@@ -64,7 +122,7 @@ function buildRenderMap(events, palestre, slots) {
 }
 
 // ─── Shared table renderer ────────────────────────────────────────────────────
-function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader }) {
+function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader, onEventClick }) {
   if (activeDays.length === 0) return null
 
   return (
@@ -132,7 +190,12 @@ function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader }
                         const col = getColor(e.squadra, allSquadre)
                         const isPartita = e._tipo === 'partita'
                         return (
-                          <div key={i} className={`rounded px-1.5 py-1 leading-snug ${isPartita ? col.gameBg : col.bg} ${col.title} ${i > 0 ? 'mt-1' : ''}`}>
+                          <div key={i}
+                            className={`rounded px-1.5 py-1 leading-snug ${isPartita ? col.gameBg : col.bg} ${col.title} ${i > 0 ? 'mt-1' : ''} cursor-pointer active:opacity-70`}
+                            onClick={() => onEventClick?.(e)}
+                            role="button"
+                            tabIndex={0}
+                          >
                             {isPartita && (
                               <div className="text-[9px] font-bold uppercase tracking-wide opacity-70 mb-0.5">Gara</div>
                             )}
@@ -219,6 +282,7 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
   )
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const [selectedEvent, setSelectedEvent] = useState(null)
 
   if (isLoading) return <LoadingSpinner message="Caricamento griglia..." />
 
@@ -232,17 +296,21 @@ export default function GrigliaSettimanale({ weekStart, allSquadre, dateFilter =
   }
 
   return (
-    <GrigliaTable
-      activeDays={activeDays}
-      slots={slots}
-      renderMap={renderMap}
-      allSquadre={allSquadre}
-      getDayHeader={(di) => ({
-        key:   activeDays[di].dateStr,
-        label: format(safeDate(activeDays[di].dateStr), 'EEEE d MMM', { locale: it }),
-        today: activeDays[di].dateStr === todayStr,
-      })}
-    />
+    <>
+      <GrigliaTable
+        activeDays={activeDays}
+        slots={slots}
+        renderMap={renderMap}
+        allSquadre={allSquadre}
+        onEventClick={setSelectedEvent}
+        getDayHeader={(di) => ({
+          key:   activeDays[di].dateStr,
+          label: format(safeDate(activeDays[di].dateStr), 'EEEE d MMM', { locale: it }),
+          today: activeDays[di].dateStr === todayStr,
+        })}
+      />
+      {selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+    </>
   )
 }
 
@@ -306,6 +374,8 @@ export function GrigliaTipo({ squadraFilter = '', allenatoreFilter = '', palestr
     [activeDays, slots]
   )
 
+  const [selectedEvent, setSelectedEvent] = useState(null)
+
   if (isLoading) return <LoadingSpinner message="Caricamento griglia tipo..." />
 
   if (activeDays.length === 0) {
@@ -318,16 +388,20 @@ export function GrigliaTipo({ squadraFilter = '', allenatoreFilter = '', palestr
   }
 
   return (
-    <GrigliaTable
-      activeDays={activeDays}
-      slots={slots}
-      renderMap={renderMap}
-      allSquadre={allSquadre}
-      getDayHeader={(di) => ({
-        key:   activeDays[di].giorno,
-        label: activeDays[di].label,
-        today: false,
-      })}
-    />
+    <>
+      <GrigliaTable
+        activeDays={activeDays}
+        slots={slots}
+        renderMap={renderMap}
+        allSquadre={allSquadre}
+        onEventClick={setSelectedEvent}
+        getDayHeader={(di) => ({
+          key:   activeDays[di].giorno,
+          label: activeDays[di].label,
+          today: false,
+        })}
+      />
+      {selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+    </>
   )
 }

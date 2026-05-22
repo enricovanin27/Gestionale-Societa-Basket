@@ -267,6 +267,7 @@ const EMPTY_FORM = {
 }
 
 export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore, saving, saveError }) {
+  const { societaId } = useAuth()
   const [form, setForm] = useState(initial ?? EMPTY_FORM)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const squadreDisp = squadreAllenatore?.length ? squadreAllenatore : squadre
@@ -316,13 +317,14 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
   })
 
   const { data: prepAssegnato } = useQuery({
-    queryKey: ['prep-per-squadra', form.squadra],
-    enabled: !!form.squadra && form.tipo === 'allenamento',
+    queryKey: ['prep-per-squadra', form.squadra, societaId],
+    enabled: !!form.squadra && !!societaId && form.tipo === 'allenamento',
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data } = await supabase
         .from('prep_squadre').select('preparatore_id')
         .eq('squadra', form.squadra)
+        .eq('societa_id', societaId)
         .limit(1).maybeSingle()
       return data
     },
@@ -837,7 +839,7 @@ const LEGEND = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CalendarioPage() {
-  const { user, isAdmin, isAllenatore, societaId } = useAuth()
+  const { user, isAdmin, isAllenatore, societaId, profile } = useAuth()
   const location = useLocation()
   const actingAsAllenatore = location.pathname.startsWith('/coach') && isAllenatore
   const queryClient = useQueryClient()
@@ -909,9 +911,15 @@ export default function CalendarioPage() {
   }
 
   const myCoachSquadre = useMemo(() => {
-    if (!allenatoreRow) return null
-    return [...parseList(allenatoreRow.squadre_capo), ...parseList(allenatoreRow.squadre_vice)]
-  }, [allenatoreRow])
+    if (allenatoreRow === undefined) return null // ancora in caricamento
+    if (!allenatoreRow) {
+      // non in tabella allenatori → usa squadre del profilo come fallback
+      return [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+    }
+    const fromTable = [...parseList(allenatoreRow.squadre_capo), ...parseList(allenatoreRow.squadre_vice)]
+    if (fromTable.length > 0) return fromTable
+    return [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  }, [allenatoreRow, profile])
 
   const canModifyEvent = (ev) => !myCoachSquadre?.length || myCoachSquadre.includes(ev.squadra)
 
@@ -1189,6 +1197,12 @@ export default function CalendarioPage() {
       {calTab === 'settimana' && (
         isLoading ? (
           <LoadingSpinner message="Caricamento..." />
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+            <AlertCircle size={36} className="text-red-400 mb-2" />
+            <p className="text-sm font-medium text-gray-600">Errore nel caricamento</p>
+            <p className="text-xs text-gray-400 mt-1">{error.message ?? 'Riprova tra qualche secondo'}</p>
+          </div>
         ) : settimanaView === 'griglia' ? (
           <div className="px-4 pt-2">
             <GrigliaSettimanale weekStart={startDate} allSquadre={squadre} squadreFilter={effectiveSquadre} />

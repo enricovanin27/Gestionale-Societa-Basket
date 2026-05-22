@@ -95,7 +95,7 @@ export default function HomeAdmin() {
   })
 
   // ── Partite future (prossimi 14gg) ─────────────────────────────────────────
-  const { data: partiteFuture = [], isLoading: loadingP } = useQuery({
+  const { data: partiteFuture = [], isLoading: loadingP, isError: isErrorP } = useQuery({
     queryKey: ['admin-partite-future', todayStr, societaId],
     enabled: !!societaId,
     queryFn: async () => {
@@ -160,6 +160,7 @@ export default function HomeAdmin() {
 
   const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + (quoteNonPagateCount > 0 ? 1 : 0)
   const isLoading      = loadingP || loadingProv || loadingG
+  const isError        = isErrorP
 
   const addEventMutation = useMutation({
     mutationFn: async ({ id, tipo, _tipo, _source, _table, _id, spostato, ...formData }) => {
@@ -193,6 +194,11 @@ export default function HomeAdmin() {
 
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>
+      ) : isError ? (
+        <div className="mx-4 mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+          <p className="text-sm font-medium text-red-700">Errore nel caricamento dei dati</p>
+          <p className="text-xs text-red-400 mt-1">Controlla la connessione e riprova</p>
+        </div>
       ) : (
         <div className="px-4 pt-4 space-y-4">
 
