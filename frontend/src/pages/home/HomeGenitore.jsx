@@ -15,8 +15,14 @@ export default function HomeGenitore() {
 
   const today      = new Date()
   const todayStr   = format(today, 'yyyy-MM-dd')
-  const mySquadre  = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
-  const colorMap   = Object.fromEntries(mySquadre.map((s, i) => [s.toLowerCase(), PALETTE[i % PALETTE.length]]))
+  const mySquadre = useMemo(() => {
+    const genSquadre = [profile?.genitore_squadra, profile?.genitore_squadra2, profile?.genitore_squadra3].filter(Boolean)
+    return genSquadre.length > 0 ? genSquadre : [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  }, [profile])
+  const colorMap = useMemo(
+    () => Object.fromEntries(mySquadre.map((s, i) => [s.toLowerCase(), PALETTE[i % PALETTE.length]])),
+    [mySquadre]
+  )
 
   const thisWeekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
   const thisWeekStr   = format(thisWeekStart, 'yyyy-MM-dd')
@@ -24,7 +30,7 @@ export default function HomeGenitore() {
 
   const squadreFiltro = useMemo(
     () => selectedSquadra ? [selectedSquadra] : mySquadre,
-    [selectedSquadra, mySquadre.join(',')]
+    [selectedSquadra, mySquadre]
   )
 
   const { data: weekData, isLoading } = useWeekEvents(thisWeekStart)
@@ -45,6 +51,30 @@ export default function HomeGenitore() {
       return data ?? []
     },
     staleTime: 60 * 1000,
+  })
+
+  const { data: quoteAperte = [] } = useQuery({
+    queryKey: ['genitore-quote-aperte', societaId, mySquadre],
+    enabled: !!societaId && mySquadre.length > 0,
+    queryFn: async () => {
+      const { data: gio } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome')
+        .in('squadra', mySquadre)
+        .eq('societa_id', societaId)
+        .eq('attivo', true)
+      if (!gio?.length) return []
+      const { data: q } = await supabase
+        .from('quote')
+        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza')
+        .in('giocatore_id', gio.map(g => g.id))
+        .eq('societa_id', societaId)
+        .eq('pagato', false)
+        .order('data_scadenza', { nullsFirst: false })
+      const gioMap = Object.fromEntries((gio ?? []).map(g => [g.id, g]))
+      return (q ?? []).map(q => ({ ...q, giocatore: gioMap[q.giocatore_id] }))
+    },
+    staleTime: 5 * 60 * 1000,
   })
 
   const variazioni = useMemo(() => {
@@ -135,6 +165,26 @@ export default function HomeGenitore() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {quoteAperte.length > 0 && (
+            <div className="mx-4 bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-[11px] font-bold text-red-800 uppercase tracking-wide mb-2">💰 Quote non pagate ({quoteAperte.length})</p>
+              {quoteAperte.slice(0, 3).map(q => (
+                <div key={q.id} className="flex items-center justify-between py-1 border-b border-red-100 last:border-0">
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">
+                      {q.giocatore ? `${q.giocatore.cognome} ${q.giocatore.nome}` : '—'}
+                    </p>
+                    <p className="text-xs text-gray-500">{q.descrizione ?? q.tipo}</p>
+                  </div>
+                  <span className="text-xs font-bold text-red-600 ml-3">€{q.importo}</span>
+                </div>
+              ))}
+              {quoteAperte.length > 3 && (
+                <p className="text-xs text-gray-400 mt-1.5">+{quoteAperte.length - 3} altre quote...</p>
+              )}
             </div>
           )}
 

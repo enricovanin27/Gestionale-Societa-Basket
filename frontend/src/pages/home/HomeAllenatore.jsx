@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { format, addWeeks, parseISO, startOfWeek, addDays } from 'date-fns'
+import { useNavigate } from 'react-router-dom'
+import { format, addWeeks, parseISO, startOfWeek, addDays, subDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { X, Plus, AlertTriangle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -337,6 +338,9 @@ export default function HomeAllenatore() {
   const today     = new Date()
   const todayStr  = format(today, 'yyyy-MM-dd')
 
+  const navigate = useNavigate()
+  const yesterdayStr = format(subDays(today, 1), 'yyyy-MM-dd')
+
   const { data: allenatoreRow } = useQuery({
     queryKey: ['my-allenatore', user?.email],
     enabled: !!user?.email,
@@ -354,6 +358,8 @@ export default function HomeAllenatore() {
   }, [allenatoreRow])
 
   const weekStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd')
+  const isYesterdayInWeek = yesterdayStr >= weekStartStr
   const { data: weekData, isLoading: weekLoading } = useWeekEvents(weekStart)
 
   const todayEvents = useMemo(() => {
@@ -399,6 +405,32 @@ export default function HomeAllenatore() {
     }
     return result
   }, [weekData, mySquadre, todayStr])
+
+  const allenamentiIeri = useMemo(() => {
+    if (!weekData || !isYesterdayInWeek) return []
+    return (weekData.eventsByDate?.[yesterdayStr] ?? [])
+      .filter(e => e._tipo === 'allenamento' && !e.annullato &&
+        mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase()))
+  }, [weekData, yesterdayStr, isYesterdayInWeek, mySquadre])
+
+  const { data: presenzeIeriSquadre = [] } = useQuery({
+    queryKey: ['presenze-al-ieri-check', yesterdayStr, mySquadre, societaId],
+    enabled: !!societaId && isYesterdayInWeek && allenamentiIeri.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze_allenamento')
+        .select('squadra')
+        .eq('data', yesterdayStr)
+        .in('squadra', mySquadre)
+      return [...new Set((data ?? []).map(p => p.squadra))]
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+
+  const allenamentiDaConfermare = useMemo(() =>
+    allenamentiIeri.filter(e => !presenzeIeriSquadre.includes(e.squadra)),
+    [allenamentiIeri, presenzeIeriSquadre]
+  )
 
   const [editingEvent,   setEditingEvent]   = useState(null)
   const [selectedEvent,  setSelectedEvent]  = useState(null)
@@ -447,6 +479,20 @@ export default function HomeAllenatore() {
       />
 
       <div className="px-4 pt-4 space-y-4">
+
+        {/* Alert presenze da segnare */}
+        {allenamentiDaConfermare.length > 0 && (
+          <button
+            onClick={() => navigate('/coach/attivita')}
+            className="w-full text-left bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 active:scale-[0.99] transition-transform"
+          >
+            <p className="text-sm font-semibold text-amber-800">📋 Presenze da segnare</p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              {allenamentiDaConfermare.map(e => e.squadra).join(', ')} — allenamento di ieri senza presenze registrate
+            </p>
+            <p className="text-xs text-amber-500 mt-1 underline">Vai a Presenze →</p>
+          </button>
+        )}
 
         {/* Impegni di oggi */}
         <div>

@@ -29,6 +29,7 @@ export default function HomeAdmin() {
 
   const today      = new Date()
   const todayStr   = format(today, 'yyyy-MM-dd')
+  const in30Str    = format(addDays(today, 30), 'yyyy-MM-dd')
   const endStr     = format(addDays(today, 14), 'yyyy-MM-dd')
   const monthStart = format(startOfMonth(today), 'yyyy-MM-dd')
   const monthEnd   = format(endOfMonth(today), 'yyyy-MM-dd')
@@ -59,6 +60,10 @@ export default function HomeAdmin() {
     () => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza < todayStr).length,
     [giocatori, todayStr]
   )
+  const certInScad30N = useMemo(
+    () => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza >= todayStr && g.cert_medico_scadenza <= in30Str).length,
+    [giocatori, todayStr, in30Str]
+  )
 
   // ── KPI: partite questo mese ───────────────────────────────────────────────
   const { data: partiteMese = 0 } = useQuery({
@@ -70,6 +75,20 @@ export default function HomeAdmin() {
         .select('*', { count: 'exact', head: true })
         .gte('data', monthStart)
         .lte('data', monthEnd)
+      return count ?? 0
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: quoteNonPagateCount = 0 } = useQuery({
+    queryKey: ['admin-quote-nonpagate', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('quote')
+        .select('*', { count: 'exact', head: true })
+        .eq('societa_id', societaId)
+        .eq('pagato', false)
       return count ?? 0
     },
     staleTime: 5 * 60 * 1000,
@@ -131,7 +150,15 @@ export default function HomeAdmin() {
   }, [thisWeek, nextWeek, week2, todayStr])
 
   const totalConflicts = conflictsAll.reduce((n, c) => n + c.allenamenti.length, 0)
-  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN
+
+  const todayTrainings = useMemo(() => {
+    const all = [...(thisWeek?.events ?? [])]
+    return all
+      .filter(e => e.data === todayStr && e._tipo === 'allenamento' && !e.annullato)
+      .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
+  }, [thisWeek, todayStr])
+
+  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + (quoteNonPagateCount > 0 ? 1 : 0)
   const isLoading      = loadingP || loadingProv || loadingG
 
   const addEventMutation = useMutation({
@@ -244,6 +271,26 @@ export default function HomeAdmin() {
                     </p>
                   </button>
                 )}
+                {certInScad30N > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/persone')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-amber-300 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      📅 {certInScad30N} certificat{certInScad30N === 1 ? 'o' : 'i'} in scadenza (prossimi 30gg)
+                    </p>
+                  </button>
+                )}
+                {quoteNonPagateCount > 0 && (
+                  <button
+                    onClick={() => navigate('/secretary/quote')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-purple-400 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      💰 {quoteNonPagateCount} quot{quoteNonPagateCount === 1 ? 'a' : 'e'} non pagat{quoteNonPagateCount === 1 ? 'a' : 'e'}
+                    </p>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -251,6 +298,27 @@ export default function HomeAdmin() {
           {urgenzeTot === 0 && (
             <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-3 text-sm text-green-700">
               <CheckCircle2 size={16} /> Tutto in ordine! Nessuna azione urgente.
+            </div>
+          )}
+
+          {/* Allenamenti oggi */}
+          {todayTrainings.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Allenamenti oggi</p>
+                <button onClick={() => navigate('/admin/allenamenti')} className="text-xs text-amber-600 font-medium">Tutti →</button>
+              </div>
+              <div className="space-y-2">
+                {todayTrainings.map((e, i) => (
+                  <div key={`${e._source ?? 'ev'}-${e.id ?? i}`} className="bg-white rounded-xl border border-gray-100 px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-gray-800">{e.squadra}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {formatTime(e.ora_inizio)}–{formatTime(e.ora_fine)}
+                      {e.palestra ? ` · ${e.palestra}` : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
