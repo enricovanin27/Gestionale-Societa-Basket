@@ -994,13 +994,38 @@ export default function CalendarioPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: async ({ id, tipo, _tipo, _source, _table, _id, spostato, ...formData }) => {
+    mutationFn: async ({ id, tipo, _tipo, _source, _table, _id, spostato, _prepData, _prepPreparatoreId, ...formData }) => {
       if (tipo === 'allenamento') {
-        const { error } = await supabase.from('orario_settimana').upsert(
-          [{ ...formData, annullato: false, societa_id: societaId }],
-          { onConflict: 'societa_id,data,squadra' }
-        )
-        if (error) throw error
+        // SELECT then INSERT/UPDATE — evita upsert che richiede UNIQUE constraint nel DB
+        const { data: existing } = await supabase
+          .from('orario_settimana').select('id')
+          .eq('societa_id', societaId)
+          .eq('data', formData.data)
+          .eq('squadra', formData.squadra)
+          .maybeSingle()
+        if (existing) {
+          const { error } = await supabase.from('orario_settimana')
+            .update({ ...formData, annullato: false }).eq('id', existing.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase.from('orario_settimana')
+            .insert([{ ...formData, annullato: false, societa_id: societaId }])
+          if (error) throw error
+        }
+        if (_prepData && _prepPreparatoreId) {
+          const { error } = await supabase.from('prep_sessioni').insert([{
+            societa_id: societaId,
+            preparatore_id: _prepPreparatoreId,
+            squadra: formData.squadra,
+            data: formData.data,
+            tipo: 'allenamento',
+            quando: _prepData.quando,
+            durata_min: _prepData.durata_min,
+            su_campo: _prepData.su_campo,
+            note: '',
+          }])
+          if (error) throw error
+        }
       } else if (id) {
         const { error } = await supabase.from('calendario').update(formData).eq('id', id)
         if (error) throw error
