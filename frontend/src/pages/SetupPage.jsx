@@ -992,6 +992,40 @@ function UtentiTab() {
     return map
   }, [prepSquadreData])
 
+  const giocatoreSquadreBulkMut = useMutation({
+    mutationFn: async ({ id, squadre }) => {
+      const [s1, s2, s3] = squadre
+      const { error } = await supabase.from('profiles').update({ squadra: s1 ?? null, squadra2: s2 ?? null, squadra3: s3 ?? null }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  const genitoreSquadreBulkMut = useMutation({
+    mutationFn: async ({ id, squadre }) => {
+      const [s1, s2, s3] = squadre
+      const { error } = await supabase.from('profiles').update({ genitore_squadra: s1 ?? null, genitore_squadra2: s2 ?? null, genitore_squadra3: s3 ?? null }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  const allenatoreCapoMut = useMutation({
+    mutationFn: async ({ email, squadre_capo }) => {
+      const { error } = await supabase.from('allenatori').update({ squadre_capo }).eq('email', email)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
+  const allenatoreViceMut = useMutation({
+    mutationFn: async ({ email, squadre_vice }) => {
+      const { error } = await supabase.from('allenatori').update({ squadre_vice }).eq('email', email)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+  })
+
   const addPrepSquadraMut = useMutation({
     mutationFn: async ({ preparatoreId, squadra }) => {
       const { error } = await supabase.from('prep_squadre').insert({ societa_id: societaId, preparatore_id: preparatoreId, squadra })
@@ -1196,20 +1230,6 @@ function UtentiTab() {
                   )}
                 </div>
 
-                {/* Info squadre allenatore (compatta, sotto nome) */}
-                {hasAllenatore && !hasGiocatore && !hasGenitore && !hasPrep && (
-                  <div className="mt-1 flex flex-wrap gap-1 items-center">
-                    {u.squadre_capo?.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                      <span key={s} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">Capo: {s}</span>
-                    ))}
-                    {u.squadre_vice?.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                      <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Vice: {s}</span>
-                    ))}
-                    {!u.squadre_capo && !u.squadre_vice && (
-                      <span className="text-xs text-gray-400 italic">Squadre → tab Allenatori</span>
-                    )}
-                  </div>
-                )}
 
                 {/* Ruoli extra (riga orizzontale) */}
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-gray-100 pt-2">
@@ -1230,67 +1250,96 @@ function UtentiTab() {
                 {/* Sezioni squadre per ruolo */}
                 {(needsSquadreSection || hasAllenatore) && (
                   <div className="mt-2 border-t border-gray-100 pt-2 space-y-2.5">
-                    {hasGiocatore && (
-                      <div>
-                        <p className="text-[10px] font-semibold text-gray-400 mb-1">Giocatore — squadre:</p>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <select value={u.squadra ?? ''} onChange={e => squadraMut.mutate({ id: u.id, squadra: e.target.value || null })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 1</option>
-                            {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <select value={u.squadra2 ?? ''} onChange={e => squadra2Mut.mutate({ id: u.id, squadra2: e.target.value || null })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 2</option>
-                            {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <select value={u.squadra3 ?? ''} onChange={e => squadra3Mut.mutate({ id: u.id, squadra3: e.target.value || null })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 3</option>
-                            {squadreDisp.filter(s => s !== u.squadra && s !== u.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                    {hasGenitore && (
-                      <div>
-                        <p className="text-[10px] font-semibold text-gray-400 mb-1">Genitore — squadre figlio:</p>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <select value={u.genitore_squadra ?? ''} onChange={e => genSquadraMut.mutate({ id: u.id, genitore_squadra: e.target.value })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 1</option>
-                            {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <select value={u.genitore_squadra2 ?? ''} onChange={e => genSquadra2Mut.mutate({ id: u.id, genitore_squadra2: e.target.value })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 2</option>
-                            {squadreDisp.filter(s => s !== u.genitore_squadra && s !== u.genitore_squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                          <select value={u.genitore_squadra3 ?? ''} onChange={e => genSquadra3Mut.mutate({ id: u.id, genitore_squadra3: e.target.value })}
-                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
-                            <option value="">Sq. 3</option>
-                            {squadreDisp.filter(s => s !== u.genitore_squadra && s !== u.genitore_squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                    {hasAllenatore && (
-                      <div>
-                        <p className="text-[10px] font-semibold text-gray-400 mb-1">Allenatore — squadre:</p>
-                        {(u.squadre_capo || u.squadre_vice) ? (
-                          <div className="flex flex-wrap gap-1">
-                            {u.squadre_capo?.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                              <span key={s} className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">Capo: {s}</span>
-                            ))}
-                            {u.squadre_vice?.split(',').map(s => s.trim()).filter(Boolean).map(s => (
-                              <span key={s} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Vice: {s}</span>
-                            ))}
+                    {hasGiocatore && (() => {
+                      const sel = [u.squadra, u.squadra2, u.squadra3].filter(Boolean)
+                      return (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Giocatore — squadre:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {squadreDisp.map(s => {
+                              const active = sel.includes(s)
+                              const disabled = !active && sel.length >= 3
+                              return (
+                                <button key={s} type="button" disabled={disabled}
+                                  onClick={() => {
+                                    const next = active ? sel.filter(x => x !== s) : [...sel, s]
+                                    giocatoreSquadreBulkMut.mutate({ id: u.id, squadre: next })
+                                  }}
+                                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                                    active ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                    : disabled ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                                  }`}>{s}</button>
+                              )
+                            })}
                           </div>
-                        ) : (
-                          <p className="text-xs text-gray-400 italic">Assegna dalla tab Allenatori</p>
-                        )}
-                      </div>
-                    )}
+                          {sel.length >= 3 && <p className="text-[10px] text-gray-400 mt-1">Max 3 squadre</p>}
+                        </div>
+                      )
+                    })()}
+                    {hasGenitore && (() => {
+                      const sel = [u.genitore_squadra, u.genitore_squadra2, u.genitore_squadra3].filter(Boolean)
+                      return (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Genitore — squadre figlio:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {squadreDisp.map(s => {
+                              const active = sel.includes(s)
+                              const disabled = !active && sel.length >= 3
+                              return (
+                                <button key={s} type="button" disabled={disabled}
+                                  onClick={() => {
+                                    const next = active ? sel.filter(x => x !== s) : [...sel, s]
+                                    genitoreSquadreBulkMut.mutate({ id: u.id, squadre: next })
+                                  }}
+                                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                                    active ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                    : disabled ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                                  }`}>{s}</button>
+                              )
+                            })}
+                          </div>
+                          {sel.length >= 3 && <p className="text-[10px] text-gray-400 mt-1">Max 3 squadre</p>}
+                        </div>
+                      )
+                    })()}
+                    {hasAllenatore && (() => {
+                      const capo = u.squadre_capo ? u.squadre_capo.split(',').map(s => s.trim()).filter(Boolean) : []
+                      const vice = u.squadre_vice ? u.squadre_vice.split(',').map(s => s.trim()).filter(Boolean) : []
+                      const toggle = (arr, s) => arr.includes(s) ? arr.filter(x => x !== s) : [...arr, s]
+                      return (
+                        <div>
+                          <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Allenatore — squadre:</p>
+                          <div className="space-y-1.5">
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              <span className="text-[10px] text-gray-400 w-7 shrink-0">Capo</span>
+                              {squadreDisp.map(s => (
+                                <button key={s} type="button"
+                                  onClick={() => allenatoreCapoMut.mutate({ email: u.email, squadre_capo: toggle(capo, s).join(',') })}
+                                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                                    capo.includes(s)
+                                      ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                                  }`}>{s}</button>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              <span className="text-[10px] text-gray-400 w-7 shrink-0">Vice</span>
+                              {squadreDisp.map(s => (
+                                <button key={s} type="button"
+                                  onClick={() => allenatoreViceMut.mutate({ email: u.email, squadre_vice: toggle(vice, s).join(',') })}
+                                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                                    vice.includes(s)
+                                      ? 'bg-gray-200 text-gray-700 border-gray-300'
+                                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-400'
+                                  }`}>{s}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
                     {hasPrep && (
                       <div>
                         <p className="text-[10px] font-semibold text-gray-400 mb-1.5">Preparatore — squadre:</p>
