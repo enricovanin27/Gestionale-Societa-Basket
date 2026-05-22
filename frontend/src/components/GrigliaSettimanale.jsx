@@ -119,8 +119,7 @@ function GrigliaTable({ activeDays, slots, renderMap, allSquadre, getDayHeader }
                   if (cell.type === 'empty') {
                     return (
                       <td key={`${di}-${pi}`}
-                        className="border border-gray-100 bg-gray-50"
-                        style={{ minWidth: 88, height: 22 }}
+                        style={{ minWidth: 88, height: 16 }}
                       />
                     )
                   }

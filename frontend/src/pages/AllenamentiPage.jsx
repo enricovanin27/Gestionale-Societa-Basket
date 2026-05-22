@@ -17,6 +17,7 @@ import GrigliaSettimanale from '../components/GrigliaSettimanale'
 import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 import { Modal, Field, inp } from '../components/ui'
 import { inviaNotificaAnnullamento } from '../hooks/useAllenamenti'
+import PrepSesioneInlineForm from '../components/PrepSesioneInlineForm'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getColor(squadra, allSquadre) {
@@ -121,6 +122,24 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
     staleTime: 10 * 60 * 1000,
   })
 
+  const { societaId } = useAuth()
+  const { data: prepAssegnato } = useQuery({
+    queryKey: ['prep-squadra', event.squadra, societaId],
+    enabled: !!societaId && !!event.squadra,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_squadre')
+        .select('preparatore_id')
+        .eq('squadra', event.squadra)
+        .eq('societa_id', societaId)
+        .limit(1)
+      return data?.[0] ?? null
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+  const [includiAtletica, setIncludiAtletica] = useState(false)
+  const [prepData, setPrepData] = useState({ quando: 'prima', durata_min: 30, su_campo: false })
+
   const toggleAllenatore = (a) =>
     set('allenatori', form.allenatori.includes(a) ? form.allenatori.filter(x => x !== a) : [...form.allenatori, a])
 
@@ -143,7 +162,7 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
   const canSave = (!errors.length || activeCondivisione) && !!form.ora_inizio && !!form.ora_fine
 
   return (
-    <form onSubmit={e => { e.preventDefault(); if (canSave) onSave({ ...form, allenatori: allenatoriStr, condivisione: activeCondivisione, _palestraConflicts: palestraConflicts }) }} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); if (canSave) onSave({ ...form, allenatori: allenatoriStr, condivisione: activeCondivisione, _palestraConflicts: palestraConflicts, _prepData: includiAtletica ? prepData : null, _prepPreparatoreId: includiAtletica ? prepAssegnato?.preparatore_id : null }) }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Ora inizio">
           <input type="time" value={form.ora_inizio} onChange={e => set('ora_inizio', e.target.value)} className={inp} required />
@@ -181,6 +200,27 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
           </div>
         )}
       </Field>
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-xs font-semibold text-indigo-700">Preparazione atletica</p>
+          {prepAssegnato && (
+            <button type="button"
+              onClick={() => setIncludiAtletica(v => !v)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                includiAtletica ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
+              }`}
+            >
+              {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
+            </button>
+          )}
+        </div>
+        {prepAssegnato ? (
+          includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />
+        ) : (
+          <p className="text-xs text-amber-600">Nessun preparatore assegnato a questa squadra. Assegna da <strong>Setup → Utenti</strong>.</p>
+        )}
+      </div>
+
       <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
         <p className="text-xs text-gray-400 mb-1.5 font-medium">Controllo disponibilità</p>
         <ConflictIndicator errors={activeCondivisione ? [] : errors} warnings={warnings} />
@@ -736,6 +776,19 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
       await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
         await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
+      if (formData._prepData && formData._prepPreparatoreId) {
+        await supabase.from('prep_sessioni').insert([{
+          societa_id: societaId,
+          preparatore_id: formData._prepPreparatoreId,
+          squadra: event.squadra,
+          data: event.data,
+          tipo: 'allenamento',
+          quando: formData._prepData.quando,
+          durata_min: formData._prepData.durata_min,
+          su_campo: formData._prepData.su_campo,
+          note: '',
+        }])
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
@@ -750,6 +803,13 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['cancelled-sett'] })
       inviaNotificaAnnullamento(event.squadra, societaId, event.data)
+    },
+  })
+
+  const bachecaMut = useMutation({
+    mutationFn: async (testo) => {
+      const { error } = await supabase.from('annunci').insert([{ testo, societa_id: societaId }])
+      if (error) throw error
     },
   })
 
@@ -957,6 +1017,29 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                 </div>
               )}
             </div>
+          )}
+
+          {/* Pubblica variazioni in bacheca */}
+          {showDiff && diffs.length > 0 && (
+            <button
+              disabled={bachecaMut.isPending}
+              onClick={async () => {
+                const s = format(weekStart, 'd', { locale: it })
+                const e = format(weekEnd, 'd MMMM yyyy', { locale: it })
+                let testo = `📢 Variazioni allenamenti – settimana ${s}–${e}\n`
+                for (const d of diffs) {
+                  const dl = d.event.data ? format(safeDate(d.event.data), 'EEEE d/MM', { locale: it }) : ''
+                  if (d.type === 'cancelled') testo += `❌ ${d.event.squadra} (${dl}): ANNULLATO\n`
+                  if (d.type === 'modified')  testo += `✏️ ${d.event.squadra} (${dl}): spostato → ${formatTime(d.event.ora_inizio)}–${formatTime(d.event.ora_fine)}\n`
+                  if (d.type === 'extra')     testo += `➕ ${d.event.squadra} (${dl}): allenamento extra\n`
+                }
+                await bachecaMut.mutateAsync(testo)
+                alert('✅ Variazioni pubblicate in bacheca!')
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform shadow-sm disabled:opacity-60"
+            >
+              📢 Pubblica variazioni in bacheca
+            </button>
           )}
 
           {/* Bottone WhatsApp */}
