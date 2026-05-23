@@ -115,7 +115,10 @@ export default function GiocatoreDetail() {
 
   const togglePagatoMut = useMutation({
     mutationFn: async ({ id: qid, pagato }) => {
-      const { error } = await supabase.from('quote').update({ pagato }).eq('id', qid)
+      const payload = pagato
+        ? { pagato: true }
+        : { pagato: false, metodo_pagamento: null, data_pagamento: null, numero_ricevuta: null }
+      const { error } = await supabase.from('quote').update(payload).eq('id', qid)
       if (error) throw error
     },
     onSuccess: () => {
