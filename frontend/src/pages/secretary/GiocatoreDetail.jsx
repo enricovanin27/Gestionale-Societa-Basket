@@ -7,6 +7,7 @@ import { ChevronLeft, Send, Plus, Check, Trash2, Upload, FileText, X } from 'luc
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import GiocatoreForm from './GiocatoreForm'
 
 function certStatus(dataScadenza) {
   if (!dataScadenza) return { label: 'Non registrato', cls: 'bg-gray-100 text-gray-500' }
@@ -21,9 +22,11 @@ const TIPO_LABEL = { iscrizione: 'Iscrizione', mensile: 'Mensile', trasferta: 'T
 const QUOTA_EMPTY = { tipo: 'iscrizione', descrizione: '', importo: '', data_scadenza: '' }
 
 const TABS = [
-  { id: 'note',  label: 'Note' },
-  { id: 'quote', label: 'Quote' },
-  { id: 'cert',  label: 'Certificato' },
+  { id: 'anagrafica', label: 'Anagrafica' },
+  { id: 'note',       label: 'Note' },
+  { id: 'quote',      label: 'Quote' },
+  { id: 'cert',       label: 'Certificato' },
+  { id: 'documenti',  label: 'Documenti' },
 ]
 
 export default function GiocatoreDetail() {
@@ -32,7 +35,7 @@ export default function GiocatoreDetail() {
   const { societaId, displayName } = useAuth()
   const qc = useQueryClient()
 
-  const [activeTab, setActiveTab]   = useState('note')
+  const [activeTab, setActiveTab]   = useState('anagrafica')
   const [nuovaNota, setNuovaNota]   = useState('')
   const [editCert, setEditCert]     = useState(false)
   const [certInput, setCertInput]   = useState('')
@@ -40,6 +43,8 @@ export default function GiocatoreDetail() {
   const [quotaForm, setQuotaForm]   = useState(QUOTA_EMPTY)
   const [savingQuota, setSavingQuota] = useState(false)
   const [uploading, setUploading]   = useState(false)
+  const [savingAnagrafica, setSavingAnagrafica] = useState(false)
+  const [annoAtt730, setAnnoAtt730]             = useState(new Date().getFullYear())
 
   const { data: giocatore, isLoading: loadingG } = useQuery({
     queryKey: ['giocatore-detail', id],
@@ -47,7 +52,12 @@ export default function GiocatoreDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
-        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza, cert_medico_url')
+        .select(`id, nome, cognome, squadra, squadra2, squadra3,
+         cert_medico_scadenza, cert_medico_url,
+         data_nascita, luogo_nascita, codice_fiscale,
+         indirizzo, citta, cap, provincia,
+         nome_genitore, cognome_genitore, codice_fiscale_genitore,
+         telefono, email_genitore, data_iscrizione, numero_maglia`)
         .eq('id', id).eq('societa_id', societaId).single()
       return data
     },
@@ -152,6 +162,41 @@ export default function GiocatoreDetail() {
     }
   }
 
+  async function handleSaveAnagrafica(formData) {
+    setSavingAnagrafica(true)
+    try {
+      const { error } = await supabase.from('giocatori').update({
+        cognome:                 formData.cognome,
+        nome:                    formData.nome,
+        data_nascita:            formData.data_nascita            || null,
+        luogo_nascita:           formData.luogo_nascita           || null,
+        codice_fiscale:          formData.codice_fiscale          || null,
+        indirizzo:               formData.indirizzo               || null,
+        citta:                   formData.citta                   || null,
+        cap:                     formData.cap                     || null,
+        provincia:               formData.provincia               || null,
+        nome_genitore:           formData.nome_genitore           || null,
+        cognome_genitore:        formData.cognome_genitore        || null,
+        codice_fiscale_genitore: formData.codice_fiscale_genitore || null,
+        telefono:                formData.telefono                || null,
+        email_genitore:          formData.email_genitore          || null,
+        squadra:                 formData.squadra,
+        squadra2:                formData.squadra2                || null,
+        squadra3:                formData.squadra3                || null,
+        numero_maglia:           formData.numero_maglia ? parseInt(formData.numero_maglia) : null,
+        data_iscrizione:         formData.data_iscrizione         || null,
+        cert_medico_scadenza:    formData.cert_medico_scadenza    || null,
+      }).eq('id', id).eq('societa_id', societaId)
+      if (error) throw error
+      qc.invalidateQueries({ queryKey: ['giocatore-detail', id] })
+      qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
+    } catch (err) {
+      alert('Errore: ' + err.message)
+    } finally {
+      setSavingAnagrafica(false)
+    }
+  }
+
   async function handleUploadCert(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -208,6 +253,16 @@ export default function GiocatoreDetail() {
       </div>
 
       <div className="flex-1 px-4 py-4 pb-24">
+
+        {/* ── ANAGRAFICA ── */}
+        {activeTab === 'anagrafica' && (
+          <GiocatoreForm
+            initialValues={giocatore}
+            onSave={handleSaveAnagrafica}
+            onCancel={() => setActiveTab('note')}
+            saving={savingAnagrafica}
+          />
+        )}
 
         {/* ── NOTE ── */}
         {activeTab === 'note' && (
@@ -381,6 +436,36 @@ export default function GiocatoreDetail() {
                 <input type="file" accept="application/pdf" className="hidden"
                   disabled={uploading} onChange={handleUploadCert} />
               </label>
+            </div>
+          </div>
+        )}
+
+        {/* ── DOCUMENTI ── */}
+        {activeTab === 'documenti' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-medium text-gray-500 mb-3">Attestazione spese sportive (Modello 730)</p>
+              <p className="text-xs text-gray-400 mb-4">
+                Genera il documento per la detrazione IRPEF 19% (limite €210, art. 15 TUIR)
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="text-xs text-gray-500">Anno:</label>
+                <select
+                  value={annoAtt730}
+                  onChange={e => setAnnoAtt730(Number(e.target.value))}
+                  className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400">
+                  {[new Date().getFullYear(), new Date().getFullYear() - 1, new Date().getFullYear() - 2].map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+                <a
+                  href={`/secretary/attestazione730/${id}?anno=${annoAtt730}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
+                  📋 Genera attestazione
+                </a>
+              </div>
             </div>
           </div>
         )}
