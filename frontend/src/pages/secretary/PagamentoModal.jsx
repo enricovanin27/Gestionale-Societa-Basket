@@ -51,7 +51,7 @@ export default function PagamentoModal({ quota, giocatore, societaId, onClose })
   })
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/40 z-[200] flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
 
         {/* Header */}

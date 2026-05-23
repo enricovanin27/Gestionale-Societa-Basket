@@ -99,7 +99,7 @@ export default function GiocatoriPage() {
   )
 
   const modal = showAdd && (
-    <div className="fixed inset-0 bg-black/40 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 z-[200] overflow-y-auto">
       <div className="min-h-full flex items-start justify-center p-4 pt-8">
         <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
           <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">

@@ -223,7 +223,7 @@ export default function QuotePage() {
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-end justify-center">
           <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-gray-900">Nuova quota per squadra</h2>
