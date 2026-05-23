@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronRight, ChevronLeft, Users, Plus, X } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Users, Plus, X, Phone, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import AppHeader from '../../components/AppHeader'
@@ -50,13 +50,29 @@ export default function GiocatoriPage() {
     }
   }
 
-  const { data: giocatori = [], isLoading } = useQuery({
+  // Tutte le squadre dalla tabella squadre (gestite dall'admin)
+  const { data: squadre = [], isLoading: loadingSquadre } = useQuery({
+    queryKey: ['squadre-segreteria', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('squadre')
+        .select('categoria')
+        .eq('societa_id', societaId)
+        .order('categoria')
+      return (data ?? []).map(s => s.categoria)
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Giocatori con dati genitore inclusi
+  const { data: giocatori = [], isLoading: loadingGiocatori } = useQuery({
     queryKey: ['segreteria-giocatori', societaId],
     enabled: !!societaId,
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
-        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza')
+        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza, nome_genitore, cognome_genitore, telefono, email_genitore')
         .eq('societa_id', societaId)
         .eq('attivo', true)
         .order('cognome').order('nome')
@@ -65,15 +81,7 @@ export default function GiocatoriPage() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const squadre = useMemo(() => {
-    const set = new Set()
-    for (const g of giocatori) {
-      if (g.squadra)  set.add(g.squadra)
-      if (g.squadra2) set.add(g.squadra2)
-      if (g.squadra3) set.add(g.squadra3)
-    }
-    return [...set].sort()
-  }, [giocatori])
+  const isLoading = loadingSquadre || loadingGiocatori
 
   const giocatoriFiltrati = useMemo(() => {
     if (!selectedSquadra) return []
@@ -127,6 +135,7 @@ export default function GiocatoriPage() {
     </>
   )
 
+  // Vista lista squadre
   if (selectedSquadra === null) {
     return (
       <>
@@ -134,11 +143,8 @@ export default function GiocatoriPage() {
           {header}
           <div className="px-4 pt-4 space-y-2 pb-4">
             {squadre.map(s => {
-              const count   = giocatori.filter(g => g.squadra === s || g.squadra2 === s || g.squadra3 === s).length
-              const urgenti = giocatori.filter(g =>
-                (g.squadra === s || g.squadra2 === s || g.squadra3 === s) &&
-                certStatus(g.cert_medico_scadenza).urgente
-              ).length
+              const inSquadra = giocatori.filter(g => g.squadra === s || g.squadra2 === s || g.squadra3 === s)
+              const urgenti   = inSquadra.filter(g => certStatus(g.cert_medico_scadenza).urgente).length
               return (
                 <button
                   key={s}
@@ -150,7 +156,7 @@ export default function GiocatoriPage() {
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <p className="text-sm font-semibold text-gray-900">{s}</p>
-                    <p className="text-xs text-gray-400">{count} atleti</p>
+                    <p className="text-xs text-gray-400">{inSquadra.length} atleti</p>
                   </div>
                   {urgenti > 0 && (
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium shrink-0">
@@ -162,7 +168,7 @@ export default function GiocatoriPage() {
               )
             })}
             {squadre.length === 0 && (
-              <p className="text-center text-sm text-gray-400 py-16">Nessun giocatore registrato</p>
+              <p className="text-center text-sm text-gray-400 py-16">Nessuna squadra configurata</p>
             )}
           </div>
         </div>
@@ -172,6 +178,7 @@ export default function GiocatoriPage() {
     )
   }
 
+  // Vista giocatori di una squadra
   return (
     <>
       <div>
@@ -183,20 +190,38 @@ export default function GiocatoriPage() {
         </div>
         <div className="px-4 space-y-2 pb-4">
           {giocatoriFiltrati.map(g => {
-            const cert = certStatus(g.cert_medico_scadenza)
+            const cert         = certStatus(g.cert_medico_scadenza)
+            const nomeGenitore = [g.cognome_genitore, g.nome_genitore].filter(Boolean).join(' ')
             return (
               <button
                 key={g.id}
                 onClick={() => navigate(`/secretary/giocatori/${g.id}`)}
-                className="w-full bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3.5 flex items-center gap-3 active:bg-gray-50 transition-colors"
+                className="w-full bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-3 active:bg-gray-50 transition-colors text-left"
               >
                 <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
                   <span className="text-xs font-bold text-purple-700">
                     {(g.cognome?.[0] ?? '')}{(g.nome?.[0] ?? '')}
                   </span>
                 </div>
-                <div className="flex-1 text-left min-w-0">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{g.cognome} {g.nome}</p>
+                  {nomeGenitore && (
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{nomeGenitore}</p>
+                  )}
+                  {(g.telefono || g.email_genitore) && (
+                    <div className="flex items-center gap-3 mt-1">
+                      {g.telefono && (
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                          <Phone size={10} /> {g.telefono}
+                        </span>
+                      )}
+                      {g.email_genitore && (
+                        <span className="flex items-center gap-1 text-[11px] text-gray-400 truncate">
+                          <Mail size={10} /> {g.email_genitore}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${cert.cls}`}>
                   {cert.label}
