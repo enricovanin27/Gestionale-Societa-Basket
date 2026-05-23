@@ -2268,29 +2268,15 @@ function SocietaTab() {
 // TAB — GIOCATORI
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const EMPTY_GIOCATORE = { nome: '', cognome: '', email: '', squadra: '', squadra2: '', squadra3: '', data_nascita: '', numero_maglia: '', note: '', cert_medico_scadenza: '', attivo: true }
-
 function GiocatoriTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
-  const [showForm, setShowForm]       = useState(false)
-  const [editingRow, setEditingRow]   = useState(null)
-  const [form, setForm]               = useState(EMPTY_GIOCATORE)
   const [accountModal, setAccountModal] = useState(null)
   const [accountForm, setAccountForm] = useState({ email: '', password: '' })
   const [accountErr, setAccountErr]   = useState(null)
   const [accountOk, setAccountOk]     = useState(false)
   const [creatingAcc, setCreatingAcc] = useState(false)
-  const [indispModal, setIndispModal] = useState(null) // giocatore row
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const { data: squadreDisp = [] } = useQuery({
-    queryKey: ['squadre-table'],
-    queryFn: async () => {
-      const { data } = await supabase.from('squadre').select('categoria').order('categoria')
-      return (data ?? []).map(s => s.categoria)
-    },
-  })
+  const [indispModal, setIndispModal] = useState(null)
 
   const { data: giocatoriAccountEmails = new Set() } = useQuery({
     queryKey: ['giocatori-account-emails'],
@@ -2313,44 +2299,6 @@ function GiocatoriTab() {
       return data ?? []
     },
   })
-
-  const saveMut = useMutation({
-    mutationFn: async (f) => {
-      const payload = {
-        nome:           f.nome.trim(),
-        cognome:        f.cognome.trim(),
-        email:          f.email?.trim().toLowerCase() || null,
-        squadra:        f.squadra,
-        squadra2:       f.squadra2 || null,
-        squadra3:       f.squadra3 || null,
-        data_nascita:   f.data_nascita || null,
-        numero_maglia:  f.numero_maglia !== '' ? Number(f.numero_maglia) : null,
-        note:           f.note.trim() || null,
-        cert_medico_scadenza: f.cert_medico_scadenza || null,
-        attivo:         f.attivo,
-      }
-      if (f.id) {
-        const { error } = await supabase.from('giocatori').update(payload).eq('id', f.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('giocatori').insert([{ ...payload, societa_id: societaId }])
-        if (error) throw error
-      }
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['giocatori-tab'] }); closeForm() },
-  })
-
-  const delMut = useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from('giocatori').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['giocatori-tab'] }),
-  })
-
-  function openAdd()   { saveMut.reset(); setEditingRow(null); setForm(EMPTY_GIOCATORE); setShowForm(true) }
-  function openEdit(g) { saveMut.reset(); setEditingRow(g); setForm({ ...g, email: g.email ?? '', squadra2: g.squadra2 ?? '', squadra3: g.squadra3 ?? '', data_nascita: g.data_nascita ?? '', numero_maglia: g.numero_maglia ?? '', note: g.note ?? '', cert_medico_scadenza: g.cert_medico_scadenza ?? '' }); setShowForm(true) }
-  function closeForm() { setShowForm(false); setEditingRow(null); setForm(EMPTY_GIOCATORE) }
 
   function openAccountModal(g) {
     setAccountModal(g)
@@ -2431,10 +2379,7 @@ function GiocatoriTab() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{giocatori.length} giocatori</p>
-        <button onClick={openAdd}
-          className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium active:scale-95 transition-transform">
-          <Plus size={15} /> Aggiungi
-        </button>
+        <p className="text-xs text-gray-400 italic">Gestiti dalla segreteria</p>
       </div>
 
       {giocatori.length === 0 ? (
@@ -2498,15 +2443,6 @@ function GiocatoriTab() {
                         >
                           <Activity size={14} />
                         </button>
-                        <button onClick={() => openEdit(g)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg">
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => window.confirm(`Eliminare ${g.nome} ${g.cognome}?`) && delMut.mutate(g.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 size={14} />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -2516,70 +2452,6 @@ function GiocatoriTab() {
             </div>
           ))}
         </div>
-      )}
-
-      {showForm && (
-        <Modal title={editingRow ? 'Modifica giocatore' : 'Nuovo giocatore'} onClose={closeForm}>
-          <form onSubmit={e => { e.preventDefault(); saveMut.mutate(form) }} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Nome *">
-                <input value={form.nome} onChange={e => set('nome', e.target.value)} className={inp} placeholder="Mario" required />
-              </Field>
-              <Field label="Cognome *">
-                <input value={form.cognome} onChange={e => set('cognome', e.target.value)} className={inp} placeholder="Rossi" required />
-              </Field>
-            </div>
-            <Field label="Email">
-              <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inp} placeholder="mario@esempio.com" />
-            </Field>
-            <Field label="Squadra principale *">
-              <select value={form.squadra} onChange={e => set('squadra', e.target.value)} className={inp} required>
-                <option value="">Scegli squadra...</option>
-                {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-            <Field label="Squadra 2 (opzionale)">
-              <select value={form.squadra2} onChange={e => set('squadra2', e.target.value)} className={inp}>
-                <option value="">Nessuna</option>
-                {squadreDisp.filter(s => s !== form.squadra && s !== form.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-            <Field label="Squadra 3 (opzionale)">
-              <select value={form.squadra3} onChange={e => set('squadra3', e.target.value)} className={inp}>
-                <option value="">Nessuna</option>
-                {squadreDisp.filter(s => s !== form.squadra && s !== form.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Data nascita">
-                <input type="date" value={form.data_nascita} onChange={e => set('data_nascita', e.target.value)} className={inp} />
-              </Field>
-              <Field label="N. maglia">
-                <input type="number" min="0" max="99" value={form.numero_maglia} onChange={e => set('numero_maglia', e.target.value)} className={inp} placeholder="–" />
-              </Field>
-            </div>
-            <Field label="Scadenza cert. medico">
-              <input
-                type="date"
-                value={form.cert_medico_scadenza}
-                onChange={e => set('cert_medico_scadenza', e.target.value)}
-                className={inp}
-              />
-            </Field>
-            <Field label="Note">
-              <input value={form.note} onChange={e => set('note', e.target.value)} className={inp} placeholder="Opzionale" />
-            </Field>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.attivo} onChange={e => set('attivo', e.target.checked)} className="rounded" />
-              <span className="text-sm text-gray-700">Giocatore attivo</span>
-            </label>
-            {saveMut.isError && <p className="text-xs text-red-500">{saveMut.error?.message}</p>}
-            <button type="submit" disabled={saveMut.isPending}
-              className="w-full py-3 bg-purple-600 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
-              {saveMut.isPending ? 'Salvataggio...' : editingRow ? 'Salva modifiche' : 'Aggiungi giocatore'}
-            </button>
-          </form>
-        </Modal>
       )}
 
       {accountModal && (
