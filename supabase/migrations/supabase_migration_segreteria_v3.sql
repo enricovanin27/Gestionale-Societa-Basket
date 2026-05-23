@@ -27,7 +27,7 @@ ALTER TABLE societa ADD COLUMN IF NOT EXISTS nome_completo TEXT;
 
 -- ── QUOTE ────────────────────────────────────────────────────────────────
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS metodo_pagamento TEXT
-  CHECK (metodo_pagamento IN ('contanti', 'bonifico', 'pos'));
+  CHECK (metodo_pagamento IS NULL OR metodo_pagamento IN ('contanti', 'bonifico', 'pos'));
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS data_pagamento DATE;
 ALTER TABLE quote ADD COLUMN IF NOT EXISTS numero_ricevuta INTEGER;
 
@@ -56,3 +56,50 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- ── RLS: segreteria può inserire nuovi giocatori per la propria società ──
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'giocatori' AND policyname = 'giocatori_segreteria_insert'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY giocatori_segreteria_insert ON giocatori
+        FOR INSERT TO authenticated
+        WITH CHECK (
+          societa_id = (SELECT societa_id FROM profiles WHERE id = auth.uid())
+          AND EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND (ruolo = 'segreteria' OR 'segreteria' = ANY(ruoli_extra))
+          )
+        );
+    $policy$;
+  END IF;
+END;
+$$;
+
+-- ── RLS: segreteria può aggiornare giocatori della propria società ──────
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'giocatori' AND policyname = 'giocatori_segreteria_update'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY giocatori_segreteria_update ON giocatori
+        FOR UPDATE TO authenticated
+        USING (
+          societa_id = (SELECT societa_id FROM profiles WHERE id = auth.uid())
+          AND EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND (ruolo = 'segreteria' OR 'segreteria' = ANY(ruoli_extra))
+          )
+        );
+    $policy$;
+  END IF;
+END;
+$$;
+
+-- NOTE: Il bucket 'societa-loghi' deve essere creato manualmente nel Supabase Dashboard
+-- Storage → New bucket → name: "societa-loghi", public: true
