@@ -19,7 +19,14 @@ function certStatus(dataScadenza) {
 
 const TIPI_QUOTA = ['iscrizione', 'mensile', 'trasferta', 'attrezzatura', 'altro']
 const TIPO_LABEL = { iscrizione: 'Iscrizione', mensile: 'Mensile', trasferta: 'Trasferta', attrezzatura: 'Attrezzatura', altro: 'Altro' }
-const QUOTA_EMPTY = { tipo: 'iscrizione', descrizione: '', importo: '', data_scadenza: '' }
+const QUOTA_EMPTY = {
+  tipo: 'iscrizione', descrizione: '', rate_totali: 1,
+  rate: [
+    { importo: '', scadenza: '' },
+    { importo: '', scadenza: '' },
+    { importo: '', scadenza: '' },
+  ],
+}
 
 const TABS = [
   { id: 'anagrafica', label: 'Anagrafica' },
@@ -82,9 +89,9 @@ export default function GiocatoreDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('quote')
-        .select('id, tipo, descrizione, importo, data_scadenza, pagato')
+        .select('id, tipo, descrizione, importo, data_scadenza, pagato, numero_rata, rate_totali')
         .eq('giocatore_id', id).eq('societa_id', societaId)
-        .order('pagato').order('data_scadenza')
+        .order('pagato').order('data_scadenza').order('numero_rata')
       return data ?? []
     },
   })
@@ -142,18 +149,22 @@ export default function GiocatoreDetail() {
 
   async function handleAddQuota(e) {
     e.preventDefault()
-    if (!quotaForm.importo) return
+    const rateAttive = quotaForm.rate.slice(0, quotaForm.rate_totali)
+    if (rateAttive.some(r => !r.importo)) return
     setSavingQuota(true)
     try {
-      const { error } = await supabase.from('quote').insert({
+      const rows = rateAttive.map((r, i) => ({
         societa_id:    societaId,
         giocatore_id:  id,
         tipo:          quotaForm.tipo,
         descrizione:   quotaForm.descrizione || TIPO_LABEL[quotaForm.tipo],
-        importo:       parseFloat(quotaForm.importo),
-        data_scadenza: quotaForm.data_scadenza || null,
+        importo:       parseFloat(r.importo),
+        data_scadenza: r.scadenza || null,
         pagato:        false,
-      })
+        numero_rata:   quotaForm.rate_totali > 1 ? i + 1 : null,
+        rate_totali:   quotaForm.rate_totali > 1 ? quotaForm.rate_totali : null,
+      }))
+      const { error } = await supabase.from('quote').insert(rows)
       if (error) throw error
       qc.invalidateQueries({ queryKey: ['quote-giocatore', id] })
       qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
@@ -309,6 +320,7 @@ export default function GiocatoreDetail() {
                   </button>
                 </div>
                 <form onSubmit={handleAddQuota} className="space-y-3">
+                  {/* Tipo */}
                   <div className="flex gap-1.5 flex-wrap">
                     {TIPI_QUOTA.map(t => (
                       <button key={t} type="button"
@@ -325,16 +337,54 @@ export default function GiocatoreDetail() {
                   <input className={inp} placeholder="Descrizione (opzionale)"
                     value={quotaForm.descrizione}
                     onChange={e => setQuotaForm(f => ({ ...f, descrizione: e.target.value }))} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="number" min="0" step="0.01" className={inp} placeholder="Importo €" required
-                      value={quotaForm.importo}
-                      onChange={e => setQuotaForm(f => ({ ...f, importo: e.target.value }))} />
-                    <input type="date" className={inp} value={quotaForm.data_scadenza}
-                      onChange={e => setQuotaForm(f => ({ ...f, data_scadenza: e.target.value }))} />
+
+                  {/* Numero rate */}
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1.5">Pagamento</p>
+                    <div className="flex gap-1.5">
+                      {[1, 2, 3].map(n => (
+                        <button key={n} type="button"
+                          onClick={() => setQuotaForm(f => ({ ...f, rate_totali: n }))}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                            quotaForm.rate_totali === n
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-white text-gray-600 border-gray-200'
+                          }`}>
+                          {n === 1 ? 'Unica' : `${n} rate`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Importo + scadenza per ogni rata */}
+                  {Array.from({ length: quotaForm.rate_totali }, (_, i) => (
+                    <div key={i} className="space-y-1">
+                      {quotaForm.rate_totali > 1 && (
+                        <p className="text-xs font-medium text-purple-600">Rata {i + 1}/{quotaForm.rate_totali}</p>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="number" min="0" step="0.01" className={inp}
+                          placeholder="Importo €" required
+                          value={quotaForm.rate[i].importo}
+                          onChange={e => setQuotaForm(f => {
+                            const rate = [...f.rate]
+                            rate[i] = { ...rate[i], importo: e.target.value }
+                            return { ...f, rate }
+                          })} />
+                        <input type="date" className={inp}
+                          value={quotaForm.rate[i].scadenza}
+                          onChange={e => setQuotaForm(f => {
+                            const rate = [...f.rate]
+                            rate[i] = { ...rate[i], scadenza: e.target.value }
+                            return { ...f, rate }
+                          })} />
+                      </div>
+                    </div>
+                  ))}
+
                   <button type="submit" disabled={savingQuota}
                     className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-60">
-                    {savingQuota ? 'Salvataggio...' : 'Aggiungi'}
+                    {savingQuota ? 'Salvataggio...' : quotaForm.rate_totali > 1 ? `Aggiungi ${quotaForm.rate_totali} rate` : 'Aggiungi'}
                   </button>
                 </form>
               </div>
@@ -347,10 +397,17 @@ export default function GiocatoreDetail() {
 
             {loadingQ ? <LoadingSpinner /> : quote.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-8">Nessuna quota registrata</p>
-            ) : quote.map(q => (
+            ) : quote.map(q => {
+              const rataLabel = (q.rate_totali ?? 1) > 1 ? `Rata ${q.numero_rata}/${q.rate_totali}` : null
+              return (
               <div key={q.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3 ${q.pagato ? 'opacity-55' : ''}`}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-sm font-semibold text-gray-900">{q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}</p>
+                    {rataLabel && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 font-semibold">{rataLabel}</span>
+                    )}
+                  </div>
                   {q.data_scadenza && (
                     <p className="text-xs text-gray-400 mt-0.5">
                       Scadenza: {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })}
@@ -378,7 +435,7 @@ export default function GiocatoreDetail() {
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
 
