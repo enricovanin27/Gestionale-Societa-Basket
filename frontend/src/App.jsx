@@ -25,6 +25,9 @@ import SegreteriaDashboard from './pages/secretary/SegreteriaDashboard'
 import GiocatoriPage   from './pages/secretary/GiocatoriPage'
 import GiocatoreDetail from './pages/secretary/GiocatoreDetail'
 import QuotePage       from './pages/secretary/QuotePage'
+import ImpostazioniSocieta  from './pages/secretary/ImpostazioniSocieta'
+import RicevutaPage         from './pages/secretary/RicevutaPage'
+import Attestazione730Page  from './pages/secretary/Attestazione730Page'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
@@ -174,7 +177,14 @@ function AppShell() {
           <Route path="giocatori/:id"   element={<GiocatoreDetail />} />
           <Route path="bacheca"         element={<BachecaPage />} />
           <Route path="quote"           element={<QuotePage />} />
+          <Route path="impostazioni"    element={<ImpostazioniSocieta />} />
         </Route>
+
+        {/* Print pages — segreteria, no layout */}
+        <Route path="/secretary/ricevuta/:quoteId"
+          element={<ProtectedRoute requiredRole="segreteria"><RicevutaPage /></ProtectedRoute>} />
+        <Route path="/secretary/attestazione730/:giocId"
+          element={<ProtectedRoute requiredRole="segreteria"><Attestazione730Page /></ProtectedRoute>} />
 
         {/* â"€â"€ Allenatore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
         <Route path="/coach" element={<ProtectedRoute requiredRole="allenatore"><CoachLayout /></ProtectedRoute>}>

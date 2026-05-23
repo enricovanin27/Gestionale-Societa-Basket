@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Receipt } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt, Settings } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -18,6 +18,7 @@ export default function SecretaryLayout() {
     { to: '/secretary/giocatori',            icon: Users,            label: 'Giocatori' },
     { to: '/secretary/quote',                icon: Receipt,          label: 'Quote' },
     { to: '/secretary/bacheca',              icon: Bell,             label: 'Bacheca', badge: unread },
+    { to: '/secretary/impostazioni',         icon: Settings,         label: 'Impostazioni' },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,6 +45,9 @@ export default function SecretaryLayout() {
               )}
             </div>
             <span className="text-xs font-medium">Bacheca</span>
+          </NavLink>
+          <NavLink to="/secretary/impostazioni" className={cls}>
+            <Settings size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Impostazioni</span>
           </NavLink>
         </div>
       </nav>
