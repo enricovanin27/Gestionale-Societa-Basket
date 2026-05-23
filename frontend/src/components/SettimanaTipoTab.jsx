@@ -9,6 +9,7 @@ import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 import { formatTime } from '../lib/utils'
 import { Modal, Field, inp } from '../components/ui'
 import { GrigliaTipo } from './GrigliaSettimanale'
+import PrepSesioneInlineForm from './PrepSesioneInlineForm'
 
 function getColor(squadra, allSquadre) {
   const idx = allSquadre.indexOf(squadra)
@@ -78,7 +79,7 @@ function ConflictIndicator({ errors, warnings }) {
   )
 }
 
-const EMPTY_FISSO = { giorno: 'lunedi', squadra: '', ora_inizio: '18:00', ora_fine: '20:00', palestra: '', allenatori: [] }
+const EMPTY_FISSO = { giorno: 'lunedi', squadra: '', ora_inizio: '18:00', ora_fine: '20:00', palestra: '', allenatori: [], prep_inclusa: false, prep_quando: 'prima', prep_durata_min: 30, prep_su_campo: false }
 
 export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
   const qc = useQueryClient()
@@ -160,7 +161,14 @@ export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenat
 
   const saveMut = useMutation({
     mutationFn: async (f) => {
-      const p = { giorno: f.giorno, squadra: f.squadra, ora_inizio: f.ora_inizio, ora_fine: f.ora_fine, palestra: f.palestra, allenatori: f.allenatori.join(', '), condivisione: f._condivisione ? 'SI' : 'NO' }
+      const p = {
+        giorno: f.giorno, squadra: f.squadra, ora_inizio: f.ora_inizio, ora_fine: f.ora_fine,
+        palestra: f.palestra, allenatori: f.allenatori.join(', '), condivisione: f._condivisione ? 'SI' : 'NO',
+        prep_inclusa:    f.prep_inclusa,
+        prep_quando:     f.prep_inclusa ? f.prep_quando     : null,
+        prep_durata_min: f.prep_inclusa ? f.prep_durata_min : null,
+        prep_su_campo:   f.prep_inclusa ? f.prep_su_campo   : false,
+      }
       if (f.id) {
         const { error } = await supabase.from('orario_fisso').update(p).eq('id', f.id)
         if (error) throw error
@@ -200,7 +208,14 @@ export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenat
   function openAdd()   { setEditingRow(null); setForm(EMPTY_FISSO); setShowForm(true) }
   function openEdit(r) {
     setEditingRow(r)
-    setForm({ ...r, allenatori: r.allenatori ? r.allenatori.split(',').map(a => a.trim()).filter(Boolean) : [] })
+    setForm({
+      ...r,
+      allenatori:      r.allenatori ? r.allenatori.split(',').map(a => a.trim()).filter(Boolean) : [],
+      prep_inclusa:    r.prep_inclusa    ?? false,
+      prep_quando:     r.prep_quando     ?? 'prima',
+      prep_durata_min: r.prep_durata_min ?? 30,
+      prep_su_campo:   r.prep_su_campo   ?? false,
+    })
     setShowForm(true)
   }
   function closeForm() { setShowForm(false); setEditingRow(null) }
@@ -382,6 +397,24 @@ export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenat
                 </div>
               )}
             </Field>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold text-indigo-700">Preparazione atletica</p>
+                <button type="button"
+                  onClick={() => set('prep_inclusa', !form.prep_inclusa)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    form.prep_inclusa ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
+                  }`}>
+                  {form.prep_inclusa ? '✓ Inclusa' : 'Aggiungi'}
+                </button>
+              </div>
+              {form.prep_inclusa && (
+                <PrepSesioneInlineForm
+                  onChange={d => setForm(f => ({ ...f, prep_quando: d.quando, prep_durata_min: d.durata_min, prep_su_campo: d.su_campo }))}
+                />
+              )}
+            </div>
+
             <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
               <p className="text-xs text-gray-400 mb-1.5 font-medium">Disponibilità — {GIORNI_LABEL[form.giorno]}</p>
               <ConflictIndicator errors={fActiveCondivisione ? [] : fErrors} warnings={fWarnings} />

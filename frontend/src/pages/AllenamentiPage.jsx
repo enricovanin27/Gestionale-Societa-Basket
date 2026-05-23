@@ -162,7 +162,7 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
   const canSave = (!errors.length || activeCondivisione) && !!form.ora_inizio && !!form.ora_fine
 
   return (
-    <form onSubmit={e => { e.preventDefault(); if (canSave) onSave({ ...form, allenatori: allenatoriStr, condivisione: activeCondivisione, _palestraConflicts: palestraConflicts, _prepData: includiAtletica ? prepData : null, _prepPreparatoreId: includiAtletica ? prepAssegnato?.preparatore_id : null }) }} className="space-y-4">
+    <form onSubmit={e => { e.preventDefault(); if (canSave) onSave({ ...form, allenatori: allenatoriStr, condivisione: activeCondivisione, _palestraConflicts: palestraConflicts, _prepData: includiAtletica ? prepData : null, _prepPreparatoreId: prepAssegnato?.preparatore_id ?? null }) }} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Ora inizio">
           <input type="time" value={form.ora_inizio} onChange={e => set('ora_inizio', e.target.value)} className={inp} required />
@@ -203,22 +203,16 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-xs font-semibold text-indigo-700">Preparazione atletica</p>
-          {prepAssegnato && (
-            <button type="button"
-              onClick={() => setIncludiAtletica(v => !v)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                includiAtletica ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
-              }`}
-            >
-              {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
-            </button>
-          )}
+          <button type="button"
+            onClick={() => setIncludiAtletica(v => !v)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              includiAtletica ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
+            }`}
+          >
+            {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
+          </button>
         </div>
-        {prepAssegnato ? (
-          includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />
-        ) : (
-          <p className="text-xs text-amber-600">Nessun preparatore assegnato a questa squadra. Assegna da <strong>Setup → Utenti</strong>.</p>
-        )}
+        {includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />}
       </div>
 
       <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
@@ -776,10 +770,10 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
       await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
         await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
-      if (formData._prepData && formData._prepPreparatoreId) {
+      if (formData._prepData) {
         await supabase.from('prep_sessioni').insert([{
           societa_id: societaId,
-          preparatore_id: formData._prepPreparatoreId,
+          preparatore_id: formData._prepPreparatoreId ?? null,
           squadra: event.squadra,
           data: event.data,
           tipo: 'allenamento',

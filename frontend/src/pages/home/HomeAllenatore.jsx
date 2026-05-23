@@ -10,6 +10,7 @@ import { useWeekEvents } from '../../hooks/useWeekEvents'
 import { formatTime, formatDate } from '../../lib/utils'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
+import PrepSesioneInlineForm from '../../components/PrepSesioneInlineForm'
 import { GIORNI as GIORNI_W, GIORNO_FULL as GIORNI_LABEL_W } from '../../lib/constants'
 import { saveAllenamento, annullaAllenamento } from '../../hooks/useAllenamenti'
 import {
@@ -205,6 +206,8 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
     ora_fine:   '20:00',
     palestra:   '',
   })
+  const [includiAtletica, setIncludiAtletica] = useState(false)
+  const [prepData, setPrepData] = useState({ quando: 'prima', durata_min: 30, su_campo: false })
 
   const effectiveWeekStart = useMemo(
     () => nextWeek ? addWeeks(weekStart, 1) : weekStart,
@@ -238,6 +241,19 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
         societa_id: societaId,
       }])
       if (error) throw error
+      if (includiAtletica) {
+        await supabase.from('prep_sessioni').insert([{
+          societa_id:     societaId,
+          preparatore_id: null,
+          squadra:        form.squadra,
+          data:           targetDate,
+          tipo:           'allenamento',
+          quando:         prepData.quando,
+          durata_min:     prepData.durata_min,
+          su_campo:       prepData.su_campo,
+          note:           '',
+        }])
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
@@ -313,6 +329,21 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
             )}
           </div>
         </div>
+        {/* Preparazione atletica */}
+        <div className="mt-3 bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-xs font-semibold text-indigo-700">Preparazione atletica</p>
+            <button type="button"
+              onClick={() => setIncludiAtletica(v => !v)}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                includiAtletica ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
+              }`}>
+              {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
+            </button>
+          </div>
+          {includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />}
+        </div>
+
         {saveMut.isError && (
           <p className="text-xs text-red-500 mt-2">{saveMut.error?.message}</p>
         )}
