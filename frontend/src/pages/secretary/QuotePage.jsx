@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Plus, X, Check, Trash2 } from 'lucide-react'
+import { Plus, X, Check, Trash2, Printer } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import PageHeader from '../../components/PageHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PagamentoModal from './PagamentoModal'
 
 const TIPI = ['iscrizione', 'mensile', 'trasferta', 'attrezzatura', 'altro']
 const TIPO_LABEL = {
@@ -22,6 +23,7 @@ export default function QuotePage() {
   const [form, setForm] = useState(FORM_EMPTY)
   const [filtroSquadra, setFiltroSquadra] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pagamentoQuota, setPagamentoQuota] = useState(null)
 
   const { data: allQuote = [], isLoading: loadingQ } = useQuery({
     queryKey: ['quote-segreteria', societaId],
@@ -30,7 +32,7 @@ export default function QuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('quote')
-        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato')
+        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato, metodo_pagamento, data_pagamento, numero_ricevuta')
         .eq('societa_id', societaId)
         .order('pagato').order('data_scadenza', { nullsFirst: false })
       return data ?? []
@@ -62,9 +64,14 @@ export default function QuotePage() {
 
   const totaleAperto = allQuote.filter(q => !q.pagato).reduce((s, q) => s + (q.importo ?? 0), 0)
 
-  const togglePagatoMut = useMutation({
-    mutationFn: async ({ id, pagato }) => {
-      const { error } = await supabase.from('quote').update({ pagato }).eq('id', id)
+  const unpagatoMut = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('quote').update({
+        pagato:           false,
+        metodo_pagamento: null,
+        data_pagamento:   null,
+        numero_ricevuta:  null,
+      }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -168,16 +175,33 @@ export default function QuotePage() {
                     </span>
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
-                    <button
-                      onClick={() => togglePagatoMut.mutate({ id: q.id, pagato: !q.pagato })}
-                      title={q.pagato ? 'Segna non pagato' : 'Segna pagato'}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        q.pagato
-                          ? 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                          : 'bg-green-100 text-green-600 hover:bg-green-200'
-                      }`}>
-                      <Check size={14} />
-                    </button>
+                    {q.pagato ? (
+                      <>
+                        {q.numero_ricevuta && (
+                          <a
+                            href={`/secretary/ricevuta/${q.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center"
+                            title="Stampa ricevuta">
+                            <Printer size={14} />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => unpagatoMut.mutate(q.id)}
+                          title="Segna non pagato"
+                          className="w-8 h-8 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200 flex items-center justify-center">
+                          <Check size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setPagamentoQuota(q)}
+                        title="Segna pagato"
+                        className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center">
+                        <Check size={14} />
+                      </button>
+                    )}
                     <button
                       onClick={() => deleteMut.mutate(q.id)}
                       className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
@@ -266,6 +290,14 @@ export default function QuotePage() {
             </form>
           </div>
         </div>
+      )}
+      {pagamentoQuota && (
+        <PagamentoModal
+          quota={pagamentoQuota}
+          giocatore={giocatoreMap[pagamentoQuota.giocatore_id]}
+          societaId={societaId}
+          onClose={() => setPagamentoQuota(null)}
+        />
       )}
     </div>
   )
