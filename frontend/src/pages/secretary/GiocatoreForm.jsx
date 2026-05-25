@@ -10,6 +10,7 @@ const EMPTY = {
   telefono: '', email_genitore: '',
   squadra: '', squadra2: '', squadra3: '', numero_maglia: '',
   data_iscrizione: '', cert_medico_scadenza: '',
+  genitore_user_id: '',
 }
 
 export default function GiocatoreForm({ initialValues = {}, onSave, onCancel, saving }) {
@@ -40,6 +41,22 @@ export default function GiocatoreForm({ initialValues = {}, onSave, onCancel, sa
         if (g.squadra3) set.add(g.squadra3)
       }
       return [...set].sort()
+    },
+  })
+
+  // Account genitore della stessa società
+  const { data: genitori = [] } = useQuery({
+    queryKey: ['genitori-profiles', societaId],
+    enabled: !!societaId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, nome, cognome, email')
+        .eq('societa_id', societaId)
+        .or('ruolo.eq.genitore,ruoli_extra.cs.{genitore}')
+        .order('cognome').order('nome')
+      return data ?? []
     },
   })
 
@@ -133,6 +150,24 @@ export default function GiocatoreForm({ initialValues = {}, onSave, onCancel, sa
               <label className="text-xs text-gray-400 mb-1 block">Email</label>
               <input type="email" className={inp} value={form.email_genitore ?? ''} onChange={set('email_genitore')} />
             </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Account app collegato</label>
+            <select
+              className={inp}
+              value={form.genitore_user_id ?? ''}
+              onChange={set('genitore_user_id')}
+            >
+              <option value="">— Nessun account collegato —</option>
+              {genitori.map(g => (
+                <option key={g.id} value={g.id}>
+                  {g.cognome} {g.nome}{g.email ? ` (${g.email})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Il genitore vedrà nell'app solo il proprio figlio
+            </p>
           </div>
         </div>
       </section>

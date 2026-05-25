@@ -18,18 +18,17 @@ function scadenzaStatus(dataScadenza) {
 }
 
 export default function QuoteGenitore() {
-  const { profile, societaId, displayName, logout, societaNome } = useAuth()
-  const mySquadre = [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
+  const { user, societaId, displayName, logout, societaNome } = useAuth()
 
-  const { data: giocatori = [] } = useQuery({
-    queryKey: ['giocatori-squadre', societaId, mySquadre],
-    enabled: !!societaId && mySquadre.length > 0,
+  const { data: giocatori = [], isLoading: loadingG } = useQuery({
+    queryKey: ['giocatori-genitore', societaId, user?.id],
+    enabled: !!societaId && !!user?.id,
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
         .select('id, nome, cognome, squadra')
         .eq('societa_id', societaId)
-        .in('squadra', mySquadre)
+        .eq('genitore_user_id', user.id)
         .eq('attivo', true)
       return data ?? []
     },
@@ -42,7 +41,7 @@ export default function QuoteGenitore() {
     [giocatori]
   )
 
-  const { data: quote = [], isLoading } = useQuery({
+  const { data: quote = [], isLoading: loadingQ } = useQuery({
     queryKey: ['quote-genitore', societaId, giocatoreIds],
     enabled: !!societaId && giocatoreIds.length > 0,
     queryFn: async () => {
@@ -58,8 +57,33 @@ export default function QuoteGenitore() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const daPagare = quote.filter(q => !q.pagato)
-  const pagate   = quote.filter(q => q.pagato)
+  const isLoading = loadingG || loadingQ
+  const daPagare  = quote.filter(q => !q.pagato)
+  const pagate    = quote.filter(q => q.pagato)
+
+  // Nessun giocatore collegato a questo account
+  if (!isLoading && giocatori.length === 0) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <AppHeader
+          title="Le mie quote"
+          subtitle="Pagamenti e scadenze"
+          displayName={displayName}
+          logout={logout}
+          societaNome={societaNome}
+        />
+        <div className="flex-1 flex items-center justify-center px-6 text-center">
+          <div>
+            <p className="text-4xl mb-3">👨‍👩‍👦</p>
+            <p className="text-sm font-semibold text-gray-700">Nessun giocatore collegato</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Chiedi alla segreteria di collegare il tuo account al profilo del tuo figlio
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="pb-4">
@@ -73,10 +97,6 @@ export default function QuoteGenitore() {
 
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>
-      ) : mySquadre.length === 0 ? (
-        <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <p className="text-sm text-amber-700">⚠️ Nessuna squadra associata al tuo profilo.</p>
-        </div>
       ) : (
         <div className="px-4 pt-4 space-y-4">
 

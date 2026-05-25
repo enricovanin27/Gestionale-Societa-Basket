@@ -10,7 +10,7 @@ import AppHeader from '../../components/AppHeader'
 import { PALETTE } from '../../lib/constants'
 
 export default function HomeGenitore() {
-  const { profile, societaId, displayName, logout, societaNome } = useAuth()
+  const { user, profile, societaId, displayName, logout, societaNome } = useAuth()
   const [selectedSquadra, setSelectedSquadra] = useState('')
 
   const today      = new Date()
@@ -54,14 +54,14 @@ export default function HomeGenitore() {
   })
 
   const { data: quoteAperte = [] } = useQuery({
-    queryKey: ['genitore-quote-aperte', societaId, mySquadre],
-    enabled: !!societaId && mySquadre.length > 0,
+    queryKey: ['genitore-quote-aperte', societaId, user?.id],
+    enabled: !!societaId && !!user?.id,
     queryFn: async () => {
       const { data: gio } = await supabase
         .from('giocatori')
         .select('id, nome, cognome')
-        .in('squadra', mySquadre)
         .eq('societa_id', societaId)
+        .eq('genitore_user_id', user.id)
         .eq('attivo', true)
       if (!gio?.length) return []
       const { data: q } = await supabase

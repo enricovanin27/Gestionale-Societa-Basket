@@ -316,19 +316,6 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
     staleTime: 30 * 1000,
   })
 
-  const { data: prepAssegnato } = useQuery({
-    queryKey: ['prep-per-squadra', form.squadra, societaId],
-    enabled: !!form.squadra && !!societaId && form.tipo === 'allenamento',
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('prep_squadre').select('preparatore_id')
-        .eq('squadra', form.squadra)
-        .eq('societa_id', societaId)
-        .limit(1).maybeSingle()
-      return data
-    },
-  })
 
   const [forceInsert, setForceInsert] = useState(false)
 
@@ -494,13 +481,9 @@ export function EventForm({ initial, onSave, onClose, squadre, squadreAllenatore
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input type="checkbox"
                     checked={hasAtletica}
-                    disabled={!prepAssegnato}
                     onChange={e => setHasAtletica(e.target.checked)}
                     className="w-4 h-4 rounded text-amber-500" />
-                  <span className={!prepAssegnato ? 'text-gray-400' : ''}>
-                    Parte di preparazione atletica
-                    {!prepAssegnato && <span className="text-xs text-gray-400 ml-1">(nessun preparatore assegnato)</span>}
-                  </span>
+                  <span>Parte di preparazione atletica</span>
                 </label>
                 {hasAtletica && <PrepSesioneInlineForm onChange={setPrepData} />}
               </div>
@@ -716,6 +699,8 @@ function TrainingEditModal({ training, onClose, onSaved }) {
     palestra:   training.palestra ?? '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const [includiAtletica, setIncludiAtletica] = useState(false)
+  const [prepData, setPrepData] = useState({ quando: 'prima', durata_min: 30, su_campo: false })
 
   const { data: palestreList = [] } = useQuery({
     queryKey: ['palestre'],
@@ -727,7 +712,22 @@ function TrainingEditModal({ training, onClose, onSaved }) {
   })
 
   const saveMut = useMutation({
-    mutationFn: () => saveAllenamento(training, form, societaId),
+    mutationFn: async () => {
+      await saveAllenamento(training, form, societaId)
+      if (includiAtletica) {
+        const { error } = await supabase.from('prep_sessioni').insert([{
+          societa_id:     societaId,
+          preparatore_id: null,
+          squadra:        training.squadra,
+          data:           training.data,
+          quando:         prepData.quando,
+          durata_min:     prepData.durata_min,
+          su_campo:       prepData.su_campo,
+          note:           '',
+        }])
+        if (error) throw error
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       inviaNotificaModifica(
@@ -787,6 +787,21 @@ function TrainingEditModal({ training, onClose, onSaved }) {
           <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             Modifica solo questa data — la settimana tipo rimane invariata.
           </p>
+
+          {/* Preparazione atletica */}
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-semibold text-indigo-700">Preparazione atletica</p>
+              <button type="button"
+                onClick={() => setIncludiAtletica(v => !v)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                  includiAtletica ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'
+                }`}>
+                {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
+              </button>
+            </div>
+            {includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />}
+          </div>
 
           {saveMut.isError && (
             <p className="text-xs text-red-600">Errore: {saveMut.error?.message}</p>
@@ -1018,7 +1033,6 @@ export default function CalendarioPage() {
             preparatore_id: _prepPreparatoreId,
             squadra: formData.squadra,
             data: formData.data,
-            tipo: 'allenamento',
             quando: _prepData.quando,
             durata_min: _prepData.durata_min,
             su_campo: _prepData.su_campo,
@@ -1381,18 +1395,15 @@ export default function CalendarioPage() {
                     .eq('societa_id', societaId)
                     .limit(1).maybeSingle()
 
-                  if (prepRec?.preparatore_id) {
-                    await supabase.from('prep_sessioni').insert({
-                      societa_id:     societaId,
-                      preparatore_id: prepRec.preparatore_id,
-                      squadra:        prepSessionData.squadra,
-                      data:           prepSessionData.data,
-                      ora_inizio:     '00:00',
-                      durata_min:     prepSessionData.durata_min,
-                      quando:         prepSessionData.quando,
-                      su_campo:       prepSessionData.su_campo,
-                    })
-                  }
+                  await supabase.from('prep_sessioni').insert({
+                    societa_id:     societaId,
+                    preparatore_id: prepRec?.preparatore_id ?? null,
+                    squadra:        prepSessionData.squadra,
+                    data:           prepSessionData.data,
+                    durata_min:     prepSessionData.durata_min,
+                    quando:         prepSessionData.quando,
+                    su_campo:       prepSessionData.su_campo,
+                  })
                 }
               },
             })
