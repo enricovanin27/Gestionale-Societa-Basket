@@ -114,9 +114,9 @@ function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelect
       const { data: giocatori, error: ge } = await supabase
         .from('giocatori')
         .select('id, nome, cognome')
-        .eq('squadra', squadra)
         .eq('societa_id', societaId)
         .eq('attivo', true)
+        .or(`squadra.eq.${squadra},squadra2.eq.${squadra},squadra3.eq.${squadra}`)
         .order('cognome').order('nome')
       if (ge) throw ge
       if (!giocatori.length) return []

@@ -104,10 +104,10 @@ function PresenzeTab({ mySquadre, societaId }) {
     enabled: !!selectedSquadra && !!societaId,
     queryFn: async () => {
       const { data } = await supabase.from('giocatori')
-        .select('id, nome, cognome')
-        .eq('squadra', selectedSquadra)
+        .select('id, nome, cognome, squadra')
         .eq('societa_id', societaId)
         .eq('attivo', true)
+        .or(`squadra.eq.${selectedSquadra},squadra2.eq.${selectedSquadra},squadra3.eq.${selectedSquadra}`)
         .order('cognome').order('nome')
       return data ?? []
     },
