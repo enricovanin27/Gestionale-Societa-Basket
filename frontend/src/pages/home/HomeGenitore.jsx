@@ -15,10 +15,37 @@ export default function HomeGenitore() {
 
   const today      = new Date()
   const todayStr   = format(today, 'yyyy-MM-dd')
+
+  // Ricava le squadre dai figli collegati via genitore_user_id
+  const { data: figli = [], isLoading: loadingFigli } = useQuery({
+    queryKey: ['figli-genitore-squadre', societaId, user?.id],
+    enabled: !!societaId && !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('giocatori')
+        .select('squadra, squadra2, squadra3')
+        .eq('societa_id', societaId)
+        .eq('genitore_user_id', user.id)
+        .eq('attivo', true)
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const mySquadre = useMemo(() => {
+    if (figli.length > 0) {
+      const set = new Set()
+      for (const f of figli) {
+        if (f.squadra)  set.add(f.squadra)
+        if (f.squadra2) set.add(f.squadra2)
+        if (f.squadra3) set.add(f.squadra3)
+      }
+      return [...set]
+    }
+    // Fallback: squadre dal profilo (compatibilità genitori senza figlio collegato)
     const genSquadre = [profile?.genitore_squadra, profile?.genitore_squadra2, profile?.genitore_squadra3].filter(Boolean)
     return genSquadre.length > 0 ? genSquadre : [profile?.squadra, profile?.squadra2, profile?.squadra3].filter(Boolean)
-  }, [profile])
+  }, [figli, profile])
   const colorMap = useMemo(
     () => Object.fromEntries(mySquadre.map((s, i) => [s.toLowerCase(), PALETTE[i % PALETTE.length]])),
     [mySquadre]
@@ -94,6 +121,16 @@ export default function HomeGenitore() {
       .filter(e => !e.annullato && squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())),
     [weekData, todayStr, squadreFiltro]
   )
+
+  if (loadingFigli) {
+    return (
+      <div>
+        <AppHeader title="Ciao!" subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
+          displayName={displayName} logout={logout} societaNome={societaNome} />
+        <div className="pt-8"><LoadingSpinner /></div>
+      </div>
+    )
+  }
 
   if (!mySquadre.length) {
     return (
