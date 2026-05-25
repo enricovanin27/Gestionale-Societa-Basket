@@ -155,14 +155,15 @@ export default function SegreteriaDashboard() {
                   </p>
                   <div className="space-y-2">
                     {certScaduti.map(g => (
-                      <button key={g.id} onClick={() => navigate('/secretary/giocatori')}
+                      <button key={g.id}
+                        onClick={() => navigate(`/secretary/giocatori/${g.id}`, { state: { tab: 'cert' } })}
                         className="w-full text-left bg-white rounded-xl border border-l-4 border-l-red-500 px-4 py-3 shadow-sm active:scale-[0.99]">
                         <p className="text-sm font-semibold text-gray-900">{g.cognome} {g.nome}</p>
                         <p className="text-xs text-red-600 mt-0.5">
                           Scaduto il {format(parseISO(g.cert_medico_scadenza), 'd MMM yyyy', { locale: it })}
                           {' '}({-differenceInDays(parseISO(g.cert_medico_scadenza), today)}gg fa)
                         </p>
-                        <p className="text-xs text-gray-400">{g.squadra}</p>
+                        <p className="text-xs text-gray-400">{g.squadra} · Tocca per aggiornare</p>
                       </button>
                     ))}
                   </div>
@@ -177,14 +178,15 @@ export default function SegreteriaDashboard() {
                   </p>
                   <div className="space-y-2">
                     {certInScad.map(g => (
-                      <button key={g.id} onClick={() => navigate('/secretary/giocatori')}
+                      <button key={g.id}
+                        onClick={() => navigate(`/secretary/giocatori/${g.id}`, { state: { tab: 'cert' } })}
                         className="w-full text-left bg-white rounded-xl border border-l-4 border-l-orange-400 px-4 py-3 shadow-sm active:scale-[0.99]">
                         <p className="text-sm font-semibold text-gray-900">{g.cognome} {g.nome}</p>
                         <p className="text-xs text-orange-600 mt-0.5">
                           Scade in {differenceInDays(parseISO(g.cert_medico_scadenza), today)}gg
                           {' '}({format(parseISO(g.cert_medico_scadenza), 'd MMM', { locale: it })})
                         </p>
-                        <p className="text-xs text-gray-400">{g.squadra}</p>
+                        <p className="text-xs text-gray-400">{g.squadra} · Tocca per aggiornare</p>
                       </button>
                     ))}
                   </div>
@@ -201,7 +203,8 @@ export default function SegreteriaDashboard() {
                     {quoteScadute.map(q => {
                       const g = giocatoreMap[q.giocatore_id]
                       return (
-                        <button key={q.id} onClick={() => navigate('/secretary/quote')}
+                        <button key={q.id}
+                          onClick={() => navigate(`/secretary/giocatori/${q.giocatore_id}`, { state: { tab: 'quote' } })}
                           className="w-full text-left bg-white rounded-xl border border-l-4 border-l-purple-400 px-4 py-3 shadow-sm active:scale-[0.99]">
                           <p className="text-sm font-semibold text-gray-900">
                             {g ? `${g.cognome} ${g.nome}` : 'Giocatore sconosciuto'}
@@ -209,7 +212,7 @@ export default function SegreteriaDashboard() {
                           <p className="text-xs text-purple-600 mt-0.5">{q.descrizione ?? q.tipo} — €{q.importo}</p>
                           {q.data_scadenza && (
                             <p className="text-xs text-gray-400">
-                              Scad. {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })}
+                              Scad. {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })} · Tocca per registrare pagamento
                             </p>
                           )}
                         </button>

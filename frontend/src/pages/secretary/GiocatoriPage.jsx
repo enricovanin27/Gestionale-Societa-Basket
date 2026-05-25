@@ -65,6 +65,25 @@ export default function GiocatoriPage() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Quote non pagate per giocatore (per badge visivo)
+  const { data: quoteMap = {} } = useQuery({
+    queryKey: ['quote-nonpagate-map', societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('quote')
+        .select('giocatore_id')
+        .eq('societa_id', societaId)
+        .eq('pagato', false)
+      const map = {}
+      for (const q of data ?? []) {
+        map[q.giocatore_id] = (map[q.giocatore_id] ?? 0) + 1
+      }
+      return map
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+
   // Giocatori con dati genitore inclusi
   const { data: giocatori = [], isLoading: loadingGiocatori } = useQuery({
     queryKey: ['segreteria-giocatori', societaId],
@@ -143,8 +162,9 @@ export default function GiocatoriPage() {
           {header}
           <div className="px-4 pt-4 space-y-2 pb-4">
             {squadre.map(s => {
-              const inSquadra = giocatori.filter(g => g.squadra === s || g.squadra2 === s || g.squadra3 === s)
-              const urgenti   = inSquadra.filter(g => certStatus(g.cert_medico_scadenza).urgente).length
+              const inSquadra   = giocatori.filter(g => g.squadra === s || g.squadra2 === s || g.squadra3 === s)
+              const urgenti     = inSquadra.filter(g => certStatus(g.cert_medico_scadenza).urgente).length
+              const quoteAperte = inSquadra.filter(g => quoteMap[g.id] > 0).length
               return (
                 <button
                   key={s}
@@ -158,11 +178,18 @@ export default function GiocatoriPage() {
                     <p className="text-sm font-semibold text-gray-900">{s}</p>
                     <p className="text-xs text-gray-400">{inSquadra.length} atleti</p>
                   </div>
-                  {urgenti > 0 && (
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium shrink-0">
-                      {urgenti} cert
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {urgenti > 0 && (
+                      <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                        {urgenti} cert
+                      </span>
+                    )}
+                    {quoteAperte > 0 && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                        €{quoteAperte}
+                      </span>
+                    )}
+                  </div>
                   <ChevronRight size={16} className="text-gray-300 shrink-0" />
                 </button>
               )
@@ -223,9 +250,16 @@ export default function GiocatoriPage() {
                     </div>
                   )}
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${cert.cls}`}>
-                  {cert.label}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${cert.cls}`}>
+                    {cert.label}
+                  </span>
+                  {quoteMap[g.id] > 0 && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700">
+                      €{quoteMap[g.id]}
+                    </span>
+                  )}
+                </div>
                 <ChevronRight size={16} className="text-gray-300 shrink-0" />
               </button>
             )
