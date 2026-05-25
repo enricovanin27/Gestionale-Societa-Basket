@@ -46,17 +46,22 @@ export default function AgendaPrep() {
   })
 
   const { data: sessioni = [], isLoading } = useQuery({
-    queryKey: ['prep-sessioni', societaId, profile?.id, weekStartStr, weekEndStr],
+    queryKey: ['prep-sessioni', societaId, profile?.id, weekStartStr, weekEndStr, squadreAssegnate.join(',')],
     enabled: !!societaId && !!profile?.id,
     staleTime: 30_000,
     queryFn: async () => {
-      const { data } = await supabase
+      // Mostra: sessioni proprie + sessioni senza preparatore assegnate alle mie squadre
+      let q = supabase
         .from('prep_sessioni').select('*')
         .eq('societa_id', societaId)
-        .eq('preparatore_id', profile.id)
         .gte('data', weekStartStr)
         .lte('data', weekEndStr)
-        .order('data').order('ora_inizio')
+      if (squadreAssegnate.length > 0) {
+        q = q.or(`preparatore_id.eq.${profile.id},and(preparatore_id.is.null,squadra.in.(${squadreAssegnate.join(',')}))`)
+      } else {
+        q = q.eq('preparatore_id', profile.id)
+      }
+      const { data } = await q.order('data').order('ora_inizio')
       return data ?? []
     },
   })

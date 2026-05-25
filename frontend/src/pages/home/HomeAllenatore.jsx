@@ -36,28 +36,28 @@ function AllenatoreAddPartitaModal({ mySquadre, onClose }) {
   })
 
   const { data: palestre = [] } = useQuery({
-    queryKey: ['palestre'],
+    queryKey: ['palestre', societaId],
     queryFn: async () => {
-      const { data } = await supabase.from('palestre').select('nome').order('nome')
+      const { data } = await supabase.from('palestre').select('nome').eq('societa_id', societaId).order('nome')
       return (data ?? []).map(p => p.nome)
     },
     staleTime: 10 * 60 * 1000,
   })
 
   const { data: doppioList = [] } = useQuery({
-    queryKey: ['doppio-campionato'],
+    queryKey: ['doppio-campionato', societaId],
     queryFn: async () => {
-      const { data } = await supabase.from('doppio_campionato').select('*')
+      const { data } = await supabase.from('doppio_campionato').select('*').eq('societa_id', societaId)
       return data ?? []
     },
     staleTime: 5 * 60 * 1000,
   })
 
   const { data: partiteGiorno = [] } = useQuery({
-    queryKey: ['calendario-date', form.data],
-    enabled: !!form.data,
+    queryKey: ['calendario-date', form.data, societaId],
+    enabled: !!form.data && !!societaId,
     queryFn: async () => {
-      const { data } = await supabase.from('calendario').select('squadra, ora_inizio').eq('data', form.data)
+      const { data } = await supabase.from('calendario').select('squadra, ora_inizio').eq('data', form.data).eq('societa_id', societaId)
       return data ?? []
     },
   })
@@ -215,9 +215,9 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
   )
 
   const { data: palestre = [] } = useQuery({
-    queryKey: ['palestre'],
+    queryKey: ['palestre', societaId],
     queryFn: async () => {
-      const { data } = await supabase.from('palestre').select('nome').order('nome')
+      const { data } = await supabase.from('palestre').select('nome').eq('societa_id', societaId).order('nome')
       return (data ?? []).map(p => p.nome)
     },
     staleTime: 10 * 60 * 1000,
@@ -247,7 +247,6 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
           preparatore_id: null,
           squadra:        form.squadra,
           data:           targetDate,
-          tipo:           'allenamento',
           quando:         prepData.quando,
           durata_min:     prepData.durata_min,
           su_campo:       prepData.su_campo,
@@ -470,7 +469,23 @@ export default function HomeAllenatore() {
   const [fabOpen,        setFabOpen]        = useState(false)
 
   const saveMut = useMutation({
-    mutationFn: ({ event, formData }) => saveAllenamento(event, formData, societaId),
+    mutationFn: async ({ event, formData }) => {
+      const { _includiAtletica, _prepData, ...cleanForm } = formData
+      await saveAllenamento(event, cleanForm, societaId)
+      if (_includiAtletica && _prepData) {
+        const { error } = await supabase.from('prep_sessioni').insert([{
+          societa_id:     societaId,
+          preparatore_id: null,
+          squadra:        event.squadra,
+          data:           event.data,
+          quando:         _prepData.quando,
+          durata_min:     _prepData.durata_min,
+          su_campo:       _prepData.su_campo,
+          note:           '',
+        }])
+        if (error) throw error
+      }
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
   })
 

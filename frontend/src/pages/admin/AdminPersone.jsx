@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
+import { ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -23,6 +25,7 @@ export default function AdminPersone() {
   const todayStr = format(today, 'yyyy-MM-dd')
 
   const { societaId, displayName, logout, societaNome } = useAuth()
+  const navigate = useNavigate()
   const [squadraFilter, setSquadraFilter] = useState('')
   const [search, setSearch] = useState('')
 
@@ -97,13 +100,20 @@ export default function AdminPersone() {
             ) : filtrati.map(g => {
               const cl = certLabel(g.cert_medico_scadenza)
               return (
-                <div key={g.id} className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between">
+                <button
+                  key={g.id}
+                  onClick={() => navigate(`/secretary/giocatori/${g.id}`)}
+                  className="w-full bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between active:bg-gray-50 transition-colors text-left"
+                >
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{g.cognome} {g.nome}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{g.squadra}</p>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${cl.cls}`}>{cl.text}</span>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${cl.cls}`}>{cl.text}</span>
+                    <ChevronRight size={14} className="text-gray-300 shrink-0" />
+                  </div>
+                </button>
               )
             })}
           </div>

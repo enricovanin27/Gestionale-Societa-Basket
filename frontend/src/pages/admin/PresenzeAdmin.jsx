@@ -222,7 +222,7 @@ export default function PresenzeAdmin() {
     queryKey: ['squadre-nomi', societaId],
     enabled: !!societaId,
     queryFn: async () => {
-      const { data } = await supabase.from('squadre').select('categoria').order('categoria')
+      const { data } = await supabase.from('squadre').select('categoria').eq('societa_id', societaId).order('categoria')
       return (data ?? []).map(r => r.categoria).filter(Boolean)
     },
     staleTime: 10 * 60 * 1000,
