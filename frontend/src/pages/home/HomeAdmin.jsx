@@ -69,6 +69,7 @@ export default function HomeAdmin() {
       const { count } = await supabase
         .from('calendario')
         .select('*', { count: 'exact', head: true })
+        .eq('societa_id', societaId)
         .gte('data', monthStart)
         .lte('data', monthEnd)
       return count ?? 0
@@ -97,6 +98,7 @@ export default function HomeAdmin() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('calendario').select('*')
+        .eq('societa_id', societaId)
         .gte('data', todayStr).lte('data', endStr)
         .order('data').order('ora_inizio')
       if (error) throw error
@@ -112,6 +114,7 @@ export default function HomeAdmin() {
     queryFn: async () => {
       const { data } = await supabase
         .from('calendario').select('*')
+        .eq('societa_id', societaId)
         .eq('stato', 'provvisoria').gte('data', todayStr)
         .order('data')
       return data ?? []

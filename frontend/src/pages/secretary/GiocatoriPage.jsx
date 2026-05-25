@@ -186,7 +186,7 @@ export default function GiocatoriPage() {
                     )}
                     {quoteAperte > 0 && (
                       <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                        €{quoteAperte}
+                        {quoteAperte} pag.
                       </span>
                     )}
                   </div>
@@ -256,7 +256,7 @@ export default function GiocatoriPage() {
                   </span>
                   {quoteMap[g.id] > 0 && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-purple-100 text-purple-700">
-                      €{quoteMap[g.id]}
+                      {quoteMap[g.id]} rate
                     </span>
                   )}
                 </div>
