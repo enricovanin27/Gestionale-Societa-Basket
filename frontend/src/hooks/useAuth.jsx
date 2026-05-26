@@ -20,32 +20,35 @@ export function AuthProvider({ children }) {
   }
 
   async function fetchProfile(userId) {
-    try {
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
-      )
-      const query = supabase
-        .from('profiles')
-        .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, genitore_squadra, genitore_squadra2, genitore_squadra3, societa:societa_id(nome)')
-        .eq('id', userId)
-        .single()
+    const MAX_ATTEMPTS = 3
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      try {
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 8000)
+        )
+        const query = supabase
+          .from('profiles')
+          .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, genitore_squadra, genitore_squadra2, genitore_squadra3, societa:societa_id(nome)')
+          .eq('id', userId)
+          .single()
 
-      const { data, error } = await Promise.race([query, timeout])
-      if (error) {
-        console.error('Errore fetch profile:', error)
-        return null
+        const { data, error } = await Promise.race([query, timeout])
+        if (error) throw error
+        if (data?.ruolo === 'genitore' || data?.ruolo === 'giocatore' || data?.ruolo === 'allenatore') {
+          const squadre = data.ruolo === 'allenatore'
+            ? [data.squadra, data.squadra2, data.squadra3].filter(Boolean)
+            : [data.squadra].filter(Boolean)
+          initPushNotifications(userId, squadre, data.societa_id)
+        }
+        return data
+      } catch (err) {
+        console.error(`Fetch profile errore (tentativo ${attempt + 1}/${MAX_ATTEMPTS}):`, err.message)
+        if (attempt < MAX_ATTEMPTS - 1) {
+          await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
+        }
       }
-      if (data?.ruolo === 'genitore' || data?.ruolo === 'giocatore' || data?.ruolo === 'allenatore') {
-        const squadre = data.ruolo === 'allenatore'
-          ? [data.squadra, data.squadra2, data.squadra3].filter(Boolean)
-          : [data.squadra].filter(Boolean)
-        initPushNotifications(userId, squadre, data.societa_id)
-      }
-      return data
-    } catch (err) {
-      console.error('Errore/timeout fetch profile:', err)
-      return null
     }
+    return null
   }
 
   useEffect(() => {
@@ -70,10 +73,19 @@ export function AuthProvider({ children }) {
         setLoading(false)
         return
       }
+
+      // TOKEN_REFRESHED aggiorna solo il JWT, non i dati del profilo — evita race condition
+      if (event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null)
+        return
+      }
+
       setUser(session?.user ?? null)
       if (session?.user) {
         const p = await fetchProfile(session.user.id)
-        setProfile(p)
+        // Se fetchProfile ritorna null (errore transitorio), mantieni il profilo precedente
+        // per evitare la schermata "profilo non configurato" su re-auth/refresh
+        setProfile(prev => (p != null ? p : prev))
       } else {
         setProfile(null)
         setActiveRoleState(null)

@@ -669,13 +669,15 @@ export default function GiocatoreDetail() {
                     <option key={a} value={a}>{a}</option>
                   ))}
                 </select>
-                <a
-                  href={`/secretary/attestazione730/${id}?anno=${annoAtt730}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    const url = `/secretary/attestazione730/${id}?anno=${annoAtt730}`
+                    const win = window.open(url, '_blank')
+                    if (!win) navigate(url) // fallback se popup bloccato (mobile)
+                  }}
                   className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold">
                   📋 Genera attestazione
-                </a>
+                </button>
               </div>
             </div>
           </div>
