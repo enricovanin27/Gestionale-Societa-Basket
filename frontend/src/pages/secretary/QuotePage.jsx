@@ -1,27 +1,44 @@
 import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { format, parseISO, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Plus, X, Check, Trash2, Printer, ChevronRight, ChevronLeft, Users } from 'lucide-react'
+import { Plus, X, ChevronRight, ChevronLeft, Users } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import PageHeader from '../../components/PageHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import PagamentoModal from './PagamentoModal'
 
 const TIPI = ['iscrizione', 'mensile', 'trasferta', 'attrezzatura', 'altro']
 const TIPO_LABEL = {
   iscrizione: 'Iscrizione', mensile: 'Mensile', trasferta: 'Trasferta',
   attrezzatura: 'Attrezzatura', altro: 'Altro',
 }
-const FORM_EMPTY = { tipo: 'iscrizione', descrizione: '', importo: '', data_scadenza: '', squadra: '' }
+const FORM_EMPTY = {
+  tipo: 'iscrizione', descrizione: '', squadra: '',
+  rate_totali: 1,
+  rate: [
+    { importo: '', scadenza: '' },
+    { importo: '', scadenza: '' },
+    { importo: '', scadenza: '' },
+  ],
+}
 
-// Semaforo pagamento
-function quotaStatus(q) {
+function quotaStatusDot(q) {
+  if (q.pagato) return 'bg-green-500'
+  if (!q.data_scadenza) return 'bg-gray-300'
+  const diff = differenceInDays(parseISO(q.data_scadenza), new Date())
+  if (diff < 0)   return 'bg-red-500'
+  if (diff <= 15) return 'bg-yellow-400'
+  return 'bg-gray-300'
+}
+
+function quotaStatusLabel(q) {
   if (q.pagato) return { cls: 'bg-green-100 text-green-700', label: 'Pagato' }
   if (!q.data_scadenza) return { cls: 'bg-gray-100 text-gray-500', label: 'Da pagare' }
   const diff = differenceInDays(parseISO(q.data_scadenza), new Date())
-  if (diff < 0)   return { cls: 'bg-red-100 text-red-700',    label: `Scad. ${-diff}gg fa` }
+  if (diff < 0)   return { cls: 'bg-red-100 text-red-700',       label: `Scad. ${-diff}gg fa` }
   if (diff <= 15) return { cls: 'bg-yellow-100 text-yellow-700', label: `Scade in ${diff}gg` }
   return { cls: 'bg-gray-100 text-gray-500', label: format(parseISO(q.data_scadenza), 'd MMM', { locale: it }) }
 }
@@ -29,15 +46,15 @@ function quotaStatus(q) {
 export default function QuotePage() {
   const { societaId } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [selectedSquadra, setSelectedSquadra] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(FORM_EMPTY)
   const [saving, setSaving] = useState(false)
-  const [pagamentoQuota, setPagamentoQuota] = useState(null)
 
   const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400'
 
-  // ── Queries ────────────────────────────────────────────────────────────────────
+  // ── Queries ──────────────────────────────────────────────────────────────────
 
   const { data: squadre = [], isLoading: loadingS } = useQuery({
     queryKey: ['squadre-segreteria', societaId],
@@ -57,7 +74,7 @@ export default function QuotePage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('quote')
-        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato, metodo_pagamento, data_pagamento, numero_ricevuta, numero_rata, rate_totali')
+        .select('id, giocatore_id, tipo, descrizione, importo, data_scadenza, pagato, numero_rata, rate_totali')
         .eq('societa_id', societaId)
         .order('data_scadenza', { nullsFirst: false })
       return data ?? []
@@ -77,7 +94,7 @@ export default function QuotePage() {
     },
   })
 
-  // ── Derivati ───────────────────────────────────────────────────────────────────
+  // ── Derivati ─────────────────────────────────────────────────────────────────
 
   const giocatoreMap = useMemo(() =>
     Object.fromEntries(giocatori.map(g => [g.id, g])), [giocatori])
@@ -86,7 +103,6 @@ export default function QuotePage() {
     ? giocatori.filter(g => g.squadra === form.squadra)
     : []
 
-  // Statistiche per squadra (vista lista)
   const squadraStats = useMemo(() => {
     const result = {}
     for (const s of squadre) {
@@ -110,7 +126,6 @@ export default function QuotePage() {
     return result
   }, [squadre, giocatori, allQuote, giocatoreMap])
 
-  // Giocatori con quote per la vista dettaglio squadra
   const giocatoriInSquadra = useMemo(() => {
     if (!selectedSquadra) return []
     return giocatori
@@ -129,46 +144,30 @@ export default function QuotePage() {
       }))
   }, [selectedSquadra, giocatori, allQuote])
 
-  // ── Mutations ──────────────────────────────────────────────────────────────────
-
-  const unpagatoMut = useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from('quote').update({
-        pagato: false, metodo_pagamento: null, data_pagamento: null, numero_ricevuta: null,
-      }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
-      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
-    },
-  })
-
-  const deleteMut = useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from('quote').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
-      qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
-    },
-  })
+  // ── Bulk creation ─────────────────────────────────────────────────────────────
 
   async function handleBulkCreate(e) {
     e.preventDefault()
-    if (!form.squadra || !form.importo || giocatoriPerSquadra.length === 0) return
+    const rateAttive = form.rate.slice(0, form.rate_totali)
+    if (!form.squadra || rateAttive.some(r => !r.importo) || giocatoriPerSquadra.length === 0) return
     setSaving(true)
     try {
-      const rows = giocatoriPerSquadra.map(g => ({
-        societa_id:    societaId,
-        giocatore_id:  g.id,
-        tipo:          form.tipo,
-        descrizione:   form.descrizione || TIPO_LABEL[form.tipo],
-        importo:       parseFloat(form.importo),
-        data_scadenza: form.data_scadenza || null,
-        pagato:        false,
-      }))
+      const rows = []
+      for (const g of giocatoriPerSquadra) {
+        for (let i = 0; i < form.rate_totali; i++) {
+          rows.push({
+            societa_id:    societaId,
+            giocatore_id:  g.id,
+            tipo:          form.tipo,
+            descrizione:   form.descrizione || TIPO_LABEL[form.tipo],
+            importo:       parseFloat(rateAttive[i].importo),
+            data_scadenza: rateAttive[i].scadenza || null,
+            pagato:        false,
+            numero_rata:   form.rate_totali > 1 ? i + 1 : null,
+            rate_totali:   form.rate_totali > 1 ? form.rate_totali : null,
+          })
+        }
+      }
       const { error } = await supabase.from('quote').insert(rows)
       if (error) throw error
       qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
@@ -180,7 +179,7 @@ export default function QuotePage() {
     }
   }
 
-  // ── Modal creazione bulk ───────────────────────────────────────────────────────
+  // ── Modal creazione bulk ──────────────────────────────────────────────────────
 
   const bulkModal = (
     <div className="fixed inset-0 bg-black/50 z-[200] flex items-end justify-center">
@@ -209,17 +208,50 @@ export default function QuotePage() {
               onChange={e => setForm(f => ({ ...f, descrizione: e.target.value }))}
               placeholder={`Es. ${TIPO_LABEL[form.tipo]} 2025/26`} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Importo (€) *</label>
-              <input type="number" min="0" step="0.01" className={inp} required
-                value={form.importo} onChange={e => setForm(f => ({ ...f, importo: e.target.value }))} />
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-2 block">Modalità pagamento</label>
+            <div className="flex gap-2 mb-3">
+              {[1, 2, 3].map(n => (
+                <button key={n} type="button"
+                  onClick={() => setForm(f => ({ ...f, rate_totali: n }))}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                    form.rate_totali === n
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-white text-gray-600 border-gray-200'
+                  }`}>
+                  {n === 1 ? 'Unica' : `${n} rate`}
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="text-xs font-medium text-gray-500 mb-1 block">Scadenza</label>
-              <input type="date" className={inp} value={form.data_scadenza}
-                onChange={e => setForm(f => ({ ...f, data_scadenza: e.target.value }))} />
-            </div>
+            {Array.from({ length: form.rate_totali }, (_, i) => (
+              <div key={i} className="space-y-1 mb-3">
+                {form.rate_totali > 1 && (
+                  <p className="text-xs font-semibold text-purple-600">Rata {i + 1}/{form.rate_totali}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Importo (€) *</label>
+                    <input type="number" min="0" step="0.01" className={inp} required
+                      value={form.rate[i].importo}
+                      onChange={e => setForm(f => {
+                        const rate = [...f.rate]
+                        rate[i] = { ...rate[i], importo: e.target.value }
+                        return { ...f, rate }
+                      })} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Scadenza</label>
+                    <input type="date" className={inp}
+                      value={form.rate[i].scadenza}
+                      onChange={e => setForm(f => {
+                        const rate = [...f.rate]
+                        rate[i] = { ...rate[i], scadenza: e.target.value }
+                        return { ...f, rate }
+                      })} />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1 block">Squadra *</label>
@@ -230,7 +262,8 @@ export default function QuotePage() {
             </select>
             {form.squadra && giocatoriPerSquadra.length > 0 && (
               <p className="text-xs text-purple-600 mt-1 font-medium">
-                Creerà {giocatoriPerSquadra.length} quote · {giocatoriPerSquadra.map(g => g.cognome).join(', ')}
+                Creerà {giocatoriPerSquadra.length * form.rate_totali} record
+                {form.rate_totali > 1 ? ` (${form.rate_totali} rate × ${giocatoriPerSquadra.length} giocatori)` : ` · ${giocatoriPerSquadra.map(g => g.cognome).join(', ')}`}
               </p>
             )}
             {form.squadra && giocatoriPerSquadra.length === 0 && (
@@ -239,7 +272,12 @@ export default function QuotePage() {
           </div>
           <button type="submit" disabled={saving || giocatoriPerSquadra.length === 0}
             className="w-full py-3 bg-purple-600 text-white rounded-xl font-semibold text-sm disabled:opacity-60">
-            {saving ? 'Creazione...' : `Crea ${giocatoriPerSquadra.length || ''} quote`}
+            {saving
+              ? 'Creazione...'
+              : form.rate_totali > 1
+                ? `Crea ${form.rate_totali} rate × ${giocatoriPerSquadra.length || 0} giocatori`
+                : `Crea ${giocatoriPerSquadra.length || ''} quote`
+            }
           </button>
         </form>
       </div>
@@ -253,24 +291,12 @@ export default function QuotePage() {
     </button>
   )
 
-  const pagamentoModalEl = pagamentoQuota && (
-    <PagamentoModal
-      quota={pagamentoQuota}
-      giocatore={giocatoreMap[pagamentoQuota.giocatore_id]}
-      societaId={societaId}
-      onClose={() => {
-        setPagamentoQuota(null)
-        qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
-      }}
-    />
-  )
-
-  // ── VISTA DETTAGLIO SQUADRA ────────────────────────────────────────────────────
+  // ── VISTA DETTAGLIO SQUADRA ───────────────────────────────────────────────────
 
   if (selectedSquadra !== null) {
     return (
       <div>
-        <PageHeader title={selectedSquadra} subtitle={`${giocatoriInSquadra.length} atleti`} />
+        <PageHeader title={selectedSquadra} subtitle={`${giocatoriInSquadra.length} atleti · solo visualizzazione`} />
 
         <div className="px-4 pt-3 pb-2">
           <button onClick={() => setSelectedSquadra(null)}
@@ -279,93 +305,71 @@ export default function QuotePage() {
           </button>
         </div>
 
+        <p className="px-4 pb-2 text-xs text-gray-400 italic">
+          Per registrare i pagamenti vai nella scheda del giocatore → Quote.
+        </p>
+
         {(loadingQ || loadingG) ? <LoadingSpinner /> : (
           <div className="px-4 space-y-3 pb-28">
             {giocatoriInSquadra.length === 0 && (
               <p className="text-center text-sm text-gray-400 py-16">Nessun giocatore in questa squadra</p>
             )}
-            {giocatoriInSquadra.map(g => {
-              return (
-                <div key={g.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                  {/* Intestazione giocatore */}
-                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-900">{g.cognome} {g.nome}</p>
-                  </div>
+            {giocatoriInSquadra.map(g => (
+              <div key={g.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                {/* Intestazione giocatore — clicca per aprire il dettaglio */}
+                <button
+                  onClick={() => navigate(`/secretary/giocatori/${g.id}`, { state: { tab: 'quote' } })}
+                  className="w-full px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between hover:bg-purple-50 transition-colors text-left">
+                  <p className="text-sm font-semibold text-gray-900">{g.cognome} {g.nome}</p>
+                  <span className="flex items-center gap-1 text-xs text-purple-600 font-medium">
+                    Gestisci <ChevronRight size={14} />
+                  </span>
+                </button>
 
-                  {g.quote.length === 0 ? (
-                    <p className="px-4 py-3 text-xs text-gray-400 italic">Nessuna quota assegnata</p>
-                  ) : (
-                    <div className="divide-y divide-gray-50">
-                      {g.quote.map(q => {
-                        const st = quotaStatus(q)
-                        const rataLabel = (q.rate_totali ?? 1) > 1
-                          ? ` · Rata ${q.numero_rata}/${q.rate_totali}`
-                          : ''
-                        return (
-                          <div key={q.id} className={`px-4 py-2.5 flex items-center gap-2 ${q.pagato ? 'opacity-50' : ''}`}>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-800 truncate">
-                                {q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}
-                                {rataLabel && (
-                                  <span className="ml-1 text-purple-500">{rataLabel}</span>
-                                )}
-                              </p>
-                            </div>
-                            <span className="text-xs font-bold text-gray-700 shrink-0">€{q.importo}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${st.cls}`}>
-                              {st.label}
-                            </span>
-                            <div className="flex gap-1 shrink-0">
-                              {q.pagato ? (
-                                <>
-                                  {q.numero_ricevuta && (
-                                    <a href={`/secretary/ricevuta/${q.id}`} target="_blank" rel="noopener noreferrer"
-                                      className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"
-                                      title="Stampa ricevuta">
-                                      <Printer size={12} />
-                                    </a>
-                                  )}
-                                  <button onClick={() => unpagatoMut.mutate(q.id)}
-                                    className="w-7 h-7 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200 flex items-center justify-center"
-                                    title="Segna non pagato">
-                                    <Check size={12} />
-                                  </button>
-                                </>
-                              ) : (
-                                <button onClick={() => setPagamentoQuota(q)}
-                                  className="w-7 h-7 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center"
-                                  title="Registra pagamento">
-                                  <Check size={12} />
-                                </button>
-                              )}
-                              <button onClick={() => deleteMut.mutate(q.id)}
-                                className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                {g.quote.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-gray-400 italic">Nessuna quota assegnata</p>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {g.quote.map(q => {
+                      const dot = quotaStatusDot(q)
+                      const st  = quotaStatusLabel(q)
+                      const rataLabel = (q.rate_totali ?? 1) > 1
+                        ? ` · Rata ${q.numero_rata}/${q.rate_totali}`
+                        : ''
+                      return (
+                        <div key={q.id} className={`px-4 py-2.5 flex items-center gap-2 ${q.pagato ? 'opacity-50' : ''}`}>
+                          <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">
+                              {q.descrizione || TIPO_LABEL[q.tipo] || q.tipo}
+                              {rataLabel && <span className="ml-1 text-purple-500">{rataLabel}</span>}
+                            </p>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                          <span className="text-xs font-bold text-gray-700 shrink-0">€{q.importo}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${st.cls}`}>
+                            {st.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
         {fab}
         {showModal && bulkModal}
-        {pagamentoModalEl}
       </div>
     )
   }
 
-  // ── VISTA LISTA SQUADRE ────────────────────────────────────────────────────────
+  // ── VISTA LISTA SQUADRE ───────────────────────────────────────────────────────
 
   return (
     <div>
-      <PageHeader title="Quote" subtitle="Seleziona una squadra" />
+      <PageHeader title="Quote Squadre" subtitle="Panoramica pagamenti" />
 
       {(loadingS || loadingQ || loadingG) ? <LoadingSpinner /> : (
         <div className="px-4 pt-4 space-y-2 pb-28">
@@ -398,6 +402,11 @@ export default function QuotePage() {
                       {st.inScadenza} in scadenza
                     </span>
                   )}
+                  {(st.scadute ?? 0) === 0 && (st.inScadenza ?? 0) === 0 && (st.daIncassare ?? 0) === 0 && (
+                    <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                      In ordine ✓
+                    </span>
+                  )}
                 </div>
                 <ChevronRight size={16} className="text-gray-300 shrink-0" />
               </button>
@@ -408,7 +417,6 @@ export default function QuotePage() {
 
       {fab}
       {showModal && bulkModal}
-      {pagamentoModalEl}
     </div>
   )
 }
