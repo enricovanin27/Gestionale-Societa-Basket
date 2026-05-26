@@ -3,9 +3,10 @@ import { LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 const ACCENT = {
-  amber:  'text-amber-600 bg-amber-50',
-  purple: 'text-purple-600 bg-purple-50',
-  blue:   'text-blue-600 bg-blue-50',
+  amber:   'text-amber-600 bg-amber-50',
+  purple:  'text-purple-600 bg-purple-50',
+  blue:    'text-blue-600 bg-blue-50',
+  emerald: 'text-emerald-600 bg-emerald-50',
 }
 
 export default function AppSidebar({ items, accentColor = 'amber' }) {

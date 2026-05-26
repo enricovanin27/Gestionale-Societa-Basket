@@ -29,6 +29,8 @@ import ImpostazioniSocieta  from './pages/secretary/ImpostazioniSocieta'
 import RicevutaPage         from './pages/secretary/RicevutaPage'
 import Attestazione730Page  from './pages/secretary/Attestazione730Page'
 import ResocontoPage        from './pages/secretary/ResocontoPage'
+import DirigentLayout      from './layouts/DirigentLayout'
+import HomeDirigente       from './pages/dirigente/HomeDirigente'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
@@ -180,6 +182,13 @@ function AppShell() {
           <Route path="quote"           element={<QuotePage />} />
           <Route path="resoconto"       element={<ResocontoPage />} />
           <Route path="impostazioni"    element={<ImpostazioniSocieta />} />
+        </Route>
+
+        {/* ── Dirigente ──────────────────────────────────────────────────── */}
+        <Route path="/dirigente" element={<ProtectedRoute requiredRole="dirigente"><DirigentLayout /></ProtectedRoute>}>
+          <Route index                  element={<HomeDirigente />} />
+          <Route path="economico"       element={<ResocontoPage />} />
+          <Route path="bacheca"         element={<BachecaPage />} />
         </Route>
 
         {/* Print pages — segreteria, no layout */}

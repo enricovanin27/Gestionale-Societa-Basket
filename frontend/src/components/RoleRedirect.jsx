@@ -9,6 +9,7 @@ const ROLE_PATH = {
   allenatore: '/coach',
   preparatore_atletico: '/prep',
   admin:      '/admin',
+  dirigente:  '/dirigente',
   super_admin: '/platform',
 }
 

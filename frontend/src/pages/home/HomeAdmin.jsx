@@ -32,6 +32,10 @@ export default function HomeAdmin() {
   const weekStart     = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), [])
   const nextWeekStart = useMemo(() => addWeeks(weekStart, 1), [weekStart])
   const week2Start    = useMemo(() => addWeeks(weekStart, 2), [weekStart])
+  const weekStartStr  = useMemo(() => format(weekStart, 'yyyy-MM-dd'), [weekStart])
+  const weekEndStr    = useMemo(() => format(addDays(weekStart, 6), 'yyyy-MM-dd'), [weekStart])
+  const lastWeekStart = useMemo(() => format(addDays(weekStart, -7), 'yyyy-MM-dd'), [weekStart])
+  const lastWeekEnd   = useMemo(() => format(addDays(weekStart, -1), 'yyyy-MM-dd'), [weekStart])
 
   // ── KPI: giocatori, squadre, cert ──────────────────────────────────────────
   const { data: giocatori = [], isLoading: loadingG } = useQuery({
@@ -90,6 +94,55 @@ export default function HomeAdmin() {
     },
     staleTime: 5 * 60 * 1000,
   })
+
+  // ── Allenamenti cancellati questa settimana ────────────────────────────────
+  const { data: cancellatiSettimana = [] } = useQuery({
+    queryKey: ['admin-cancellati-sett', weekStartStr, weekEndStr, societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('orario_settimana')
+        .select('id, squadra, data, ora_inizio')
+        .eq('societa_id', societaId)
+        .eq('annullato', true)
+        .gte('data', weekStartStr)
+        .lte('data', weekEndStr)
+        .order('data').order('ora_inizio')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ── Presenze settimana scorsa per squadra ──────────────────────────────────
+  const { data: presenzeScorsa = [] } = useQuery({
+    queryKey: ['admin-presenze-scorsa', lastWeekStart, lastWeekEnd, societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('presenze_allenamento')
+        .select('squadra, presente')
+        .eq('societa_id', societaId)
+        .gte('data', lastWeekStart)
+        .lte('data', lastWeekEnd)
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const presenzePerSquadra = useMemo(() => {
+    const grouped = {}
+    for (const p of presenzeScorsa) {
+      if (!grouped[p.squadra]) grouped[p.squadra] = { presenti: 0, totale: 0 }
+      grouped[p.squadra].totale++
+      if (p.presente) grouped[p.squadra].presenti++
+    }
+    return Object.entries(grouped)
+      .map(([squadra, { presenti, totale }]) => ({
+        squadra, presenti, totale,
+        pct: totale > 0 ? Math.round((presenti / totale) * 100) : null,
+      }))
+      .sort((a, b) => (a.pct ?? 100) - (b.pct ?? 100)) // prima le più basse
+  }, [presenzeScorsa])
 
   // ── Partite future (prossimi 14gg) ─────────────────────────────────────────
   const { data: partiteFuture = [], isLoading: loadingP, isError: isErrorP } = useQuery({
@@ -299,6 +352,45 @@ export default function HomeAdmin() {
                       {formatTime(e.ora_inizio)}–{formatTime(e.ora_fine)}
                       {e.palestra ? ` · ${e.palestra}` : ''}
                     </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Riepilogo tecnico (responsabile tecnico) ──────────────────────── */}
+          {(cancellatiSettimana.length > 0 || presenzePerSquadra.length > 0) && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Riepilogo tecnico</p>
+              <div className="space-y-2">
+                {cancellatiSettimana.map(a => (
+                  <div key={a.id} className="bg-white rounded-xl border border-l-4 border-l-amber-400 px-4 py-2.5 shadow-sm flex items-center gap-3">
+                    <span className="text-base shrink-0">🚫</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{a.squadra}</p>
+                      <p className="text-xs text-amber-600">
+                        Allenamento annullato · {format(parseISO(a.data), 'EEE d MMM', { locale: it })}
+                        {a.ora_inizio ? ` · ${a.ora_inizio.slice(0, 5)}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {presenzePerSquadra.map(p => (
+                  <div key={p.squadra} className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 shadow-sm flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{p.squadra}</p>
+                      <p className="text-xs text-gray-400">Presenze sett. scorsa</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${
+                        p.pct === null   ? 'text-gray-400' :
+                        p.pct >= 70      ? 'text-green-600' :
+                        p.pct >= 50      ? 'text-amber-600' : 'text-red-600'
+                      }`}>
+                        {p.pct !== null ? `${p.pct}%` : 'N/D'}
+                      </span>
+                      <p className="text-[10px] text-gray-400">{p.presenti}/{p.totale} presenti</p>
+                    </div>
                   </div>
                 ))}
               </div>
