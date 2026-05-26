@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { usePrintWindow } from '../hooks/usePrintWindow'
 import PageHeader from '../components/PageHeader'
 
 const TIPO_LABELS = { infortunio: 'Infortunio', sospeso: 'Sospeso', altro: 'Altro' }
@@ -15,8 +16,9 @@ const TIPO_COLORS = {
 }
 
 export default function StatistichePage({ embedded = false }) {
-  const { societaId, isAdmin, squadreAllenatore } = useAuth()
+  const { societaId, isAdmin, squadreAllenatore, societaNome } = useAuth()
   const [refDate, setRefDate] = useState(new Date())
+  const printWindow = usePrintWindow()
 
   const monthStart = format(startOfMonth(refDate), 'yyyy-MM-dd')
   const monthEnd   = format(endOfMonth(refDate),   'yyyy-MM-dd')
@@ -103,6 +105,74 @@ export default function StatistichePage({ embedded = false }) {
     return groups
   }, [filteredGiocatori])
 
+  function printSquadra(squadra, lista) {
+    const dates = [...new Set(
+      presenzeAl
+        .filter(p => lista.some(g => g.id === p.giocatore_id))
+        .map(p => p.data)
+    )].sort()
+
+    if (!dates.length) {
+      alert('Nessuna presenza registrata per questa squadra nel mese selezionato.')
+      return
+    }
+
+    const matrix = {}
+    for (const p of presenzeAl.filter(p => lista.some(g => g.id === p.giocatore_id))) {
+      if (!matrix[p.giocatore_id]) matrix[p.giocatore_id] = {}
+      matrix[p.giocatore_id][p.data] = p.presente
+    }
+
+    const fontSize = dates.length > 15 ? 'font-size:8px;' : ''
+
+    const headerCols = dates.map(d =>
+      '<th class="center" style="min-width:28px">' +
+      new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) +
+      '</th>'
+    ).join('')
+
+    const sortedLista = [...lista].sort((a, b) => a.cognome.localeCompare(b.cognome))
+
+    const rows = sortedLista.map(g => {
+      const presRow  = matrix[g.id] ?? {}
+      const totali   = dates.filter(d => presRow[d] !== undefined).length
+      const presenti = dates.filter(d => presRow[d] === true).length
+      const pct      = totali > 0 ? Math.round(presenti * 100 / totali) : null
+      const cells = dates.map(d => {
+        if (presRow[d] === undefined) return '<td class="center" style="color:#ccc">—</td>'
+        return presRow[d] ? '<td class="center ok">✓</td>' : '<td class="center ko">·</td>'
+      }).join('')
+      return '<tr>' +
+        '<td><strong>' + g.cognome + '</strong> ' + g.nome + '</td>' +
+        cells +
+        '<td class="center">' + (totali > 0 ? presenti + '/' + totali : '—') + '</td>' +
+        '<td class="center" style="font-weight:bold">' + (pct !== null ? pct + '%' : '—') + '</td>' +
+        '</tr>'
+    }).join('')
+
+    const conDati = sortedLista.map(g => {
+      const presRow = matrix[g.id] ?? {}
+      const tot  = dates.filter(d => presRow[d] !== undefined).length
+      const pres = dates.filter(d => presRow[d] === true).length
+      return tot > 0 ? Math.round(pres * 100 / tot) : null
+    }).filter(v => v !== null)
+    const media = conDati.length > 0
+      ? Math.round(conDati.reduce((a, b) => a + b, 0) / conDati.length)
+      : null
+
+    printWindow(
+      'Presenze — ' + squadra + ' — ' + format(refDate, 'MMMM yyyy', { locale: it }),
+      '<p style="font-size:10px;color:#555;margin-bottom:8px">' + lista.length + ' giocatori · ' + dates.length + ' allenamenti registrati</p>' +
+      '<div style="overflow-x:auto;' + fontSize + '">' +
+      '<table>' +
+      '<thead><tr><th style="min-width:120px">Giocatore</th>' + headerCols + '<th class="center">Tot.</th><th class="center">%</th></tr></thead>' +
+      '<tbody>' + rows +
+      '<tr style="background:#f9fafb;font-weight:bold"><td>Media squadra</td>' + dates.map(() => '<td></td>').join('') + '<td></td><td class="center">' + (media !== null ? media + '%' : '—') + '</td></tr>' +
+      '</tbody></table></div>',
+      societaNome ?? ''
+    )
+  }
+
   const monthSelector = (
     <div className="flex items-center gap-2 mb-4">
       <button onClick={() => setRefDate(d => subMonths(d, 1))}
@@ -164,9 +234,19 @@ export default function StatistichePage({ embedded = false }) {
             <section key={squadra}>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{squadra}</h2>
-                <span className="text-xs text-gray-400">
-                  {totAl} allenament{totAl === 1 ? 'o' : 'i'}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">
+                    {totAl} allenament{totAl === 1 ? 'o' : 'i'}
+                  </span>
+                  {totAl > 0 && (
+                    <button
+                      onClick={() => printSquadra(squadra, lista)}
+                      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700"
+                    >
+                      <Printer size={12} /> Stampa
+                    </button>
+                  )}
+                </div>
               </div>
               {totAl === 0 ? (
                 <p className="text-xs text-gray-400 italic px-1">
