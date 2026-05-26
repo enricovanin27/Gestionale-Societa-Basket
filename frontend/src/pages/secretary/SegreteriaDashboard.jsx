@@ -62,7 +62,8 @@ export default function SegreteriaDashboard() {
 
   const certScaduti  = useMemo(() => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza < todayStr), [giocatori, todayStr])
   const certInScad   = useMemo(() => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza >= todayStr && g.cert_medico_scadenza <= in30days), [giocatori, todayStr, in30days])
-  const quoteScadute = useMemo(() => quote.filter(q => q.data_scadenza && q.data_scadenza < todayStr), [quote, todayStr])
+  // Include quote senza scadenza (da pagare) + quote con scadenza già passata
+  const quoteScadute = useMemo(() => quote.filter(q => !q.data_scadenza || q.data_scadenza < todayStr), [quote, todayStr])
 
   const isLoading = lg || lq
   const tuttoOk   = certScaduti.length === 0 && certInScad.length === 0 && quoteScadute.length === 0
@@ -189,7 +190,7 @@ export default function SegreteriaDashboard() {
               onToggle={() => setOpenCertInScad(v => !v)}
             />
             <KpiCard
-              label="Quote scadute"
+              label="Quote non pagate"
               value={quoteScadute.length}
               color={quoteScadute.length > 0 ? 'text-purple-600' : 'text-green-600'}
               isOpen={openQuoteScad}
@@ -261,12 +262,12 @@ export default function SegreteriaDashboard() {
                 </div>
               )}
 
-              {/* Quote scadute */}
+              {/* Quote non pagate */}
               {openQuoteScad && quoteScadute.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2 px-1">
                     <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
-                      <AlertTriangle size={12} /> Quote scadute non pagate ({quoteScadute.length})
+                      <AlertTriangle size={12} /> Quote non pagate ({quoteScadute.length})
                     </p>
                     <button onClick={printQuote} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
                       <Printer size={12} /> Stampa
@@ -275,19 +276,22 @@ export default function SegreteriaDashboard() {
                   <div className="space-y-2">
                     {quoteScadute.map(q => {
                       const g = giocatoreMap[q.giocatore_id]
+                      const scaduta = q.data_scadenza && q.data_scadenza < todayStr
                       return (
                         <button key={q.id}
                           onClick={() => navigate(`/secretary/giocatori/${q.giocatore_id}`, { state: { tab: 'quote' } })}
-                          className="w-full text-left bg-white rounded-xl border border-l-4 border-l-purple-400 px-4 py-3 shadow-sm active:scale-[0.99]">
+                          className={`w-full text-left bg-white rounded-xl border border-l-4 px-4 py-3 shadow-sm active:scale-[0.99] ${
+                            scaduta ? 'border-l-red-400' : 'border-l-purple-300'
+                          }`}>
                           <p className="text-sm font-semibold text-gray-900">
                             {g ? `${g.cognome} ${g.nome}` : 'Giocatore sconosciuto'}
                           </p>
                           <p className="text-xs text-purple-600 mt-0.5">{q.descrizione ?? q.tipo} — €{q.importo}</p>
-                          {q.data_scadenza && (
-                            <p className="text-xs text-gray-400">
-                              Scad. {format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })} · Tocca per registrare pagamento
-                            </p>
-                          )}
+                          <p className="text-xs text-gray-400">
+                            {q.data_scadenza
+                              ? `Scad. ${format(parseISO(q.data_scadenza), 'd MMM yyyy', { locale: it })} · Tocca per registrare pagamento`
+                              : 'Nessuna scadenza · Tocca per registrare pagamento'}
+                          </p>
                         </button>
                       )
                     })}

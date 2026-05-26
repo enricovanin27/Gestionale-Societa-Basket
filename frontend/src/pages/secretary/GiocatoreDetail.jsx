@@ -69,6 +69,7 @@ export default function GiocatoreDetail() {
   const [savingAnagrafica, setSavingAnagrafica] = useState(false)
   const [annoAtt730, setAnnoAtt730]             = useState(new Date().getFullYear())
   const [pagandoQuota, setPagandoQuota]         = useState(null)
+  const [pendingDelete, setPendingDelete]       = useState(null) // { quotaId, siblingIds, rataLabel, totalRate }
 
   const { data: giocatore, isLoading: loadingG } = useQuery({
     queryKey: ['giocatore-detail', id],
@@ -153,14 +154,15 @@ export default function GiocatoreDetail() {
   })
 
   const deleteQuotaMut = useMutation({
-    mutationFn: async (qid) => {
-      const { error } = await supabase.from('quote').delete().eq('id', qid)
+    mutationFn: async (ids) => {
+      const { error } = await supabase.from('quote').delete().in('id', ids)
       if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['quote-giocatore', id] })
       qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
       qc.invalidateQueries({ queryKey: ['segreteria-quote-aperte', societaId] })
+      setPendingDelete(null)
     },
   })
 
@@ -476,10 +478,11 @@ export default function GiocatoreDetail() {
                         {q.pagato ? (
                           <>
                             {q.numero_ricevuta && (
-                              <a href={`/secretary/ricevuta/${q.id}`} target="_blank" rel="noopener noreferrer"
+                              <button
+                                onClick={() => { const u = `/secretary/ricevuta/${q.id}`; const w = window.open(u, '_blank'); if (!w) window.location.href = u }}
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-medium">
                                 <Printer size={11} /> Ricevuta
-                              </a>
+                              </button>
                             )}
                             <button onClick={() => unpagatoMut.mutate(q.id)}
                               className="px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium">
@@ -493,7 +496,7 @@ export default function GiocatoreDetail() {
                           </button>
                         )}
                       </div>
-                      <button onClick={() => deleteQuotaMut.mutate(q.id)}
+                      <button onClick={() => { if (window.confirm('Eliminare questa quota?')) deleteQuotaMut.mutate([q.id]) }}
                         className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
                         <Trash2 size={13} />
                       </button>
@@ -545,11 +548,12 @@ export default function GiocatoreDetail() {
                               {q.pagato ? (
                                 <>
                                   {q.numero_ricevuta && (
-                                    <a href={`/secretary/ricevuta/${q.id}`} target="_blank" rel="noopener noreferrer"
+                                    <button
+                                      onClick={() => { const u = `/secretary/ricevuta/${q.id}`; const w = window.open(u, '_blank'); if (!w) window.location.href = u }}
                                       className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center"
                                       title="Stampa ricevuta">
                                       <Printer size={11} />
-                                    </a>
+                                    </button>
                                   )}
                                   <button onClick={() => unpagatoMut.mutate(q.id)}
                                     title="Annulla pagamento"
@@ -564,7 +568,13 @@ export default function GiocatoreDetail() {
                                   <Check size={12} />
                                 </button>
                               )}
-                              <button onClick={() => deleteQuotaMut.mutate(q.id)}
+                              <button
+                                onClick={() => setPendingDelete({
+                                  quotaId: q.id,
+                                  siblingIds: group.items.map(r => r.id),
+                                  rataLabel: `Rata ${q.numero_rata}/${q.rate_totali}`,
+                                  totalRate: q.rate_totali,
+                                })}
                                 className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
                                 <Trash2 size={11} />
                               </button>
@@ -586,6 +596,38 @@ export default function GiocatoreDetail() {
                 societaId={societaId}
                 onClose={() => setPagandoQuota(null)}
               />
+            )}
+
+            {/* Confirm delete rate */}
+            {pendingDelete && (
+              <div className="fixed inset-0 bg-black/30 z-[250] flex items-end sm:items-center justify-center p-4">
+                <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-5">
+                  <p className="text-sm font-semibold text-gray-900 mb-1">Elimina quota</p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    Vuoi eliminare solo la <strong>{pendingDelete.rataLabel}</strong> oppure
+                    tutte le <strong>{pendingDelete.totalRate} rate</strong> del blocco?
+                  </p>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => deleteQuotaMut.mutate([pendingDelete.quotaId])}
+                      disabled={deleteQuotaMut.isPending}
+                      className="w-full py-2.5 border border-red-200 text-red-600 rounded-xl text-sm font-semibold disabled:opacity-60">
+                      Solo questa rata
+                    </button>
+                    <button
+                      onClick={() => deleteQuotaMut.mutate(pendingDelete.siblingIds)}
+                      disabled={deleteQuotaMut.isPending}
+                      className="w-full py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold disabled:opacity-60">
+                      Tutto il blocco ({pendingDelete.totalRate} rate)
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(null)}
+                      className="w-full py-2.5 border border-gray-200 text-gray-500 rounded-xl text-sm">
+                      Annulla
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}

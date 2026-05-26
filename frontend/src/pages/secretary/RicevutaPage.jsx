@@ -93,6 +93,11 @@ export default function RicevutaPage() {
 
       {/* Toolbar (nascosta in stampa) */}
       <div className="toolbar max-w-3xl mx-auto mb-4 mt-4 flex items-center gap-3 bg-slate-800 text-white px-4 py-2.5 rounded-xl text-sm font-sans">
+        <button
+          onClick={() => window.opener ? window.close() : window.history.back()}
+          className="shrink-0 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-medium">
+          ← Indietro
+        </button>
         <span className="flex-1 font-semibold truncate">
           📄 Ricevuta N. {numRic} — {giocatore.cognome} {giocatore.nome}
         </span>

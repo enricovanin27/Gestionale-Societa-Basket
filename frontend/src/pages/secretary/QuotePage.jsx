@@ -266,6 +266,14 @@ export default function QuotePage() {
                 {form.rate_totali > 1 ? ` (${form.rate_totali} rate × ${giocatoriPerSquadra.length} giocatori)` : ` · ${giocatoriPerSquadra.map(g => g.cognome).join(', ')}`}
               </p>
             )}
+            {form.squadra && (() => {
+              const sec = giocatori.filter(g => g.squadra2 === form.squadra || g.squadra3 === form.squadra)
+              return sec.length > 0 ? (
+                <p className="text-xs text-amber-600 mt-1">
+                  ℹ️ {sec.length} giocator{sec.length > 1 ? 'i hanno' : 'e ha'} {form.squadra} come squadra secondaria e non ricever{sec.length > 1 ? 'anno' : 'à'} questa quota automaticamente. Aggiungila dalla scheda individuale se necessario.
+                </p>
+              ) : null
+            })()}
             {form.squadra && giocatoriPerSquadra.length === 0 && (
               <p className="text-xs text-red-500 mt-1">Nessun giocatore attivo in questa squadra</p>
             )}
