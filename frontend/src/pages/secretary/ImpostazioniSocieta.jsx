@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import PageHeader from '../../components/PageHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import InvitaUtenteForm from '../../components/InvitaUtenteForm'
 
 const EMPTY = {
   nome_completo: '', codice_fiscale: '', indirizzo: '',
@@ -171,6 +172,17 @@ export default function ImpostazioniSocieta() {
           <Save size={16} />
           {saved ? 'Salvato ✓' : saveMut.isPending ? 'Salvataggio...' : 'Salva impostazioni'}
         </button>
+
+        {/* Gestione Accessi */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            👥 Gestione Accessi
+          </p>
+          <p className="text-xs text-gray-400 mb-3">
+            Invita genitori e giocatori. Riceveranno un'email con il link per accedere all'app.
+          </p>
+          <InvitaUtenteForm ruoliConsentiti={['genitore', 'giocatore']} />
+        </div>
       </div>
     </div>
   )
