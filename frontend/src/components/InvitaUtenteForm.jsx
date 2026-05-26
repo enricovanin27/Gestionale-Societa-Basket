@@ -116,11 +116,13 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
       if (profErr) throw profErr
 
       if (form.ruolo === 'giocatore' && form.giocatoreId) {
-        await supabase.from('giocatori').update({ user_id: newUserId }).eq('id', form.giocatoreId)
+        const { error: gErr } = await supabase.from('giocatori').update({ user_id: newUserId }).eq('id', form.giocatoreId)
+        if (gErr) console.warn('Collegamento giocatore fallito:', gErr.message)
         qc.invalidateQueries({ queryKey: ['giocatori-link', societaId] })
       }
       if (form.ruolo === 'genitore' && form.giocatoreId) {
-        await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', form.giocatoreId)
+        const { error: genErr } = await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', form.giocatoreId)
+        if (genErr) console.warn('Collegamento genitore fallito:', genErr.message)
         qc.invalidateQueries({ queryKey: ['giocatori-link', societaId] })
       }
       if (form.ruolo === 'allenatore') {
