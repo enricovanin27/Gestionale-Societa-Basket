@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { usePrintWindow } from '../../hooks/usePrintWindow'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 
 export default function SegreteriaDashboard() {
   const today = new Date()
@@ -16,6 +17,7 @@ export default function SegreteriaDashboard() {
   const in30days = format(new Date(today.getTime() + 30 * 86400000), 'yyyy-MM-dd')
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
+  const printWindow = usePrintWindow()
 
   // ── sezioni aperte ──────────────────────────────────────────────────────────
   const [openCertScad,   setOpenCertScad]   = useState(false)
@@ -64,6 +66,62 @@ export default function SegreteriaDashboard() {
 
   const isLoading = lg || lq
   const tuttoOk   = certScaduti.length === 0 && certInScad.length === 0 && quoteScadute.length === 0
+
+  // ── print helpers ────────────────────────────────────────────────────────
+  function printCert() {
+    const tutti = [
+      ...certScaduti.map(g => ({
+        ...g,
+        stato: 'SCADUTO (' + (-differenceInDays(parseISO(g.cert_medico_scadenza), today)) + 'gg fa)',
+        colorClass: 'red',
+      })),
+      ...certInScad.map(g => ({
+        ...g,
+        stato: 'In scadenza (' + differenceInDays(parseISO(g.cert_medico_scadenza), today) + 'gg)',
+        colorClass: 'orange',
+      })),
+    ]
+    const rows = tutti.map(g =>
+      '<tr>' +
+      '<td>' + g.cognome + ' ' + g.nome + '</td>' +
+      '<td>' + (g.squadra ?? '—') + '</td>' +
+      '<td>' + (g.cert_medico_scadenza ? format(parseISO(g.cert_medico_scadenza), 'd/MM/yyyy') : '—') + '</td>' +
+      '<td class="' + g.colorClass + '">' + g.stato + '</td>' +
+      '</tr>'
+    ).join('')
+    printWindow(
+      'Certificati Medici — ' + format(today, 'd MMMM yyyy', { locale: it }),
+      '<table>' +
+      '<thead><tr><th>Cognome Nome</th><th>Squadra</th><th>Scadenza</th><th>Stato</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+      '<p class="summary">' + tutti.length + ' giocatori con certificato da rinnovare</p>',
+      societaNome ?? ''
+    )
+  }
+
+  function printQuote() {
+    const totale = quoteScadute.reduce((s, q) => s + (q.importo ?? 0), 0)
+    const rows = quoteScadute.map(q => {
+      const g = giocatoreMap[q.giocatore_id]
+      return '<tr>' +
+        '<td>' + (g ? g.cognome + ' ' + g.nome : '—') + '</td>' +
+        '<td>' + (g?.squadra ?? '—') + '</td>' +
+        '<td>' + (q.descrizione ?? q.tipo ?? '—') + '</td>' +
+        '<td class="center">€ ' + (q.importo ?? 0).toFixed(2) + '</td>' +
+        '<td class="red">' + (q.data_scadenza ? format(parseISO(q.data_scadenza), 'd/MM/yyyy') : '—') + '</td>' +
+        '</tr>'
+    }).join('')
+    printWindow(
+      'Quote Non Pagate — ' + format(today, 'd MMMM yyyy', { locale: it }),
+      '<table>' +
+      '<thead><tr><th>Giocatore</th><th>Squadra</th><th>Descrizione</th><th>Importo</th><th>Scadenza</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+      '<p class="summary">Totale non pagato: € ' + totale.toFixed(2) + ' — ' + quoteScadute.length + ' rate</p>',
+      societaNome ?? ''
+    )
+  }
 
   // ── KPI card (cliccabile se count > 0) ────────────────────────────────────
   function KpiCard({ label, value, color, isOpen, onToggle }) {
@@ -150,9 +208,14 @@ export default function SegreteriaDashboard() {
               {/* Certificati scaduti */}
               {openCertScad && certScaduti.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
-                    <AlertTriangle size={12} /> Certificati scaduti ({certScaduti.length})
-                  </p>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={12} /> Certificati scaduti ({certScaduti.length})
+                    </p>
+                    <button onClick={printCert} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
+                      <Printer size={12} /> Stampa
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {certScaduti.map(g => (
                       <button key={g.id}
@@ -173,9 +236,14 @@ export default function SegreteriaDashboard() {
               {/* Certificati in scadenza */}
               {openCertInScad && certInScad.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
-                    <AlertTriangle size={12} /> In scadenza entro 30 giorni ({certInScad.length})
-                  </p>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={12} /> In scadenza entro 30 giorni ({certInScad.length})
+                    </p>
+                    <button onClick={printCert} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
+                      <Printer size={12} /> Stampa
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {certInScad.map(g => (
                       <button key={g.id}
@@ -196,9 +264,14 @@ export default function SegreteriaDashboard() {
               {/* Quote scadute */}
               {openQuoteScad && quoteScadute.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-2 flex items-center gap-1.5 px-1">
-                    <AlertTriangle size={12} /> Quote scadute non pagate ({quoteScadute.length})
-                  </p>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={12} /> Quote scadute non pagate ({quoteScadute.length})
+                    </p>
+                    <button onClick={printQuote} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700">
+                      <Printer size={12} /> Stampa
+                    </button>
+                  </div>
                   <div className="space-y-2">
                     {quoteScadute.map(q => {
                       const g = giocatoreMap[q.giocatore_id]
