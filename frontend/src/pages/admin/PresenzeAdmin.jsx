@@ -2,9 +2,10 @@ import { useState, useMemo } from 'react'
 import { format, subDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Printer } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { usePrintWindow } from '../../hooks/usePrintWindow'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { PALETTE } from '../../lib/constants'
@@ -104,7 +105,9 @@ function GiocatoreStorico({ giocatore, fromDate, toDate, onBack }) {
 
 // ─── Dettaglio squadra con % per giocatore ────────────────────────────────────
 function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelectGiocatore }) {
-  const { societaId } = useAuth()
+  const { societaId, societaNome } = useAuth()
+  const printWindow     = usePrintWindow()
+  const [isPrinting, setIsPrinting] = useState(false)
   const col = getTeamColor(squadra, allSquadre)
 
   const { data: giocatoriPresenze = [], isLoading, error } = useQuery({
@@ -150,6 +153,74 @@ function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelect
     return Math.round(conDati.reduce((s, g) => s + g.percentuale, 0) / conDati.length)
   }, [giocatoriPresenze])
 
+  async function handlePrint() {
+    setIsPrinting(true)
+    try {
+      const ids = giocatoriPresenze.map(g => g.id)
+      if (!ids.length) return
+
+      const { data: raw } = await supabase
+        .from('presenze_allenamento')
+        .select('giocatore_id, data, presente')
+        .in('giocatore_id', ids)
+        .gte('data', fromDate)
+        .lte('data', toDate)
+        .order('data')
+
+      const presenze = raw ?? []
+      const dates = [...new Set(presenze.map(p => p.data))].sort()
+      if (!dates.length) {
+        alert('Nessuna presenza registrata nel periodo selezionato.')
+        return
+      }
+
+      const matrix = {}
+      for (const p of presenze) {
+        if (!matrix[p.giocatore_id]) matrix[p.giocatore_id] = {}
+        matrix[p.giocatore_id][p.data] = p.presente
+      }
+
+      const fontSize = dates.length > 15 ? 'font-size:8px;' : ''
+
+      const headerCols = dates.map(d =>
+        '<th class="center" style="min-width:28px">' +
+        new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) +
+        '</th>'
+      ).join('')
+
+      const rows = giocatoriPresenze.map(g => {
+        const presRow  = matrix[g.id] ?? {}
+        const totali   = dates.filter(d => presRow[d] !== undefined).length
+        const presenti = dates.filter(d => presRow[d] === true).length
+        const pct      = totali > 0 ? Math.round(presenti * 100 / totali) : null
+        const cells = dates.map(d => {
+          if (presRow[d] === undefined) return '<td class="center" style="color:#ccc">—</td>'
+          return presRow[d] ? '<td class="center ok">✓</td>' : '<td class="center ko">·</td>'
+        }).join('')
+        return '<tr>' +
+          '<td><strong>' + g.cognome + '</strong> ' + g.nome + '</td>' +
+          cells +
+          '<td class="center">' + (totali > 0 ? presenti + '/' + totali : '—') + '</td>' +
+          '<td class="center" style="font-weight:bold">' + (pct !== null ? pct + '%' : '—') + '</td>' +
+          '</tr>'
+      }).join('')
+
+      printWindow(
+        'Presenze — ' + squadra,
+        '<p style="font-size:10px;color:#555;margin-bottom:8px">Periodo: <strong>' + fromDate + '</strong> → <strong>' + toDate + '</strong> · ' + giocatoriPresenze.length + ' giocatori · ' + dates.length + ' allenamenti registrati</p>' +
+        '<div style="overflow-x:auto;' + fontSize + '">' +
+        '<table>' +
+        '<thead><tr><th style="min-width:120px">Giocatore</th>' + headerCols + '<th class="center">Tot.</th><th class="center">%</th></tr></thead>' +
+        '<tbody>' + rows +
+        '<tr style="background:#f9fafb;font-weight:bold"><td>Media squadra</td>' + dates.map(() => '<td></td>').join('') + '<td></td><td class="center">' + (mediaSquadra !== null ? mediaSquadra + '%' : '—') + '</td></tr>' +
+        '</tbody></table></div>',
+        societaNome ?? ''
+      )
+    } finally {
+      setIsPrinting(false)
+    }
+  }
+
   return (
     <div>
       <div className={`flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 border-l-4 ${col.border}`}>
@@ -158,10 +229,18 @@ function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelect
         </button>
         <span className="font-semibold text-gray-800 text-sm flex-1">{squadra}</span>
         {mediaSquadra !== null && (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 hidden sm:inline">
             Media: <strong className="text-gray-700">{mediaSquadra}%</strong>
           </span>
         )}
+        <button
+          onClick={handlePrint}
+          disabled={isPrinting}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 disabled:opacity-50 px-2 py-1 rounded-lg border border-gray-200"
+        >
+          <Printer size={13} />
+          <span>{isPrinting ? '...' : 'Stampa'}</span>
+        </button>
       </div>
 
       {isLoading && <div className="pt-8"><LoadingSpinner /></div>}
