@@ -49,6 +49,7 @@ import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
 import AtleticaCoach from './pages/coach/AtleticaCoach'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
+import { RoleSwitcherFAB } from './components/RoleSwitcher'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -144,6 +145,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-lg mx-auto lg:max-w-none relative">
+      <RoleSwitcherFAB />
       <Routes>
         <Route path="/login"      element={<LoginPage />} />
         <Route path="/registrati" element={<RegistrazionePage />} />

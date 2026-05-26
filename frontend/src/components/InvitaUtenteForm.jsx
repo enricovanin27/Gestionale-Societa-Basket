@@ -4,20 +4,25 @@ import { UserPlus, CheckCircle2 } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
-const RUOLO_LABELS = {
-  admin:       'Amministratore',
-  allenatore:  'Allenatore',
-  segreteria:  'Segreteria',
-  genitore:    'Genitore',
-  giocatore:   'Giocatore',
-  preparatore: 'Preparatore atletico',
+export const RUOLO_LABELS = {
+  admin:                'Resp. Tecnico (Admin)',
+  allenatore:           'Allenatore',
+  segreteria:           'Segreteria',
+  genitore:             'Genitore',
+  giocatore:            'Giocatore',
+  preparatore_atletico: 'Preparatore atletico',
+  dirigente:            'Dirigente',
 }
+
+// Ruoli che supportano ruoli_extra (multi-ruolo)
+const RUOLI_CON_EXTRA = ['allenatore', 'admin', 'segreteria', 'dirigente', 'preparatore_atletico']
 
 const EMPTY_FORM = {
   email: '', nome: '', cognome: '', ruolo: '',
   squadra: '', squadra2: '', squadra3: '',
   genitore_squadra: '', genitore_squadra2: '', genitore_squadra3: '',
   giocatoreId: '', societa_id: '',
+  ruoli_extra: [],
 }
 
 export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
@@ -29,6 +34,15 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
   const [ok, setOk]           = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  function toggleExtra(r) {
+    setForm(f => ({
+      ...f,
+      ruoli_extra: f.ruoli_extra.includes(r)
+        ? f.ruoli_extra.filter(x => x !== r)
+        : [...f.ruoli_extra, r],
+    }))
+  }
 
   const { data: squadre = [] } = useQuery({
     queryKey: ['squadre-nomi-invita', societaId],
@@ -68,6 +82,9 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
     staleTime: 5 * 60 * 1000,
   })
 
+  // Ruoli disponibili per extra (tutti eccetto il primario selezionato)
+  const ruoliExtraDisp = RUOLI_CON_EXTRA.filter(r => r !== form.ruolo && ruoliConsentiti.includes(r))
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.email.trim() || !form.ruolo) return
@@ -96,15 +113,24 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
       const newUserId = invData.user?.id
       if (!newUserId) throw new Error('Utente invitato ma ID non ricevuto')
 
+      // ruoli_extra: array senza duplicati con il ruolo primario
+      const ruoliExtra = form.ruoli_extra.filter(r => r !== form.ruolo)
+
       const profileData = {
         id: newUserId, email: form.email.trim(),
         nome: form.nome.trim() || null, cognome: form.cognome.trim() || null,
         ruolo: form.ruolo, societa_id: targetSocietaId, attivo: true,
+        ruoli_extra: ruoliExtra.length > 0 ? ruoliExtra : null,
       }
       if (form.ruolo === 'genitore') {
         profileData.genitore_squadra  = form.genitore_squadra  || null
         profileData.genitore_squadra2 = form.genitore_squadra2 || null
         profileData.genitore_squadra3 = form.genitore_squadra3 || null
+      }
+      if (form.ruolo === 'giocatore' || ruoliExtra.includes('allenatore')) {
+        profileData.squadra  = form.squadra  || null
+        profileData.squadra2 = form.squadra2 || null
+        profileData.squadra3 = form.squadra3 || null
       }
       if (form.ruolo === 'giocatore') {
         profileData.squadra  = form.squadra  || null
@@ -125,7 +151,8 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
         if (genErr) console.warn('Collegamento genitore fallito:', genErr.message)
         qc.invalidateQueries({ queryKey: ['giocatori-link', societaId] })
       }
-      if (form.ruolo === 'allenatore') {
+      // Crea entry in allenatori se ruolo primario o extra è allenatore
+      if (form.ruolo === 'allenatore' || ruoliExtra.includes('allenatore')) {
         await supabase.from('allenatori').upsert([{
           nome: form.nome.trim(), cognome: form.cognome.trim(),
           email: form.email.trim(), squadre_capo: '', squadre_vice: '',
@@ -171,13 +198,41 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
       </div>
 
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Ruolo</label>
+        <label className="text-xs text-gray-400 mb-1 block">Ruolo principale</label>
         <select className={sel} value={form.ruolo} onChange={e => set('ruolo', e.target.value)}>
           {ruoliConsentiti.map(r => (
             <option key={r} value={r}>{RUOLO_LABELS[r] ?? r}</option>
           ))}
         </select>
       </div>
+
+      {/* Ruoli aggiuntivi (multi-ruolo) */}
+      {ruoliExtraDisp.length > 0 && (
+        <div>
+          <label className="text-xs text-gray-400 mb-1.5 block">Ruoli aggiuntivi (opzionale)</label>
+          <div className="flex flex-wrap gap-2">
+            {ruoliExtraDisp.map(r => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => toggleExtra(r)}
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                  form.ruoli_extra.includes(r)
+                    ? 'bg-purple-100 text-purple-700 border-purple-300'
+                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {form.ruoli_extra.includes(r) ? '✓ ' : ''}{RUOLO_LABELS[r] ?? r}
+              </button>
+            ))}
+          </div>
+          {form.ruoli_extra.length > 0 && (
+            <p className="text-[10px] text-purple-600 mt-1">
+              L'utente potrà passare tra i ruoli dall'app.
+            </p>
+          )}
+        </div>
+      )}
 
       {isSuperAdmin && form.ruolo === 'admin' && (
         <div>
@@ -186,6 +241,21 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
             <option value="">— usa la mia società —</option>
             {societaList.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
           </select>
+        </div>
+      )}
+
+      {(form.ruolo === 'allenatore' || (form.ruolo !== 'giocatore' && form.ruoli_extra.includes('allenatore'))) && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-blue-700">Squadre allenatore (opzionale)</p>
+          {[['squadra','Squadra 1'],['squadra2','Squadra 2'],['squadra3','Squadra 3']].map(([k, label]) => (
+            <div key={k}>
+              <label className="text-xs text-gray-400 mb-1 block">{label}</label>
+              <select className={sel} value={form[k]} onChange={e => set(k, e.target.value)}>
+                <option value="">— nessuna —</option>
+                {squadre.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          ))}
         </div>
       )}
 

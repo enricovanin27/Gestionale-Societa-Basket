@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { RoleSwitcherSidebar } from './RoleSwitcher'
 
 const ACCENT = {
   amber:   'text-amber-600 bg-amber-50',
@@ -42,6 +43,8 @@ export default function AppSidebar({ items, accentColor = 'amber' }) {
           </NavLink>
         ))}
       </nav>
+
+      <RoleSwitcherSidebar />
 
       <div className="px-4 py-4 border-t border-gray-100">
         <div className="text-xs text-gray-500 truncate mb-2">{displayName}</div>

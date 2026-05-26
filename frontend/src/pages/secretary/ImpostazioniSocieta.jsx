@@ -179,9 +179,9 @@ export default function ImpostazioniSocieta() {
             👥 Gestione Accessi
           </p>
           <p className="text-xs text-gray-400 mb-3">
-            Invita genitori e giocatori. Riceveranno un'email con il link per accedere all'app.
+            Invita e gestisci gli accessi di tutti gli utenti dell'app. Riceveranno un'email con il link per impostare la propria password.
           </p>
-          <InvitaUtenteForm ruoliConsentiti={['genitore', 'giocatore']} />
+          <InvitaUtenteForm ruoliConsentiti={['segreteria', 'allenatore', 'preparatore_atletico', 'dirigente', 'genitore', 'giocatore']} />
         </div>
       </div>
     </div>

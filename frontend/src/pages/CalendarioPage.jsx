@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   format, addWeeks, startOfWeek,
@@ -26,6 +26,18 @@ import GrigliaSettimanale from '../components/GrigliaSettimanale'
 import PrepSesioneInlineForm from '../components/PrepSesioneInlineForm'
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
+
+/** Returns 'W' | 'L' | 'D' | null depending on match result vs our team */
+function getWinLoss(event) {
+  if (event.punti_casa === null || event.punti_casa === undefined ||
+      event.punti_ospiti === null || event.punti_ospiti === undefined) return null
+  const isHome = (event.casa_fuori ?? '').toLowerCase() === 'casa'
+  const ns = isHome ? event.punti_casa   : event.punti_ospiti
+  const av = isHome ? event.punti_ospiti : event.punti_casa
+  if (ns > av) return 'W'
+  if (ns < av) return 'L'
+  return 'D'
+}
 
 function getEventColor(event) {
   if (event.stato === 'provvisoria') return 'yellow'
@@ -90,6 +102,15 @@ function MiniEventCard({ event, conflicts = [], onClick }) {
       {event.palestra && (
         <div className={`text-xs truncate ${s.sub}`}>{event.palestra}</div>
       )}
+      {event.punti_casa !== null && event.punti_casa !== undefined && (
+        <div className="flex items-center gap-1 mt-1">
+          {(() => {
+            const wl = getWinLoss(event)
+            const cls = wl === 'W' ? 'text-green-700 font-black' : wl === 'L' ? 'text-red-600 font-bold' : 'text-gray-500 font-bold'
+            return <span className={`text-xs ${cls}`}>{event.punti_casa}–{event.punti_ospiti}</span>
+          })()}
+        </div>
+      )}
       {event.stato === 'provvisoria' && (
         <div className="flex items-center gap-1 mt-1">
           <AlertCircle size={10} className="text-yellow-700" />
@@ -133,11 +154,21 @@ function ConflictTrainingCard({ training }) {
 
 // ─── Detail modal ─────────────────────────────────────────────────────────────
 
-function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, canModifyEvent, togglingStato, conflicts = [], onNavigateAllenamenti }) {
+function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, canModify, canModifyEvent, togglingStato, savingRisultato, onSaveRisultato, conflicts = [], onNavigateAllenamenti }) {
   const c = COLORS[getEventColor(event)]
   const typeLabel = (event.casa_fuori ?? '').toLowerCase() === 'casa'
     ? '🏀 Partita in casa'
     : '✈️ Partita in trasferta'
+  const isPast      = event.data && new Date(event.data + 'T23:59:59') < new Date()
+  const hasResult   = event.punti_casa !== null && event.punti_casa !== undefined
+  const isHome      = (event.casa_fuori ?? '').toLowerCase() === 'casa'
+  const canEditRis  = canModify && canModifyEvent && isPast
+  const [ris, setRis] = useState({
+    casa:   event.punti_casa   ?? '',
+    ospiti: event.punti_ospiti ?? '',
+  })
+  const [risSaved, setRisSaved] = useState(false)
+  useEffect(() => { setRis({ casa: event.punti_casa ?? '', ospiti: event.punti_ospiti ?? '' }) }, [event.id])
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center" onClick={onClose}>
@@ -194,6 +225,66 @@ function EventModal({ event, onClose, onEdit, onDelete, onToggleStato, isAdmin, 
             </span>
           )}
         </div>
+
+        {/* ── Risultato ── */}
+        {isPast && (
+          <div className="mt-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Risultato finale</p>
+            {hasResult && !canEditRis && (
+              <div className="text-center py-1">
+                <div className="text-3xl font-black text-gray-900 tracking-tight">
+                  {event.punti_casa} – {event.punti_ospiti}
+                </div>
+                {(() => {
+                  const wl = getWinLoss(event)
+                  if (wl === 'W') return <p className="text-sm text-green-600 font-semibold mt-1">🏆 Vittoria</p>
+                  if (wl === 'L') return <p className="text-sm text-red-600 font-semibold mt-1">❌ Sconfitta</p>
+                  return <p className="text-sm text-gray-500 mt-1">— Pareggio</p>
+                })()}
+              </div>
+            )}
+            {canEditRis && (
+              <>
+                {hasResult && (
+                  <div className="text-center mb-3">
+                    <span className="text-2xl font-black text-gray-900">{event.punti_casa} – {event.punti_ospiti}</span>
+                    {(() => {
+                      const wl = getWinLoss(event)
+                      if (wl === 'W') return <span className="ml-2 text-sm text-green-600 font-semibold">🏆</span>
+                      if (wl === 'L') return <span className="ml-2 text-sm text-red-600 font-semibold">❌</span>
+                      return null
+                    })()}
+                  </div>
+                )}
+                <div className="flex items-end gap-3 justify-center">
+                  <div className="text-center">
+                    <label className="text-[10px] text-gray-400 block mb-1">{isHome ? 'Noi (casa)' : 'Avversario (casa)'}</label>
+                    <input type="number" min="0" max="999"
+                      value={ris.casa} onChange={e => setRis(r => ({ ...r, casa: e.target.value }))}
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-lg text-center font-black focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <span className="text-gray-400 font-bold text-xl pb-2">–</span>
+                  <div className="text-center">
+                    <label className="text-[10px] text-gray-400 block mb-1">{isHome ? 'Avversario' : 'Noi (ospiti)'}</label>
+                    <input type="number" min="0" max="999"
+                      value={ris.ospiti} onChange={e => setRis(r => ({ ...r, ospiti: e.target.value }))}
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-lg text-center font-black focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                </div>
+                <Button
+                  variant="outline" size="sm" className="w-full mt-3"
+                  disabled={savingRisultato || ris.casa === '' || ris.ospiti === ''}
+                  onClick={() => onSaveRisultato && onSaveRisultato(event.id, Number(ris.casa), Number(ris.ospiti), () => setRisSaved(true))}
+                >
+                  {savingRisultato ? 'Salvataggio...' : risSaved ? '✓ Salvato' : hasResult ? 'Aggiorna risultato' : 'Salva risultato'}
+                </Button>
+              </>
+            )}
+            {!hasResult && !canEditRis && (
+              <p className="text-xs text-gray-400 text-center">Nessun risultato inserito</p>
+            )}
+          </div>
+        )}
 
         {conflicts.length > 0 && (
           <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
@@ -1069,6 +1160,20 @@ export default function CalendarioPage() {
     },
   })
 
+  const saveRisultatoMutation = useMutation({
+    mutationFn: async ({ id, puntiCasa, puntiOspiti }) => {
+      const { error } = await supabase.from('calendario')
+        .update({ punti_casa: puntiCasa, punti_ospiti: puntiOspiti })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['weekEvents'] })
+      // Aggiorna l'evento selezionato in-place per mostrare subito il risultato
+      setSelectedEvent(prev => prev ? { ...prev, punti_casa: vars.puntiCasa, punti_ospiti: vars.puntiOspiti } : prev)
+    },
+  })
+
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX }
   const handleTouchEnd   = (e) => {
     if (touchStartX.current === null) return
@@ -1348,6 +1453,10 @@ export default function CalendarioPage() {
           onDelete={handleDelete}
           onToggleStato={(event) => toggleStatoMutation.mutate({ id: event.id, stato: event.stato })}
           togglingStato={toggleStatoMutation.isPending}
+          savingRisultato={saveRisultatoMutation.isPending}
+          onSaveRisultato={(id, puntiCasa, puntiOspiti, onDone) =>
+            saveRisultatoMutation.mutate({ id, puntiCasa, puntiOspiti }, { onSuccess: onDone })
+          }
           isAdmin={isAdmin}
           canModify={canModify}
           canModifyEvent={canModifyEvent(selectedEvent)}
