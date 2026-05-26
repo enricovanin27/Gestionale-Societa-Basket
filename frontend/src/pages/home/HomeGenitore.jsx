@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
-import { format, addDays, startOfWeek } from 'date-fns'
+import { format, addDays, startOfWeek, differenceInDays, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { useQuery } from '@tanstack/react-query'
+import { Upload, FileText, CheckCircle2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
@@ -9,9 +10,20 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
 import { PALETTE } from '../../lib/constants'
 
+function certStatusGenitore(scadenza) {
+  if (!scadenza) return { label: 'Data non inserita', cls: 'text-gray-400', urgent: false }
+  const diff = differenceInDays(parseISO(scadenza), new Date())
+  if (diff < 0)  return { label: `Scaduta ${Math.abs(diff)}gg fa`, cls: 'text-red-600', urgent: true }
+  if (diff < 30) return { label: `Scade tra ${diff} giorni`, cls: 'text-orange-600', urgent: true }
+  return { label: `Valida fino al ${format(parseISO(scadenza), 'd/MM/yyyy')}`, cls: 'text-green-600', urgent: false }
+}
+
 export default function HomeGenitore() {
   const { user, profile, societaId, displayName, logout, societaNome } = useAuth()
+  const qc = useQueryClient()
   const [selectedSquadra, setSelectedSquadra] = useState('')
+  const [uploadingId, setUploadingId] = useState(null)
+  const [uploadDone,  setUploadDone]  = useState({})
 
   const today      = new Date()
   const todayStr   = format(today, 'yyyy-MM-dd')
@@ -23,7 +35,7 @@ export default function HomeGenitore() {
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
-        .select('squadra, squadra2, squadra3')
+        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza, cert_medico_url')
         .eq('societa_id', societaId)
         .eq('genitore_user_id', user.id)
         .eq('attivo', true)
@@ -121,6 +133,32 @@ export default function HomeGenitore() {
       .filter(e => !e.annullato && squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())),
     [weekData, todayStr, squadreFiltro]
   )
+
+  async function handleCertUpload(giocatoreId, file) {
+    setUploadingId(giocatoreId)
+    try {
+      const ext  = file.name.split('.').pop() || 'pdf'
+      const path = `${societaId}/${giocatoreId}/cert_medico.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('certificati')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) throw upErr
+      const { data: { publicUrl } } = supabase.storage.from('certificati').getPublicUrl(path)
+      // Aggiorna l'URL tramite funzione SECURITY DEFINER (RLS-safe)
+      const { error: dbErr } = await supabase.rpc('update_cert_url_genitore', {
+        p_giocatore_id: giocatoreId,
+        p_url: publicUrl,
+      })
+      if (dbErr) throw dbErr
+      qc.invalidateQueries({ queryKey: ['figli-genitore-squadre', societaId, user?.id] })
+      setUploadDone(d => ({ ...d, [giocatoreId]: true }))
+      setTimeout(() => setUploadDone(d => ({ ...d, [giocatoreId]: false })), 4000)
+    } catch (err) {
+      alert('Errore caricamento: ' + err.message)
+    } finally {
+      setUploadingId(null)
+    }
+  }
 
   if (loadingFigli) {
     return (
@@ -227,6 +265,61 @@ export default function HomeGenitore() {
               {quoteAperte.length > 3 && (
                 <p className="text-xs text-gray-400 mt-1.5">+{quoteAperte.length - 3} altre quote...</p>
               )}
+            </div>
+          )}
+
+          {/* ── Certificati medici figli ───────────────────────────────────────── */}
+          {figli.length > 0 && (
+            <div className="mx-4 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide px-4 pt-3 pb-2">
+                🏥 Certificati medici
+              </p>
+              {figli.map(g => {
+                const cert    = certStatusGenitore(g.cert_medico_scadenza)
+                const isUploading = uploadingId === g.id
+                const isDone      = uploadDone[g.id]
+                return (
+                  <div key={g.id}
+                    className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 first:border-t-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{g.cognome} {g.nome}</p>
+                      <p className={`text-xs mt-0.5 ${cert.cls}`}>{cert.label}</p>
+                      {g.cert_medico_url && (
+                        <a href={g.cert_medico_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-purple-600 hover:underline mt-1">
+                          <FileText size={10} /> Visualizza certificato
+                        </a>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      {isDone ? (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <CheckCircle2 size={14} /> Inviato!
+                        </span>
+                      ) : (
+                        <label className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
+                          cert.urgent
+                            ? 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                        } ${isUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                          <Upload size={12} />
+                          {isUploading ? 'Invio...' : 'Carica PDF'}
+                          <input type="file" accept="application/pdf,image/*" className="hidden"
+                            disabled={isUploading}
+                            onChange={e => {
+                              const file = e.target.files?.[0]
+                              if (file) handleCertUpload(g.id, file)
+                              e.target.value = ''
+                            }} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+              <p className="text-[10px] text-gray-400 px-4 py-2.5 border-t border-gray-100">
+                Il certificato verrà consegnato direttamente alla segreteria
+              </p>
             </div>
           )}
 

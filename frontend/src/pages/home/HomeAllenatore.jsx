@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format, addWeeks, parseISO, startOfWeek, addDays, subDays } from 'date-fns'
+import { format, addWeeks, parseISO, startOfWeek, addDays, subDays, differenceInDays } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { X, Plus, AlertTriangle } from 'lucide-react'
+import { X, Plus, AlertTriangle, Mail, Shield, ChevronDown, ChevronUp, Check } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -16,6 +16,16 @@ import { saveAllenamento, annullaAllenamento } from '../../hooks/useAllenamenti'
 import {
   AllenatoreEditModal, AllenatoreEventModal, parseList, GIORNO_OFFSET_W, timesOverlap,
 } from './shared'
+import AppelloModal from '../coach/AppelloModal'
+
+// Stato certificato per la vista rosa
+function certStatusRosa(scadenza) {
+  if (!scadenza) return { label: 'N/D', cls: 'bg-gray-100 text-gray-500' }
+  const diff = differenceInDays(parseISO(scadenza), new Date())
+  if (diff < 0)  return { label: 'Scaduto',    cls: 'bg-red-100 text-red-700' }
+  if (diff < 30) return { label: `${diff}gg`,  cls: 'bg-orange-100 text-orange-700' }
+  return { label: '✓ OK', cls: 'bg-green-100 text-green-700' }
+}
 
 // ─── Add partita modal ─────────────────────────────────────────────────────────
 
@@ -462,11 +472,46 @@ export default function HomeAllenatore() {
     [allenamentiIeri, presenzeIeriSquadre]
   )
 
+  // ── Rosa e email genitori ────────────────────────────────────────────────────
+  const { data: giocatoriRosa = [] } = useQuery({
+    queryKey: ['rosa-coach', mySquadre, societaId],
+    enabled: !!societaId && mySquadre.length > 0,
+    queryFn: async () => {
+      const orFilter = mySquadre
+        .map(s => `squadra.eq.${s},squadra2.eq.${s},squadra3.eq.${s}`)
+        .join(',')
+      const { data } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome, squadra, squadra2, squadra3, cert_medico_scadenza, email_genitore')
+        .eq('societa_id', societaId)
+        .eq('attivo', true)
+        .or(orFilter)
+        .order('cognome').order('nome')
+      return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  function handleEmailGenitori(squadra) {
+    const emails = giocatoriRosa
+      .filter(g => g.squadra === squadra || g.squadra2 === squadra || g.squadra3 === squadra)
+      .map(g => g.email_genitore)
+      .filter(Boolean)
+    if (!emails.length) {
+      alert('Nessun indirizzo email genitore disponibile per questa squadra.')
+      return
+    }
+    window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(`[${squadra}] Comunicazione`)}`
+  }
+
   const [editingEvent,   setEditingEvent]   = useState(null)
   const [selectedEvent,  setSelectedEvent]  = useState(null)
   const [showAddForm,    setShowAddForm]    = useState(false)
   const [showAddPartita, setShowAddPartita] = useState(false)
   const [fabOpen,        setFabOpen]        = useState(false)
+  const [showAppello,    setShowAppello]    = useState(null)   // evento allenamento per appello
+  const [showRosa,       setShowRosa]       = useState(false)
+  const [emailSquadra,   setEmailSquadra]   = useState(null)   // picker multi-squadra email
 
   const saveMut = useMutation({
     mutationFn: async ({ event, formData }) => {
@@ -540,6 +585,68 @@ export default function HomeAllenatore() {
           </button>
         )}
 
+        {/* ── Azioni rapide ──────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2">
+          {mySquadre.map(s => (
+            <button key={s}
+              onClick={() => mySquadre.length === 1 ? handleEmailGenitori(s) : setEmailSquadra(s)}
+              className="flex items-center gap-1.5 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm active:scale-95 transition-transform">
+              <Mail size={12} /> Email genitori{mySquadre.length > 1 ? ` ${s}` : ''}
+            </button>
+          ))}
+          <button
+            onClick={() => setShowRosa(v => !v)}
+            className={`flex items-center gap-1.5 text-xs rounded-lg px-3 py-1.5 shadow-sm active:scale-95 transition-transform border ${
+              showRosa
+                ? 'bg-amber-50 border-amber-300 text-amber-700'
+                : 'bg-white border-gray-200 text-gray-600'
+            }`}>
+            <Shield size={12} />
+            Stato rosa
+            {showRosa ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          </button>
+        </div>
+
+        {/* ── Stato rosa (collassabile) ───────────────────────────────────────── */}
+        {showRosa && (
+          <div className="space-y-3">
+            {mySquadre.map(squadra => {
+              const players = giocatoriRosa.filter(
+                g => g.squadra === squadra || g.squadra2 === squadra || g.squadra3 === squadra
+              )
+              return (
+                <div key={squadra}>
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1.5 px-1 flex items-center gap-1.5">
+                    <Shield size={11} /> {squadra} ({players.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {players.map(g => {
+                      const cert = certStatusRosa(g.cert_medico_scadenza)
+                      return (
+                        <div key={g.id}
+                          className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 flex items-center gap-3 shadow-sm">
+                          <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                            <span className="text-[10px] font-bold text-amber-700">
+                              {(g.cognome?.[0] ?? '')}{(g.nome?.[0] ?? '')}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-800 flex-1">{g.cognome} {g.nome}</p>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${cert.cls}`}>
+                            {cert.label}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {players.length === 0 && (
+                      <p className="text-xs text-gray-400 px-1">Nessun giocatore</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
         {/* Impegni di oggi */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Impegni di oggi</p>
@@ -556,10 +663,9 @@ export default function HomeAllenatore() {
           ) : (
             <div className="space-y-2">
               {todayEvents.map((e, i) => (
-                <button
+                <div
                   key={`${e._source}-${e.id ?? i}`}
-                  onClick={() => e._tipo === 'allenamento' ? setEditingEvent(e) : undefined}
-                  className="w-full bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm text-left active:scale-[0.99] transition-transform"
+                  className="w-full bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center gap-3 shadow-sm"
                 >
                   <span className="text-lg">{e._tipo === 'allenamento' ? '🏋️' : '🏀'}</span>
                   <div className="flex-1 min-w-0">
@@ -570,7 +676,23 @@ export default function HomeAllenatore() {
                       {e.palestra ? ` · ${e.palestra}` : ''}
                     </p>
                   </div>
-                </button>
+                  {e._tipo === 'allenamento' && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setShowAppello(e)}
+                        title="Appello presenze"
+                        className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2.5 py-1.5 rounded-lg font-medium active:scale-95 transition-transform">
+                        <Check size={12} /> Appello
+                      </button>
+                      <button
+                        onClick={() => setEditingEvent(e)}
+                        title="Modifica allenamento"
+                        className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-lg font-medium active:scale-95 transition-transform">
+                        ✏️
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -664,6 +786,41 @@ export default function HomeAllenatore() {
       >
         {fabOpen ? <X size={24} /> : <Plus size={28} />}
       </button>
+
+      {/* Appello presenze rapido */}
+      {showAppello && (
+        <AppelloModal
+          event={showAppello}
+          societaId={societaId}
+          onClose={() => setShowAppello(null)}
+        />
+      )}
+
+      {/* Picker squadra per email genitori (solo se più squadre) */}
+      {emailSquadra && (
+        <div className="fixed inset-0 bg-black/40 z-[9999] flex items-end justify-center"
+          onClick={() => setEmailSquadra(null)}>
+          <div className="bg-white rounded-t-2xl w-full max-w-sm p-4 pb-8 shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-gray-800 mb-3">
+              Invia email genitori — {emailSquadra}
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              Verrà aperto il tuo client email con tutti gli indirizzi in BCC
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setEmailSquadra(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">
+                Annulla
+              </button>
+              <button onClick={() => { handleEmailGenitori(emailSquadra); setEmailSquadra(null) }}
+                className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-95">
+                <Mail size={14} /> Apri email
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingEvent && (
         <AllenatoreEditModal
