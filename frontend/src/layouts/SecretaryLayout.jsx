@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Receipt, Settings } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt, Settings, ClipboardList } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -16,7 +16,8 @@ export default function SecretaryLayout() {
   const sidebarItems = [
     { to: '/secretary',           end: true, icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/secretary/giocatori',            icon: Users,            label: 'Giocatori' },
-    { to: '/secretary/quote',                icon: Receipt,          label: 'Quote' },
+    { to: '/secretary/quote',                icon: Receipt,          label: 'Quote Squadre' },
+    { to: '/secretary/resoconto',            icon: ClipboardList,    label: 'Resoconto' },
     { to: '/secretary/bacheca',              icon: Bell,             label: 'Bacheca', badge: unread },
     { to: '/secretary/impostazioni',         icon: Settings,         label: 'Impostazioni' },
   ]
@@ -33,7 +34,10 @@ export default function SecretaryLayout() {
             <Users size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Giocatori</span>
           </NavLink>
           <NavLink to="/secretary/quote" className={cls}>
-            <Receipt size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Quote</span>
+            <Receipt size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Quote Sq.</span>
+          </NavLink>
+          <NavLink to="/secretary/resoconto" className={cls}>
+            <ClipboardList size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Resoconto</span>
           </NavLink>
           <NavLink to="/secretary/bacheca" className={cls}>
             <div className="relative">
@@ -45,9 +49,6 @@ export default function SecretaryLayout() {
               )}
             </div>
             <span className="text-xs font-medium">Bacheca</span>
-          </NavLink>
-          <NavLink to="/secretary/impostazioni" className={cls}>
-            <Settings size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Impostazioni</span>
           </NavLink>
         </div>
       </nav>

@@ -14,15 +14,17 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer } from 'lu
 export default function SegreteriaDashboard() {
   const today = new Date()
   const todayStr = format(today, 'yyyy-MM-dd')
+  const in15days = format(new Date(today.getTime() + 15 * 86400000), 'yyyy-MM-dd')
   const in30days = format(new Date(today.getTime() + 30 * 86400000), 'yyyy-MM-dd')
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
   const printWindow = usePrintWindow()
 
   // ── sezioni aperte ──────────────────────────────────────────────────────────
-  const [openCertScad,   setOpenCertScad]   = useState(false)
-  const [openCertInScad, setOpenCertInScad] = useState(false)
-  const [openQuoteScad,  setOpenQuoteScad]  = useState(false)
+  const [openCertScad,     setOpenCertScad]     = useState(false)
+  const [openCertInScad,   setOpenCertInScad]   = useState(false)
+  const [openQuoteScad,    setOpenQuoteScad]     = useState(false)
+  const [openQuoteInScad,  setOpenQuoteInScad]  = useState(false)
 
   // ── query ───────────────────────────────────────────────────────────────────
   const { data: giocatori = [], isLoading: lg } = useQuery({
@@ -63,10 +65,12 @@ export default function SegreteriaDashboard() {
   const certScaduti  = useMemo(() => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza < todayStr), [giocatori, todayStr])
   const certInScad   = useMemo(() => giocatori.filter(g => g.cert_medico_scadenza && g.cert_medico_scadenza >= todayStr && g.cert_medico_scadenza <= in30days), [giocatori, todayStr, in30days])
   // Include quote senza scadenza (da pagare) + quote con scadenza già passata
-  const quoteScadute = useMemo(() => quote.filter(q => !q.data_scadenza || q.data_scadenza < todayStr), [quote, todayStr])
+  const quoteScadute   = useMemo(() => quote.filter(q => !q.data_scadenza || q.data_scadenza < todayStr), [quote, todayStr])
+  // Rate con scadenza entro 15 giorni (non ancora scadute)
+  const quoteInScadenza = useMemo(() => quote.filter(q => q.data_scadenza && q.data_scadenza >= todayStr && q.data_scadenza <= in15days), [quote, todayStr, in15days])
 
   const isLoading = lg || lq
-  const tuttoOk   = certScaduti.length === 0 && certInScad.length === 0 && quoteScadute.length === 0
+  const tuttoOk   = certScaduti.length === 0 && certInScad.length === 0 && quoteScadute.length === 0 && quoteInScadenza.length === 0
 
   // ── print helpers ────────────────────────────────────────────────────────
   function printCert() {
@@ -174,7 +178,7 @@ export default function SegreteriaDashboard() {
         <div className="px-4 pt-4 space-y-4">
 
           {/* KPI cards — cliccabili se count > 0 */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <KpiCard
               label="Cert. scaduti"
               value={certScaduti.length}
@@ -195,6 +199,13 @@ export default function SegreteriaDashboard() {
               color={quoteScadute.length > 0 ? 'text-purple-600' : 'text-green-600'}
               isOpen={openQuoteScad}
               onToggle={() => setOpenQuoteScad(v => !v)}
+            />
+            <KpiCard
+              label="Rate in scad. (15gg)"
+              value={quoteInScadenza.length}
+              color={quoteInScadenza.length > 0 ? 'text-amber-600' : 'text-green-600'}
+              isOpen={openQuoteInScad}
+              onToggle={() => setOpenQuoteInScad(v => !v)}
             />
           </div>
 
@@ -299,8 +310,39 @@ export default function SegreteriaDashboard() {
                 </div>
               )}
 
+              {/* Rate in scadenza entro 15 giorni */}
+              {openQuoteInScad && quoteInScadenza.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle size={12} /> Rate in scadenza entro 15gg ({quoteInScadenza.length})
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {quoteInScadenza.map(q => {
+                      const g = giocatoreMap[q.giocatore_id]
+                      const giorniRimasti = differenceInDays(parseISO(q.data_scadenza), today)
+                      return (
+                        <button key={q.id}
+                          onClick={() => navigate(`/secretary/giocatori/${q.giocatore_id}`, { state: { tab: 'quote' } })}
+                          className="w-full text-left bg-white rounded-xl border border-l-4 border-l-amber-400 px-4 py-3 shadow-sm active:scale-[0.99]">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {g ? `${g.cognome} ${g.nome}` : 'Giocatore sconosciuto'}
+                          </p>
+                          <p className="text-xs text-amber-600 mt-0.5">{q.descrizione ?? q.tipo} — €{q.importo}</p>
+                          <p className="text-xs text-gray-400">
+                            Scade {giorniRimasti === 0 ? 'oggi' : `tra ${giorniRimasti}gg`}
+                            {' '}({format(parseISO(q.data_scadenza), 'd MMM', { locale: it })}) · Tocca per registrare
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Messaggio se niente è aperto ma ci sono problemi */}
-              {!openCertScad && !openCertInScad && !openQuoteScad && (
+              {!openCertScad && !openCertInScad && !openQuoteScad && !openQuoteInScad && (
                 <p className="text-xs text-gray-400 text-center py-2">
                   Tocca un contatore qui sopra per vedere i dettagli
                 </p>

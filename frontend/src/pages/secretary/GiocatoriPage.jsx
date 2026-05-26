@@ -205,14 +205,34 @@ export default function GiocatoriPage() {
     )
   }
 
+  // Funzione email BCC genitori della squadra selezionata
+  function handleEmailGenitori() {
+    const emails = giocatoriFiltrati
+      .map(g => g.email_genitore)
+      .filter(Boolean)
+    if (emails.length === 0) {
+      alert('Nessun indirizzo email genitore disponibile per questa squadra.')
+      return
+    }
+    const bcc = emails.join(',')
+    const subject = encodeURIComponent(`[${selectedSquadra}] Comunicazione`)
+    window.location.href = `mailto:?bcc=${encodeURIComponent(bcc)}&subject=${subject}`
+  }
+
   // Vista giocatori di una squadra
   return (
     <>
       <div>
         {header}
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-4 pt-3 pb-2 flex items-center justify-between">
           <button onClick={() => setSelectedSquadra(null)} className="flex items-center gap-1 text-sm text-purple-600 font-medium">
             <ChevronLeft size={16} /> Tutte le squadre
+          </button>
+          <button
+            onClick={handleEmailGenitori}
+            title="Invia email a tutti i genitori"
+            className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 bg-white hover:bg-gray-50 active:scale-95 transition-transform">
+            <Mail size={13} /> Email genitori
           </button>
         </div>
         <div className="px-4 space-y-2 pb-4">

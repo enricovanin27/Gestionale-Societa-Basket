@@ -28,6 +28,7 @@ import QuotePage       from './pages/secretary/QuotePage'
 import ImpostazioniSocieta  from './pages/secretary/ImpostazioniSocieta'
 import RicevutaPage         from './pages/secretary/RicevutaPage'
 import Attestazione730Page  from './pages/secretary/Attestazione730Page'
+import ResocontoPage        from './pages/secretary/ResocontoPage'
 import HomeGenitore from './pages/home/HomeGenitore'
 import HomeGiocatore from './pages/player/HomeGiocatore'
 import ComunicazioniPage from './pages/player/ComunicazioniPage'
@@ -177,6 +178,7 @@ function AppShell() {
           <Route path="giocatori/:id"   element={<GiocatoreDetail />} />
           <Route path="bacheca"         element={<BachecaPage />} />
           <Route path="quote"           element={<QuotePage />} />
+          <Route path="resoconto"       element={<ResocontoPage />} />
           <Route path="impostazioni"    element={<ImpostazioniSocieta />} />
         </Route>
 
