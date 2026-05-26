@@ -7,6 +7,7 @@ import {
   Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight, ChevronLeft, GitFork,
 } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
+import InvitaUtenteForm from '../components/InvitaUtenteForm'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL, RUOLI_EXTRA_DISPONIBILI } from '../lib/constants'
@@ -809,28 +810,6 @@ function UtentiTab() {
   const { user: me, societaId, isSuperAdmin } = useAuth()
   const [deleteErr, setDeleteErr]     = useState(null)
   const [showInvite, setShowInvite]   = useState(false)
-  const [inviteForm, setInviteForm]   = useState({ email: '', nome: '', cognome: '', ruolo: 'allenatore', password: '', squadra: '', squadra2: '', squadra3: '', genitore_squadra: '', genitore_squadra2: '', genitore_squadra3: '', societa_id: '', giocatoreId: '' })
-  const [inviting, setInviting]       = useState(false)
-  const [inviteErr, setInviteErr]     = useState(null)
-  const [inviteOk, setInviteOk]       = useState(false)
-  const [showPwd,   setShowPwd]       = useState(false)
-  const [copied,    setCopied]        = useState(false)
-  const setI = (k, v) => setInviteForm(f => ({ ...f, [k]: v }))
-
-  function generatePwd() {
-    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
-    let pwd = ''
-    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)]
-    setI('password', pwd)
-    setShowPwd(true)
-  }
-
-  function copyPwd() {
-    if (!inviteForm.password) return
-    navigator.clipboard?.writeText(inviteForm.password).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   const { data: utenti = [], isLoading, error } = useQuery({
     queryKey: ['setup-utenti'],
@@ -1049,88 +1028,6 @@ function UtentiTab() {
     ruoliExtraMut.mutate({ id: userId, ruoli_extra: nuovo })
   }
 
-  async function handleInvite(e) {
-    e.preventDefault()
-    setInviting(true)
-    setInviteErr(null)
-    try {
-      const targetSocietaId = (isSuperAdmin && inviteForm.ruolo === 'admin' && inviteForm.societa_id)
-        ? inviteForm.societa_id
-        : societaId
-
-      if (!targetSocietaId) {
-        throw new Error('Il tuo profilo non ha una società associata. Vai su Supabase Dashboard → Table Editor → profiles e imposta societa_id per il tuo account.')
-      }
-
-      if (!supabaseAdmin) throw new Error('Service role key non configurata. Riavvia il dev server e verifica VITE_SUPABASE_SERVICE_ROLE_KEY in frontend/.env')
-      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email:         inviteForm.email,
-        password:      inviteForm.password,
-        email_confirm: true,
-        user_metadata: {
-          nome:       inviteForm.nome,
-          cognome:    inviteForm.cognome,
-          ruolo:      inviteForm.ruolo,
-          societa_id: targetSocietaId,
-        },
-      })
-      if (createErr) throw createErr
-      const newUserId = createData.user?.id
-      if (!newUserId) throw new Error('Utente creato ma ID non ricevuto')
-
-      if (newUserId) {
-        const profileData = {
-          id:         newUserId,
-          email:      inviteForm.email.trim(),
-          nome:       inviteForm.nome.trim()    || null,
-          cognome:    inviteForm.cognome.trim() || null,
-          ruolo:      inviteForm.ruolo,
-          societa_id: targetSocietaId,
-          attivo:     true,
-        }
-        if (inviteForm.ruolo === 'genitore') {
-          profileData.genitore_squadra  = inviteForm.genitore_squadra  || null
-          profileData.genitore_squadra2 = inviteForm.genitore_squadra2 || null
-          profileData.genitore_squadra3 = inviteForm.genitore_squadra3 || null
-        }
-        if (inviteForm.ruolo === 'giocatore') {
-          profileData.squadra  = inviteForm.squadra  || null
-          profileData.squadra2 = inviteForm.squadra2 || null
-          profileData.squadra3 = inviteForm.squadra3 || null
-        }
-        await supabase.from('profiles').upsert([profileData], { onConflict: 'id' })
-      }
-
-      // Se giocatore con collegamento a un giocatore esistente: aggiorna user_id
-      if (inviteForm.ruolo === 'giocatore' && inviteForm.giocatoreId) {
-        await supabase.from('giocatori').update({ user_id: newUserId }).eq('id', inviteForm.giocatoreId)
-        qc.invalidateQueries({ queryKey: ['giocatori-tab'] })
-        qc.invalidateQueries({ queryKey: ['giocatori-for-invite'] })
-      }
-
-      // Se allenatore: crea riga in allenatori
-      if (inviteForm.ruolo === 'allenatore') {
-        await supabase.from('allenatori').upsert([{
-          nome: inviteForm.nome.trim(), cognome: inviteForm.cognome.trim(),
-          email: inviteForm.email.trim(), squadre_capo: '', squadre_vice: '',
-          societa_id: targetSocietaId,
-        }], { onConflict: 'email' })
-      }
-
-      setInviteOk(true)
-      setTimeout(() => {
-        setShowInvite(false)
-        setInviteOk(false)
-        setInviteForm({ email: '', nome: '', cognome: '', ruolo: 'allenatore', squadra: '', squadra2: '', squadra3: '', genitore_squadra: '', genitore_squadra2: '', genitore_squadra3: '', password: '', societa_id: '', giocatoreId: '' })
-        qc.invalidateQueries({ queryKey: ['setup-utenti'] })
-        qc.invalidateQueries({ queryKey: ['allenatori-tab'] })
-      }, 2500)
-    } catch (err) {
-      setInviteErr(err.message)
-    } finally {
-      setInviting(false)
-    }
-  }
 
   if (isLoading) return <LoadingSpinner message="Caricamento utenti..." />
   if (error)     return (
@@ -1381,206 +1278,20 @@ function UtentiTab() {
       )}
 
       {showInvite && (
-        <Modal title="Invita nuovo utente" onClose={() => setShowInvite(false)}>
-          {inviteOk ? (
-            <div className="text-center py-10">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Check size={28} className="text-green-600" />
-              </div>
-              <p className="font-semibold text-gray-800">Account creato!</p>
-              <p className="text-xs text-gray-500 mt-1">Condividi l'email e la password con l'utente per permettergli di accedere.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleInvite} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Nome">
-                  <input value={inviteForm.nome} onChange={e => setI('nome', e.target.value)} className={inp} placeholder="Mario" />
-                </Field>
-                <Field label="Cognome">
-                  <input value={inviteForm.cognome} onChange={e => setI('cognome', e.target.value)} className={inp} placeholder="Rossi" />
-                </Field>
-              </div>
-              <Field label="Email *">
-                <input type="email" value={inviteForm.email} onChange={e => setI('email', e.target.value)}
-                  className={inp} placeholder="mario@esempio.com" required />
-              </Field>
-              <Field label="Password iniziale *">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showPwd ? 'text' : 'password'}
-                      value={inviteForm.password}
-                      onChange={e => setI('password', e.target.value)}
-                      className={inp}
-                      placeholder="Almeno 6 caratteri"
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <button type="button" onClick={generatePwd}
-                    className="shrink-0 px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors">
-                    Genera
-                  </button>
-                  {inviteForm.password && (
-                    <button type="button" onClick={copyPwd}
-                      className={`shrink-0 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                      {copied ? '✓' : 'Copia'}
-                    </button>
-                  )}
-                </div>
-                <button type="button" onClick={() => setShowPwd(v => !v)}
-                  className="text-xs text-amber-600 mt-1">
-                  {showPwd ? 'Nascondi' : 'Mostra'} password
-                </button>
-              </Field>
-              <Field label="Ruolo">
-                <select value={inviteForm.ruolo} onChange={e => setI('ruolo', e.target.value)} className={inp}>
-                  {RUOLI.map(r => <option key={r} value={r}>{RUOLI_LABEL[r]}</option>)}
-                </select>
-              </Field>
-              {isSuperAdmin && inviteForm.ruolo === 'admin' && (
-                <Field label="Società">
-                  <select value={inviteForm.societa_id} onChange={e => setI('societa_id', e.target.value)} className={inp}>
-                    <option value="">Scegli società...</option>
-                    {societaList.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                  </select>
-                </Field>
-              )}
-              {inviteForm.ruolo === 'allenatore' && (
-                <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  <p className="text-xs text-amber-700">
-                    Le squadre (capo/vice) si assegnano dalla tab <strong>Allenatori</strong> dopo la creazione dell'account.
-                  </p>
-                </div>
-              )}
-              {inviteForm.ruolo === 'genitore' && (<>
-                {giocatoriAll.length > 0 && (
-                  <Field label="Figlio/a (giocatore)">
-                    <select
-                      value={inviteForm.giocatoreId ?? ''}
-                      onChange={e => {
-                        const gId = e.target.value
-                        const g = gId ? giocatoriAll.find(x => x.id === gId) : null
-                        setInviteForm(f => ({
-                          ...f,
-                          giocatoreId: gId,
-                          genitore_squadra:  g ? (g.squadra  ?? '') : f.genitore_squadra,
-                          genitore_squadra2: g ? (g.squadra2 ?? '') : f.genitore_squadra2,
-                          genitore_squadra3: g ? (g.squadra3 ?? '') : f.genitore_squadra3,
-                        }))
-                      }}
-                      className={inp}
-                    >
-                      <option value="">-- Seleziona giocatore --</option>
-                      {giocatoriAll.map(g => (
-                        <option key={g.id} value={g.id}>
-                          {g.cognome} {g.nome}{g.squadra ? ` (${g.squadra})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
-                {inviteForm.giocatoreId ? (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Squadre ereditate dal giocatore:{' '}
-                    <span className="font-medium">
-                      {[inviteForm.genitore_squadra, inviteForm.genitore_squadra2, inviteForm.genitore_squadra3].filter(Boolean).join(', ') || '–'}
-                    </span>
-                  </p>
-                ) : squadreDisp.length === 0 ? (
-                  <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
-                ) : (<>
-                  <Field label="Squadra figlio 1">
-                    <select value={inviteForm.genitore_squadra ?? ''} onChange={e => setI('genitore_squadra', e.target.value)} className={inp}>
-                      <option value="">Scegli squadra...</option>
-                      {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Squadra figlio 2 (opzionale)">
-                    <select value={inviteForm.genitore_squadra2 ?? ''} onChange={e => setI('genitore_squadra2', e.target.value)} className={inp}>
-                      <option value="">Nessuna</option>
-                      {squadreDisp.filter(s => s !== inviteForm.genitore_squadra && s !== inviteForm.genitore_squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Squadra figlio 3 (opzionale)">
-                    <select value={inviteForm.genitore_squadra3 ?? ''} onChange={e => setI('genitore_squadra3', e.target.value)} className={inp}>
-                      <option value="">Nessuna</option>
-                      {squadreDisp.filter(s => s !== inviteForm.genitore_squadra && s !== inviteForm.genitore_squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                </>)}
-              </>)}
-              {inviteForm.ruolo === 'preparatore_atletico' && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
-                  <p className="text-xs text-indigo-700">
-                    Le squadre da seguire si assegnano dopo la creazione dalla lista utenti (pill interattivi per squadra).
-                  </p>
-                </div>
-              )}
-              {inviteForm.ruolo === 'giocatore' && (<>
-                {giocatoriSenzaAccount.length > 0 && (
-                  <Field label="Collega a giocatore esistente (opzionale)">
-                    <select
-                      value={inviteForm.giocatoreId ?? ''}
-                      onChange={e => {
-                        const gId = e.target.value
-                        const g = gId ? giocatoriSenzaAccount.find(x => x.id === gId) : null
-                        setInviteForm(f => ({
-                          ...f,
-                          giocatoreId: gId,
-                          nome:     g ? g.nome    : f.nome,
-                          cognome:  g ? g.cognome : f.cognome,
-                          squadra:  g ? (g.squadra  ?? '') : f.squadra,
-                          squadra2: g ? (g.squadra2 ?? '') : f.squadra2,
-                          squadra3: g ? (g.squadra3 ?? '') : f.squadra3,
-                        }))
-                      }}
-                      className={inp}
-                    >
-                      <option value="">-- Nessuno / crea nuovo --</option>
-                      {giocatoriSenzaAccount.map(g => (
-                        <option key={g.id} value={g.id}>
-                          {g.cognome} {g.nome}{g.squadra ? ` (${g.squadra})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                )}
-                {squadreDisp.length === 0 ? (
-                  <p className="text-xs text-gray-400 mt-1">Nessuna squadra configurata</p>
-                ) : (<>
-                  <Field label="Squadra principale">
-                    <select value={inviteForm.squadra ?? ''} onChange={e => setI('squadra', e.target.value)} className={inp}>
-                      <option value="">Scegli squadra...</option>
-                      {squadreDisp.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Squadra 2 (opzionale)">
-                    <select value={inviteForm.squadra2 ?? ''} onChange={e => setI('squadra2', e.target.value)} className={inp}>
-                      <option value="">Nessuna</option>
-                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra3).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Squadra 3 (opzionale)">
-                    <select value={inviteForm.squadra3 ?? ''} onChange={e => setI('squadra3', e.target.value)} className={inp}>
-                      <option value="">Nessuna</option>
-                      {squadreDisp.filter(s => s !== inviteForm.squadra && s !== inviteForm.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
-                </>)}
-              </>)}
-              {inviteErr && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-xs text-red-600">{inviteErr}</p>
-                </div>
-              )}
-              <button type="submit" disabled={inviting}
-                className="w-full py-3 bg-amber-500 text-white rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform">
-                {inviting ? 'Creazione account...' : 'Crea account'}
-              </button>
-            </form>
-          )}
-        </Modal>
+        <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-800">Invita nuovo utente</p>
+            <button
+              onClick={() => setShowInvite(false)}
+              className="text-xs text-gray-400 hover:text-gray-600">
+              Chiudi ✕
+            </button>
+          </div>
+          <InvitaUtenteForm
+            ruoliConsentiti={['admin', 'allenatore', 'segreteria', 'genitore', 'giocatore', 'preparatore']}
+            onSuccess={() => setShowInvite(false)}
+          />
+        </div>
       )}
 
     </div>
