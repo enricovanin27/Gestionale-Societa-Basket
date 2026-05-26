@@ -1,4 +1,6 @@
 export function usePrintWindow() {
+  // NOTA SICUREZZA: htmlBody deve provenire esclusivamente da codice interno (mai da input utente grezzo).
+  // I valori titolo e intestazioneSocieta provengono dal DB della società (dati interni trusted).
   return function printWindow(titolo, htmlBody, intestazioneSocieta = '') {
     const win = window.open('', '_blank')
     if (!win) {
