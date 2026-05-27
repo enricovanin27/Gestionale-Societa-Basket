@@ -5,6 +5,9 @@ Avvia con: uvicorn api:app --reload --port 8000
 
 import os
 import json
+import re
+import unicodedata
+from datetime import datetime
 import httpx
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +20,40 @@ SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 VAPID_PRIVATE_KEY    = os.getenv('VAPID_PRIVATE_KEY', '')
 VAPID_PUBLIC_KEY     = os.getenv('VAPID_PUBLIC_KEY', '')
 VAPID_SUBJECT        = os.getenv('VAPID_SUBJECT', 'mailto:info@example.com')
+
+
+def to_slug(nome: str) -> str:
+    """Converte nome società in slug URL-safe (es. 'Oderzo Basket' → 'oderzo-basket')."""
+    nome = unicodedata.normalize('NFD', nome.lower())
+    nome = ''.join(c for c in nome if unicodedata.category(c) != 'Mn')
+    nome = nome.strip()
+    # Prima converti ogni sequenza di spazi in un singolo trattino
+    nome = re.sub(r'\s+', '-', nome)
+    # Poi rimuovi (senza sostituire) i caratteri non ammessi
+    nome = re.sub(r'[^a-z0-9-]', '', nome)
+    nome = nome.strip('-')
+    return nome
+
+
+async def get_unique_slug(client, base_slug: str) -> str:
+    """Restituisce uno slug univoco: se 'oderzo-basket' esiste, ritorna 'oderzo-basket-2'."""
+    slug = base_slug
+    for i in range(2, 100):
+        resp = await client.get(
+            f"{SUPABASE_URL}/rest/v1/societa",
+            params={"slug": f"eq.{slug}", "select": "slug"},
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            },
+            timeout=10,
+        )
+        rows = resp.json() if resp.status_code == 200 else []
+        if not rows:
+            return slug
+        slug = f"{base_slug}-{i}"
+    raise ValueError("Impossibile generare slug univoco dopo 99 tentativi")
+
 
 app = FastAPI(title="Oderzo Basket API", version="1.0")
 
