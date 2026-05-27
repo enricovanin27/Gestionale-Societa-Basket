@@ -279,7 +279,7 @@ function SectionRegistrazione() {
         </span>
         <h3 className="text-[22px] font-black text-white tracking-tight mb-1.5">Inizia oggi.</h3>
         <p className="text-[13px] text-white/75 leading-snug mb-5">
-          Compila il modulo, il nostro team configura la tua società entro 24 ore.
+          Compila il modulo e ricevi subito un'email per impostare la password.
           Nessuna carta di credito richiesta.
         </p>
         <button onClick={() => navigate('/registrati')}
@@ -287,7 +287,7 @@ function SectionRegistrazione() {
           Registra la tua società →
         </button>
         <p className="text-center mt-3 text-[11px] text-white/50">
-          Attivazione entro 24h · Supporto incluso · Dati sicuri
+          Accesso immediato · Controlla email · Dati sicuri
         </p>
       </div>
     </section>
