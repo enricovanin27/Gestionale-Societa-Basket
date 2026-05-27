@@ -194,3 +194,145 @@ async def estrai_fip(
         }
     except Exception as e:
         return {"success": False, "partite": [], "errore": str(e), "doa_estratte": []}
+
+
+@app.post("/api/register-society")
+async def register_society(payload: dict):
+    """
+    Registrazione self-service nuova società.
+    Crea: società in DB → utente admin via Supabase invite → profilo → notifica super_admin.
+    Rollback automatico se uno step intermedio fallisce.
+    """
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return {"error": "Backend non configurato"}
+
+    # ── Validazione input ─────────────────────────────────────────────────────
+    nome        = payload.get("nome", "").strip()
+    ref_email   = payload.get("ref_email", "").strip().lower()
+    ref_nome    = payload.get("ref_nome", "").strip()
+    ref_cognome = payload.get("ref_cognome", "").strip()
+    ref_citta   = payload.get("ref_citta", "").strip() or None
+
+    if not nome or not ref_email or not ref_nome or not ref_cognome:
+        return {"error": "Tutti i campi obbligatori devono essere compilati"}
+    if "@" not in ref_email or "." not in ref_email.split("@")[-1]:
+        return {"error": "Formato email non valido"}
+
+    societa_id = None
+    user_id    = None
+
+    service_headers = {
+        "apikey":        SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Content-Type":  "application/json",
+    }
+
+    async with httpx.AsyncClient() as client:
+
+        # ── Step 1: slug univoco ──────────────────────────────────────────────
+        try:
+            slug = await get_unique_slug(client, to_slug(nome))
+        except ValueError:
+            return {"error": "Errore generazione identificativo società"}
+
+        # ── Step 2: crea società ──────────────────────────────────────────────
+        soc_resp = await client.post(
+            f"{SUPABASE_URL}/rest/v1/societa",
+            json={
+                "nome":        nome,
+                "slug":        slug,
+                "piano":       "free",
+                "stato":       "attiva",
+                "ref_nome":    ref_nome,
+                "ref_cognome": ref_cognome,
+                "ref_email":   ref_email,
+                "ref_citta":   ref_citta,
+            },
+            headers={**service_headers, "Prefer": "return=representation"},
+            timeout=15,
+        )
+        if soc_resp.status_code not in (200, 201):
+            return {"error": "Errore creazione società nel database"}
+
+        soc_data   = soc_resp.json()
+        societa_id = (soc_data[0] if isinstance(soc_data, list) else soc_data)["id"]
+
+        # ── Step 3: invita utente admin (Supabase manda email automaticamente) ─
+        inv_resp = await client.post(
+            f"{SUPABASE_URL}/auth/v1/invite",
+            json={
+                "email": ref_email,
+                "data":  {"nome": ref_nome, "cognome": ref_cognome},
+            },
+            headers=service_headers,
+            timeout=15,
+        )
+        if inv_resp.status_code not in (200, 201):
+            # Rollback società
+            await client.delete(
+                f"{SUPABASE_URL}/rest/v1/societa",
+                params={"id": f"eq.{societa_id}"},
+                headers=service_headers,
+                timeout=10,
+            )
+            err_msg = (inv_resp.json().get("msg", "") or inv_resp.json().get("message", "")).lower()
+            if "already" in err_msg:
+                return {"error": "Questa email è già registrata su EVO"}
+            return {"error": "Errore creazione account utente. Riprova."}
+
+        user_id = inv_resp.json().get("id")
+
+        # ── Step 4: crea profilo ──────────────────────────────────────────────
+        prof_resp = await client.post(
+            f"{SUPABASE_URL}/rest/v1/profiles",
+            json={
+                "id":         user_id,
+                "nome":       ref_nome,
+                "cognome":    ref_cognome,
+                "email":      ref_email,
+                "ruolo":      "admin",
+                "societa_id": str(societa_id),
+            },
+            headers={**service_headers, "Prefer": "return=representation"},
+            timeout=15,
+        )
+        if prof_resp.status_code not in (200, 201):
+            # Rollback: elimina utente e società
+            await client.delete(
+                f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
+                headers=service_headers,
+                timeout=10,
+            )
+            await client.delete(
+                f"{SUPABASE_URL}/rest/v1/societa",
+                params={"id": f"eq.{societa_id}"},
+                headers=service_headers,
+                timeout=10,
+            )
+            return {"error": "Errore creazione profilo utente"}
+
+        # ── Step 5: notifica super_admin (opzionale) ──────────────────────────
+        resend_key = os.getenv("RESEND_API_KEY", "")
+        if resend_key:
+            try:
+                import resend as resend_lib
+                resend_lib.api_key = resend_key
+                resend_lib.Emails.send({
+                    "from":    "EVO <onboarding@resend.dev>",
+                    "to":      ["enricovanin27@gmail.com"],
+                    "subject": f"[EVO] Nuova registrazione: {nome}",
+                    "html":    f"""
+                        <h2>Nuova società registrata su EVO 🏀</h2>
+                        <table>
+                          <tr><td><b>Società</b></td><td>{nome}</td></tr>
+                          <tr><td><b>Referente</b></td><td>{ref_nome} {ref_cognome}</td></tr>
+                          <tr><td><b>Email</b></td><td>{ref_email}</td></tr>
+                          <tr><td><b>Città</b></td><td>{ref_citta or 'N/D'}</td></tr>
+                          <tr><td><b>Data</b></td><td>{datetime.now().strftime('%d/%m/%Y %H:%M')}</td></tr>
+                        </table>
+                    """,
+                })
+            except Exception as e:
+                print(f"[register-society] Notifica email non inviata: {e}")
+
+    return {"ok": True}
