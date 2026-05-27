@@ -215,7 +215,8 @@ async def register_society(payload: dict):
 
     if not nome or not ref_email or not ref_nome or not ref_cognome:
         return {"error": "Tutti i campi obbligatori devono essere compilati"}
-    if "@" not in ref_email or "." not in ref_email.split("@")[-1]:
+    _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+    if not _EMAIL_RE.match(ref_email):
         return {"error": "Formato email non valido"}
 
     societa_id = None
@@ -269,12 +270,14 @@ async def register_society(payload: dict):
         )
         if inv_resp.status_code not in (200, 201):
             # Rollback società
-            await client.delete(
+            del_soc = await client.delete(
                 f"{SUPABASE_URL}/rest/v1/societa",
                 params={"id": f"eq.{societa_id}"},
                 headers=service_headers,
                 timeout=10,
             )
+            if del_soc.status_code not in (200, 204):
+                print(f"[register-society] WARN: rollback società {societa_id} fallito: {del_soc.status_code}")
             err_msg = (inv_resp.json().get("msg", "") or inv_resp.json().get("message", "")).lower()
             if "already" in err_msg:
                 return {"error": "Questa email è già registrata su EVO"}
@@ -298,17 +301,21 @@ async def register_society(payload: dict):
         )
         if prof_resp.status_code not in (200, 201):
             # Rollback: elimina utente e società
-            await client.delete(
+            del_user = await client.delete(
                 f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
                 headers=service_headers,
                 timeout=10,
             )
-            await client.delete(
+            if del_user.status_code not in (200, 204):
+                print(f"[register-society] WARN: rollback utente {user_id} fallito: {del_user.status_code}")
+            del_soc2 = await client.delete(
                 f"{SUPABASE_URL}/rest/v1/societa",
                 params={"id": f"eq.{societa_id}"},
                 headers=service_headers,
                 timeout=10,
             )
+            if del_soc2.status_code not in (200, 204):
+                print(f"[register-society] WARN: rollback società {societa_id} fallito: {del_soc2.status_code}")
             return {"error": "Errore creazione profilo utente"}
 
         # ── Step 5: notifica super_admin (opzionale) ──────────────────────────
