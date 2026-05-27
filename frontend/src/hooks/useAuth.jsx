@@ -60,8 +60,10 @@ export function AuthProvider({ children }) {
       }
       // Se l'utente ha cliccato un link di invito Supabase, mostra la schermata
       // "Imposta password" (riusa NuovaPasswordPage già esistente in App.jsx)
+      // Mostra "Imposta password" solo se NON c'è già una sessione attiva
+      // (evita di interrompere utenti già loggati che aprono accidentalmente un link invite)
       const hash = new URLSearchParams(window.location.hash.substring(1))
-      if (hash.get('type') === 'invite') {
+      if (!session?.user && hash.get('type') === 'invite') {
         setIsPasswordRecovery(true)
       }
       setLoading(false)
