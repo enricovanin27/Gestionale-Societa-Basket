@@ -1,18 +1,9 @@
 // frontend/src/pages/RegistrazionePage.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { API_BASE } from '../lib/constants'
 
 const GRADIENT = { background: 'linear-gradient(160deg, #c2410c 0%, #d97706 50%, #f59e0b 100%)' }
-
-function toSlug(nome) {
-  return nome
-    .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
 
 const inp = 'w-full bg-white border-[1.5px] border-amber-200 rounded-xl px-3.5 py-3 text-sm ' +
   'text-stone-900 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-amber-500'
@@ -31,19 +22,26 @@ export default function RegistrazionePage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const { error: err } = await supabase.from('societa').insert([{
-      nome:        form.nome.trim(),
-      slug:        toSlug(form.nome),
-      piano:       'free',
-      stato:       'pending',
-      ref_nome:    form.ref_nome.trim(),
-      ref_cognome: form.ref_cognome.trim(),
-      ref_email:   form.ref_email.trim().toLowerCase(),
-      ref_citta:   form.ref_citta.trim() || null,
-    }])
-    setLoading(false)
-    if (err) { setError(err.message); return }
-    setDone(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/register-society`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          nome:        form.nome.trim(),
+          ref_nome:    form.ref_nome.trim(),
+          ref_cognome: form.ref_cognome.trim(),
+          ref_email:   form.ref_email.trim().toLowerCase(),
+          ref_citta:   form.ref_citta.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) { setError(data.error); return }
+      setDone(true)
+    } catch {
+      setError('Impossibile contattare il server. Controlla la connessione e riprova.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (done) {
@@ -51,11 +49,13 @@ export default function RegistrazionePage() {
       <div className="min-h-screen flex items-center justify-center p-6" style={GRADIENT}>
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
           <div className="text-5xl mb-4">✅</div>
-          <h2 className="text-xl font-black text-stone-900 mb-3">Richiesta inviata!</h2>
+          <h2 className="text-xl font-black text-stone-900 mb-3">Registrazione completata!</h2>
           <p className="text-sm text-stone-500 leading-relaxed mb-6">
-            Il nostro team attiverà il tuo account entro 24 ore.<br />
-            Ti contatteremo all'indirizzo{' '}
-            <strong className="text-amber-700">{form.ref_email}</strong>.
+            Controlla la tua email: riceverai un link per impostare la password e accedere subito.
+            <br /><br />
+            <span className="text-xs text-stone-400">
+              Non trovi l'email? Controlla la cartella spam.
+            </span>
           </p>
           <button onClick={() => navigate('/')}
             className="w-full py-3.5 text-white rounded-xl font-bold text-sm"
@@ -82,7 +82,9 @@ export default function RegistrazionePage() {
 
       <div className="px-6 pb-12">
         <h1 className="text-2xl font-black text-white mb-1">Registra la tua società</h1>
-        <p className="text-sm text-white/75 mb-6">Compila il modulo per richiedere l'attivazione.</p>
+        <p className="text-sm text-white/75 mb-6">
+          Compila il modulo e ricevi subito le credenziali per accedere.
+        </p>
 
         <div className="bg-white rounded-2xl p-6 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -122,8 +124,11 @@ export default function RegistrazionePage() {
               className="w-full py-4 text-white rounded-xl text-[15px] font-extrabold shadow-md
                 disabled:opacity-60 active:scale-95 transition-transform"
               style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-              {loading ? 'Invio in corso...' : 'Invia richiesta →'}
+              {loading ? 'Creazione account...' : 'Registra la tua società →'}
             </button>
+            <p className="text-center text-[11px] text-stone-400">
+              Accesso immediato · Controlla email · Nessuna carta di credito
+            </p>
           </form>
         </div>
       </div>
