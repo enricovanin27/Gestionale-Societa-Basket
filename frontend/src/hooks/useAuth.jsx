@@ -58,6 +58,12 @@ export function AuthProvider({ children }) {
         const p = await fetchProfile(session.user.id)
         setProfile(p)
       }
+      // Se l'utente ha cliccato un link di invito Supabase, mostra la schermata
+      // "Imposta password" (riusa NuovaPasswordPage già esistente in App.jsx)
+      const hash = new URLSearchParams(window.location.hash.substring(1))
+      if (hash.get('type') === 'invite') {
+        setIsPasswordRecovery(true)
+      }
       setLoading(false)
     })
   }, [])
