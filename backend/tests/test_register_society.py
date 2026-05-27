@@ -19,7 +19,7 @@ class TestToSlug:
         assert to_slug("  Basket   Club  ") == "basket-club"
 
     def test_caratteri_speciali(self):
-        assert to_slug("ASD Basket & Co.") == "asd-basket--co"
+        assert to_slug("ASD Basket & Co.") == "asd-basket-co"
 
     def test_gia_slug(self):
         assert to_slug("oderzo-basket") == "oderzo-basket"

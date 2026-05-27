@@ -31,6 +31,8 @@ def to_slug(nome: str) -> str:
     nome = re.sub(r'\s+', '-', nome)
     # Poi rimuovi (senza sostituire) i caratteri non ammessi
     nome = re.sub(r'[^a-z0-9-]', '', nome)
+    # Collassa trattini multipli in un solo trattino
+    nome = re.sub(r'-+', '-', nome)
     nome = nome.strip('-')
     return nome
 
