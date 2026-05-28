@@ -208,5 +208,29 @@
       { "titolo": "Assegnazione", "testo": "Ogni scheda può essere assegnata a un'intera squadra o a un singolo giocatore. Puoi impostare un intervallo di date di validità." },
       { "titolo": "Esercizi", "testo": "Per ogni esercizio nella scheda puoi specificare nome, serie, ripetizioni, carico e note aggiuntive." }
     ]
+  },
+  "/secretary/resoconto": {
+    "titolo": "Resoconto Pagamenti",
+    "sezioni": [
+      { "titolo": "Panoramica mensile", "testo": "Il resoconto mostra un riepilogo dei pagamenti del mese selezionato: totale incassato, quote in attesa e rate scadute per squadra." },
+      { "titolo": "Filtrare per mese", "testo": "Usa il selettore del mese in cima per navigare tra i periodi. I dati si aggiornano automaticamente." },
+      { "titolo": "Esportazione", "testo": "Puoi stampare o esportare il resoconto come PDF per la contabilità della società." }
+    ]
+  },
+  "/secretary/impostazioni": {
+    "titolo": "Impostazioni Società",
+    "sezioni": [
+      { "titolo": "Dati società", "testo": "Modifica il nome, la città e le informazioni della tua società. Questi dati appaiono nelle ricevute e nelle comunicazioni ufficiali." },
+      { "titolo": "Stagione sportiva", "testo": "Imposta le date di inizio e fine stagione. La stagione corrente determina il periodo di riferimento per presenze e pagamenti." },
+      { "titolo": "Logo e personalizzazione", "testo": "Carica il logo della società per personalizzare le ricevute e l'interfaccia con la tua identità visiva." }
+    ]
+  },
+  "/dirigente": {
+    "titolo": "Home Dirigente",
+    "sezioni": [
+      { "titolo": "Panoramica", "testo": "La dashboard dirigente mostra un riepilogo dello stato della società: partite in programma, situazione pagamenti e comunicazioni recenti." },
+      { "titolo": "Accesso in sola lettura", "testo": "Il ruolo dirigente ha accesso in visualizzazione a tutte le aree. Non può modificare dati, ma può monitorare l'andamento della società." },
+      { "titolo": "Navigazione", "testo": "Usa la barra in basso per accedere a Calendario, Statistiche e Bacheca." }
+    ]
   }
 }
