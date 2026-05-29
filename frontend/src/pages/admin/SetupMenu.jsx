@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Users, Dumbbell, UserCheck, Trophy, Building2, GitFork, ChevronRight, CalendarDays, Activity } from 'lucide-react'
+import { Users, Dumbbell, UserCheck, Building2, GitFork, ChevronRight, CalendarDays, Activity } from 'lucide-react'
 import AppHeader from '../../components/AppHeader'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -7,9 +7,8 @@ const SECTIONS = [
   {
     group: '👥 Persone',
     items: [
-      { icon: Trophy,       label: 'Giocatori',        desc: 'Anagrafica, squadre, info',    tab: 'giocatori' },
       { icon: Dumbbell,     label: 'Allenatori',        desc: 'Profili e assegnazione',       tab: 'allenatori' },
-      { icon: UserCheck,    label: 'Utenti & Accessi',  desc: 'Inviti, ruoli, password',      tab: 'utenti' },
+      { icon: UserCheck,    label: 'Utenti & Accessi',  desc: 'Inviti, ruoli, password',      tab: 'utenti'     },
     ],
   },
   {
