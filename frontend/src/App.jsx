@@ -30,6 +30,7 @@ import RicevutaPage         from './pages/secretary/RicevutaPage'
 import Attestazione730Page  from './pages/secretary/Attestazione730Page'
 import CertificatiPage      from './pages/secretary/CertificatiPage'
 import ResocontoPage        from './pages/secretary/ResocontoPage'
+import SegreteriaSetupPage  from './pages/secretary/SegreteriaSetupPage'
 import DirigentLayout      from './layouts/DirigentLayout'
 import HomeDirigente       from './pages/dirigente/HomeDirigente'
 import HomeGenitore from './pages/home/HomeGenitore'
@@ -185,6 +186,7 @@ function AppShell() {
           <Route path="quote"           element={<QuotePage />} />
           <Route path="certificati"     element={<CertificatiPage />} />
           <Route path="impostazioni"    element={<ImpostazioniSocieta />} />
+          <Route path="setup"           element={<SegreteriaSetupPage />} />
         </Route>
 
         {/* ── Dirigente ──────────────────────────────────────────────────── */}
