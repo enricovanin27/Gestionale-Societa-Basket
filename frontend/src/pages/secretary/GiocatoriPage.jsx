@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, ChevronLeft, Users, Plus, X, Phone, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -13,7 +13,6 @@ export default function GiocatoriPage() {
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
   const [selectedSquadra, setSelectedSquadra] = useState(null)
-  const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
 
   // Tutte le squadre dalla tabella squadre (gestite dall'admin)
