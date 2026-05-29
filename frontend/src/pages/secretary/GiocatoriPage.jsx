@@ -1,20 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronLeft, Users, Plus, X, Phone, Mail } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Users, Phone, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { certStatus } from '../../utils/certStatus'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import GiocatoreWizard from './GiocatoreWizard'
 
 export default function GiocatoriPage() {
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
   const [selectedSquadra, setSelectedSquadra] = useState(null)
-  const [showAdd, setShowAdd] = useState(false)
-
   // Tutte le squadre dalla tabella squadre (gestite dall'admin)
   const { data: squadre = [], isLoading: loadingSquadre } = useQuery({
     queryKey: ['squadre-segreteria', societaId],
@@ -82,38 +79,8 @@ export default function GiocatoriPage() {
     />
   )
 
-  const fab = (
-    <button
-      onClick={() => setShowAdd(true)}
-      className="fixed bottom-20 right-4 z-50 w-14 h-14 bg-purple-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform lg:bottom-6">
-      <Plus size={24} />
-    </button>
-  )
-
-  const modal = showAdd && (
-    <div className="fixed inset-0 bg-black/40 z-[200] overflow-y-auto">
-      <div className="min-h-full flex items-start justify-center p-4 pt-8">
-        <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">Nuovo giocatore</h2>
-            <button onClick={() => setShowAdd(false)}>
-              <X size={20} className="text-gray-400" />
-            </button>
-          </div>
-          <GiocatoreWizard
-            onDone={() => setShowAdd(false)}
-            onCancel={() => setShowAdd(false)}
-          />
-        </div>
-      </div>
-    </div>
-  )
-
   if (isLoading) return (
-    <>
-      <div>{header}<div className="pt-8"><LoadingSpinner /></div></div>
-      {modal}
-    </>
+    <div>{header}<div className="pt-8"><LoadingSpinner /></div></div>
   )
 
   // Vista lista squadre
@@ -161,8 +128,6 @@ export default function GiocatoriPage() {
             )}
           </div>
         </div>
-        {fab}
-        {modal}
       </>
     )
   }
@@ -251,8 +216,6 @@ export default function GiocatoriPage() {
           )}
         </div>
       </div>
-      {fab}
-      {modal}
     </>
   )
 }
