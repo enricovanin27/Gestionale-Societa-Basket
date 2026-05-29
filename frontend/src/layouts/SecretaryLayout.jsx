@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Receipt, Settings, ClipboardList } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt, Settings, Shield } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -14,12 +14,12 @@ export default function SecretaryLayout() {
   const { societaId } = useAuth()
   const { data: unread = 0 } = useUnreadAnnunci(societaId)
   const sidebarItems = [
-    { to: '/secretary',           end: true, icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/secretary/giocatori',            icon: Users,            label: 'Giocatori' },
-    { to: '/secretary/quote',                icon: Receipt,          label: 'Quote Squadre' },
-    { to: '/secretary/resoconto',            icon: ClipboardList,    label: 'Resoconto' },
-    { to: '/secretary/bacheca',              icon: Bell,             label: 'Bacheca', badge: unread },
-    { to: '/secretary/impostazioni',         icon: Settings,         label: 'Impostazioni' },
+    { to: '/secretary',              end: true, icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/secretary/giocatori',               icon: Users,           label: 'Giocatori' },
+    { to: '/secretary/quote',                   icon: Receipt,         label: 'Quote Squadre' },
+    { to: '/secretary/certificati',             icon: Shield,          label: 'Certificati' },
+    { to: '/secretary/bacheca',                 icon: Bell,            label: 'Bacheca', badge: unread },
+    { to: '/secretary/impostazioni',            icon: Settings,        label: 'Impostazioni' },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -36,8 +36,8 @@ export default function SecretaryLayout() {
           <NavLink to="/secretary/quote" className={cls}>
             <Receipt size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Quote Sq.</span>
           </NavLink>
-          <NavLink to="/secretary/resoconto" className={cls}>
-            <ClipboardList size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Resoconto</span>
+          <NavLink to="/secretary/certificati" className={cls}>
+            <Shield size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Certificati</span>
           </NavLink>
           <NavLink to="/secretary/bacheca" className={cls}>
             <div className="relative">
