@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -70,7 +70,7 @@ function Step1({ data, onChange, onNext, onCancel, squadreList }) {
         <select
           className={inp}
           value={data.squadra}
-          onChange={e => onChange({ ...data, squadra: e.target.value })}
+          onChange={e => onChange({ ...data, squadra: e.target.value, squadra2: '', squadra3: '' })}
           required
         >
           <option value="">— Seleziona squadra —</option>
@@ -223,7 +223,7 @@ function Step2({ data, onChange, onNext, onBack }) {
 
 // ─── Step 3: Genitore + Account ───────────────────────────────────────────────
 
-function Step3({ data, onChange, onSave, onSaveSkip, onBack, saving, genitori }) {
+function Step3({ data, onChange, onSave, onBack, saving, genitori }) {
   const emailFilled = !!data.email_genitore.trim()
 
   return (
@@ -328,17 +328,28 @@ function Step3({ data, onChange, onSave, onSaveSkip, onBack, saving, genitori })
           className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-1">
           <ChevronLeft size={16} /> Indietro
         </button>
-        {data.accountOption === 'skip' ? (
-          <button type="button" onClick={onSaveSkip} disabled={saving}
-            className="flex-1 py-2.5 bg-gray-200 text-gray-700 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
-            {saving ? 'Salvataggio...' : 'Salva senza account'}
-          </button>
-        ) : (
-          <button type="button" onClick={onSave} disabled={saving || (data.accountOption === 'invite' && !emailFilled) || (data.accountOption === 'link' && !data.genitore_user_id)}
-            className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
-            {saving ? 'Salvataggio...' : data.accountOption === 'invite' ? '✉️ Salva e invia invito' : '🔗 Salva e collega account'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={
+            saving ||
+            (data.accountOption === 'invite' && !emailFilled) ||
+            (data.accountOption === 'link' && !data.genitore_user_id)
+          }
+          className={`flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform ${
+            data.accountOption === 'skip'
+              ? 'bg-gray-200 text-gray-700'
+              : 'bg-purple-600 text-white'
+          }`}
+        >
+          {saving
+            ? 'Salvataggio...'
+            : data.accountOption === 'skip'
+              ? 'Salva senza account'
+              : data.accountOption === 'invite'
+                ? '✉️ Salva e invia invito'
+                : '🔗 Salva e collega account'}
+        </button>
       </div>
     </div>
   )
@@ -348,6 +359,7 @@ function Step3({ data, onChange, onSave, onSaveSkip, onBack, saving, genitori })
 
 export default function GiocatoreWizard({ onDone, onCancel }) {
   const { societaId } = useAuth()
+  const qc = useQueryClient()
   const [step,    setStep]    = useState(1)
   const [step1,   setStep1]   = useState(STEP1_EMPTY)
   const [step2,   setStep2]   = useState(STEP2_EMPTY)
@@ -385,6 +397,7 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     setSaveErr(null)
     try {
       // 1. Inserisci giocatore
+      let giocatoreId = null
       const { data: inserted, error: insertErr } = await supabase
         .from('giocatori')
         .insert([{
@@ -415,7 +428,7 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         .select('id')
         .single()
       if (insertErr) throw insertErr
-      const giocatoreId = inserted.id
+      giocatoreId = inserted.id
 
       // 2. Gestione account
       if (accountOption === 'invite') {
@@ -434,27 +447,34 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         )
         if (invErr) throw invErr
         const newUserId = invData.user?.id
-        if (newUserId) {
-          await supabase.from('profiles').upsert([{
-            id:               newUserId,
-            email:            step3.email_genitore.trim(),
-            nome:             step3.nome_genitore.trim()    || null,
-            cognome:          step3.cognome_genitore.trim() || null,
-            ruolo:            'genitore',
-            societa_id:       societaId,
-            attivo:           true,
-            genitore_squadra: step1.squadra  || null,
-            genitore_squadra2: step1.squadra2 || null,
-            genitore_squadra3: step1.squadra3 || null,
-          }], { onConflict: 'id' })
-          await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', giocatoreId)
-        }
+        if (!newUserId) throw new Error('Utente invitato ma ID non ricevuto')
+        const { error: profErr } = await supabase.from('profiles').upsert([{
+          id:               newUserId,
+          email:            step3.email_genitore.trim(),
+          nome:             step3.nome_genitore.trim()    || null,
+          cognome:          step3.cognome_genitore.trim() || null,
+          ruolo:            'genitore',
+          societa_id:       societaId,
+          attivo:           true,
+          genitore_squadra: step1.squadra  || null,
+          genitore_squadra2: step1.squadra2 || null,
+          genitore_squadra3: step1.squadra3 || null,
+        }], { onConflict: 'id' })
+        if (profErr) throw profErr
+        const { error: linkErr } = await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', giocatoreId)
+        if (linkErr) throw linkErr
       } else if (accountOption === 'link' && step3.genitore_user_id) {
         await supabase.from('giocatori').update({ genitore_user_id: step3.genitore_user_id }).eq('id', giocatoreId)
       }
 
+      qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
+      qc.invalidateQueries({ queryKey: ['quote-nonpagate-map', societaId] })
       onDone()
     } catch (err) {
+      // Se il giocatore è stato inserito ma il passo successivo è fallito, eliminalo
+      if (giocatoreId) {
+        await supabase.from('giocatori').delete().eq('id', giocatoreId).catch(() => {})
+      }
       setSaveErr(err.message)
     } finally {
       setSaving(false)
@@ -488,7 +508,6 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         <Step3
           data={step3} onChange={setStep3}
           onSave={() => saveGiocatore(step3.accountOption)}
-          onSaveSkip={() => saveGiocatore('skip')}
           onBack={() => setStep(2)}
           saving={saving}
           genitori={genitori}
