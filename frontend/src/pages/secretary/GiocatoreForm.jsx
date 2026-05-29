@@ -10,7 +10,7 @@ const EMPTY = {
   telefono: '', email_genitore: '',
   squadra: '', squadra2: '', squadra3: '', numero_maglia: '',
   data_iscrizione: '', cert_medico_scadenza: '',
-  genitore_user_id: '',
+  genitore_user_id: null,   // era '', causa crash UUID in Supabase
 }
 
 export default function GiocatoreForm({ initialValues = {}, onSave, onCancel, saving }) {
@@ -23,24 +23,18 @@ export default function GiocatoreForm({ initialValues = {}, onSave, onCancel, sa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValues?.id])
 
-  // Lista squadre derivata dai giocatori esistenti (per datalist autocomplete)
+  // Lista squadre dalla tabella squadre ufficiale (per datalist autocomplete)
   const { data: squadreList = [] } = useQuery({
-    queryKey: ['squadre-suggerimenti', societaId],
+    queryKey: ['squadre-segreteria', societaId],
     enabled: !!societaId,
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data } = await supabase
-        .from('giocatori')
-        .select('squadra, squadra2, squadra3')
+        .from('squadre')
+        .select('categoria')
         .eq('societa_id', societaId)
-        .eq('attivo', true)
-      const set = new Set()
-      for (const g of data ?? []) {
-        if (g.squadra)  set.add(g.squadra)
-        if (g.squadra2) set.add(g.squadra2)
-        if (g.squadra3) set.add(g.squadra3)
-      }
-      return [...set].sort()
+        .order('categoria')
+      return (data ?? []).map(r => r.categoria).filter(Boolean)
     },
   })
 

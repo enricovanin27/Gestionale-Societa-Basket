@@ -31,14 +31,15 @@ export default function GiocatoriPage() {
     try {
       const { error } = await supabase.from('giocatori').insert([{
         ...formData,
-        societa_id: societaId,
-        attivo: true,
+        societa_id:           societaId,
+        attivo:               true,
         squadra2:             formData.squadra2             || null,
         squadra3:             formData.squadra3             || null,
         data_nascita:         formData.data_nascita         || null,
         data_iscrizione:      formData.data_iscrizione      || null,
         cert_medico_scadenza: formData.cert_medico_scadenza || null,
         numero_maglia:        formData.numero_maglia ? parseInt(formData.numero_maglia) : null,
+        genitore_user_id:     formData.genitore_user_id     || null,  // ← FIX aggiunto
       }])
       if (error) throw error
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
