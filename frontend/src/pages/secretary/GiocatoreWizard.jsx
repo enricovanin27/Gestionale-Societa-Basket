@@ -464,7 +464,8 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         const { error: linkErr } = await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', giocatoreId)
         if (linkErr) throw linkErr
       } else if (accountOption === 'link' && step3.genitore_user_id) {
-        await supabase.from('giocatori').update({ genitore_user_id: step3.genitore_user_id }).eq('id', giocatoreId)
+        const { error: linkErr2 } = await supabase.from('giocatori').update({ genitore_user_id: step3.genitore_user_id }).eq('id', giocatoreId)
+        if (linkErr2) throw linkErr2
       }
 
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
