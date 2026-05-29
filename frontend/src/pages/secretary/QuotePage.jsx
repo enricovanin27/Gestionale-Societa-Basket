@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { format, parseISO, differenceInDays } from 'date-fns'
+import { format, parseISO, differenceInDays, endOfMonth } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Plus, X, ChevronRight, ChevronLeft, Users } from 'lucide-react'
+import { Plus, X, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Printer, Users } from 'lucide-react'
+import { usePrintWindow } from '../../hooks/usePrintWindow'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -51,6 +52,80 @@ export default function QuotePage() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(FORM_EMPTY)
   const [saving, setSaving] = useState(false)
+
+  // ── Resoconto ─────────────────────────────────────────────────────────────────
+  const printWindow = usePrintWindow()
+  const today = new Date()
+  const [resoOpen,  setResoOpen]  = useState(false)
+  const [resoAnno,  setResoAnno]  = useState(today.getFullYear())
+  const [resoMese,  setResoMese]  = useState(today.getMonth() + 1)
+
+  const meseStart = `${resoAnno}-${String(resoMese).padStart(2, '0')}-01`
+  const meseEnd   = format(endOfMonth(new Date(resoAnno, resoMese - 1, 1)), 'yyyy-MM-dd')
+  const meseLabel = format(new Date(resoAnno, resoMese - 1, 1), 'MMMM yyyy', { locale: it })
+  const isFuture  = new Date(resoAnno, resoMese - 1, 1) > today
+
+  const METODO_LABEL = { contanti: 'Contanti', bonifico: 'Bonifico', pos: 'POS / Carta' }
+
+  const { data: pagamentiReso = [], isLoading: loadingReso } = useQuery({
+    queryKey: ['resoconto-pagamenti', societaId, resoAnno, resoMese],
+    enabled: !!societaId && resoOpen,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('quote')
+        .select(`
+          id, tipo, descrizione, importo, data_pagamento, metodo_pagamento, numero_ricevuta,
+          giocatore_id,
+          giocatori!inner(nome, cognome, squadra)
+        `)
+        .eq('societa_id', societaId)
+        .eq('pagato', true)
+        .gte('data_pagamento', meseStart)
+        .lte('data_pagamento', meseEnd)
+        .order('data_pagamento')
+        .order('numero_ricevuta', { ascending: true, nullsFirst: false })
+      return data ?? []
+    },
+    staleTime: 2 * 60 * 1000,
+  })
+
+  const totaleReso = pagamentiReso.reduce((s, p) => s + (p.importo ?? 0), 0)
+
+  function prevMeseReso() {
+    if (resoMese === 1) { setResoMese(12); setResoAnno(a => a - 1) }
+    else setResoMese(m => m - 1)
+  }
+  function nextMeseReso() {
+    if (resoMese === 12) { setResoMese(1); setResoAnno(a => a + 1) }
+    else setResoMese(m => m + 1)
+  }
+
+  function printResoconto() {
+    const rows = pagamentiReso.map(p => {
+      const g = p.giocatori
+      const numRic = p.numero_ricevuta
+        ? `${resoAnno}-${String(p.numero_ricevuta).padStart(4, '0')}`
+        : '—'
+      return '<tr>' +
+        '<td>' + numRic + '</td>' +
+        '<td>' + (g ? g.cognome + ' ' + g.nome : '—') + '</td>' +
+        '<td>' + (g?.squadra ?? '—') + '</td>' +
+        '<td>' + (p.descrizione ?? p.tipo ?? '—') + '</td>' +
+        '<td>' + (METODO_LABEL[p.metodo_pagamento] ?? '—') + '</td>' +
+        '<td>' + (p.data_pagamento ? format(parseISO(p.data_pagamento), 'd/MM/yyyy') : '—') + '</td>' +
+        '<td class="right">€ ' + (p.importo ?? 0).toFixed(2) + '</td>' +
+        '</tr>'
+    }).join('')
+    printWindow(
+      'Resoconto Pagamenti — ' + meseLabel,
+      '<table><thead><tr><th>Ricevuta</th><th>Giocatore</th><th>Squadra</th>' +
+      '<th>Descrizione</th><th>Metodo</th><th>Data</th><th>Importo</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>' +
+      '<p class="summary">Totale incassato: € ' + totaleReso.toFixed(2) +
+      ' — ' + pagamentiReso.length + ' pagamenti</p>',
+      ''
+    )
+  }
 
   const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400'
 
@@ -422,6 +497,104 @@ export default function QuotePage() {
           })}
         </div>
       )}
+
+      {/* ── Sezione Resoconto ──────────────────────────────────────────────── */}
+      <div className="px-4 pb-6 mt-4">
+        <button
+          onClick={() => setResoOpen(v => !v)}
+          className="w-full flex items-center justify-between bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 active:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+              <Printer size={16} className="text-purple-600" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-gray-900">Riepilogo mensile</p>
+              <p className="text-xs text-gray-400">Pagamenti registrati per periodo</p>
+            </div>
+          </div>
+          {resoOpen ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        </button>
+
+        {resoOpen && (
+          <div className="mt-3 space-y-3">
+            {/* Selettore mese */}
+            <div className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3">
+              <button onClick={prevMeseReso} className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-transform">
+                <ChevronLeft size={18} className="text-gray-600" />
+              </button>
+              <div className="text-center">
+                <p className="text-sm font-bold text-gray-900 capitalize">{meseLabel}</p>
+                <p className="text-xs text-gray-400">
+                  {loadingReso ? '…' : `${pagamentiReso.length} pagamenti`}
+                </p>
+              </div>
+              <button onClick={nextMeseReso} disabled={isFuture}
+                className="p-1.5 rounded-lg hover:bg-gray-100 active:scale-95 transition-transform disabled:opacity-30">
+                <ChevronRight size={18} className="text-gray-600" />
+              </button>
+            </div>
+
+            {loadingReso ? (
+              <p className="text-center text-xs text-gray-400 py-4">Caricamento...</p>
+            ) : pagamentiReso.length === 0 ? (
+              <p className="text-center text-sm text-gray-400 py-6 capitalize">
+                Nessun pagamento registrato in {meseLabel}
+              </p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-xs text-purple-500 font-medium uppercase tracking-wider">Totale incassato</p>
+                    <p className="text-xl font-extrabold text-purple-700">€ {totaleReso.toFixed(2)}</p>
+                  </div>
+                  <button onClick={printResoconto}
+                    className="flex items-center gap-2 bg-purple-600 text-white px-3 py-2 rounded-lg text-xs font-semibold active:scale-95 transition-transform">
+                    <Printer size={14} /> Stampa tutto
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {pagamentiReso.map(p => {
+                    const g = p.giocatori
+                    const numRic = p.numero_ricevuta
+                      ? `${resoAnno}-${String(p.numero_ricevuta).padStart(4, '0')}`
+                      : null
+                    const dataPag = p.data_pagamento
+                      ? format(parseISO(p.data_pagamento), 'd MMM', { locale: it })
+                      : '—'
+                    return (
+                      <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {g ? `${g.cognome} ${g.nome}` : 'Sconosciuto'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{p.descrizione ?? p.tipo}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[11px] text-gray-400">{dataPag}</span>
+                            {g?.squadra && <span className="text-[11px] text-gray-400">· {g.squadra}</span>}
+                            {p.metodo_pagamento && (
+                              <span className="text-[11px] text-gray-400">· {METODO_LABEL[p.metodo_pagamento] ?? p.metodo_pagamento}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-gray-900">€ {(p.importo ?? 0).toFixed(2)}</p>
+                          {numRic && (
+                            <button onClick={() => { const url = `/secretary/ricevuta/${p.id}`; const win = window.open(url, '_blank'); if (!win) window.location.href = url }}
+                              className="flex items-center gap-0.5 text-[10px] text-purple-500 hover:text-purple-700 mt-0.5 ml-auto">
+                              <Printer size={10} /> {numRic}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {fab}
       {showModal && bulkModal}
