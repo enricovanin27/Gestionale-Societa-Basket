@@ -1,22 +1,13 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { format, parseISO, differenceInDays } from 'date-fns'
-import { it } from 'date-fns/locale'
 import { ChevronRight, ChevronLeft, Users, Plus, X, Phone, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { certStatus } from '../../utils/certStatus'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import GiocatoreForm from './GiocatoreForm'
-
-function certStatus(dataScadenza) {
-  if (!dataScadenza) return { label: 'N/D', cls: 'bg-gray-100 text-gray-500', urgente: false }
-  const diff = differenceInDays(parseISO(dataScadenza), new Date())
-  if (diff < 0)  return { label: 'Scaduto',    cls: 'bg-red-100 text-red-700',    urgente: true }
-  if (diff < 30) return { label: `${diff}gg`,  cls: 'bg-orange-100 text-orange-700', urgente: true }
-  return { label: format(parseISO(dataScadenza), 'd MMM yyyy', { locale: it }), cls: 'bg-green-100 text-green-700', urgente: false }
-}
 
 export default function GiocatoriPage() {
   const { societaId, displayName, logout, societaNome } = useAuth()
