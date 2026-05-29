@@ -7,40 +7,14 @@ import { useAuth } from '../../hooks/useAuth'
 import { certStatus } from '../../utils/certStatus'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
-import GiocatoreForm from './GiocatoreForm'
+import GiocatoreWizard from './GiocatoreWizard'
 
 export default function GiocatoriPage() {
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
   const [selectedSquadra, setSelectedSquadra] = useState(null)
   const qc = useQueryClient()
-  const [showAdd, setShowAdd]     = useState(false)
-  const [savingAdd, setSavingAdd] = useState(false)
-
-  async function handleAddGiocatore(formData) {
-    setSavingAdd(true)
-    try {
-      const { error } = await supabase.from('giocatori').insert([{
-        ...formData,
-        societa_id:           societaId,
-        attivo:               true,
-        squadra2:             formData.squadra2             || null,
-        squadra3:             formData.squadra3             || null,
-        data_nascita:         formData.data_nascita         || null,
-        data_iscrizione:      formData.data_iscrizione      || null,
-        cert_medico_scadenza: formData.cert_medico_scadenza || null,
-        numero_maglia:        formData.numero_maglia ? parseInt(formData.numero_maglia) : null,
-        genitore_user_id:     formData.genitore_user_id     || null,  // ← FIX aggiunto
-      }])
-      if (error) throw error
-      qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
-      setShowAdd(false)
-    } catch (err) {
-      alert('Errore: ' + err.message)
-    } finally {
-      setSavingAdd(false)
-    }
-  }
+  const [showAdd, setShowAdd] = useState(false)
 
   // Tutte le squadre dalla tabella squadre (gestite dall'admin)
   const { data: squadre = [], isLoading: loadingSquadre } = useQuery({
@@ -127,13 +101,10 @@ export default function GiocatoriPage() {
               <X size={20} className="text-gray-400" />
             </button>
           </div>
-          <div className="px-5 pt-4">
-            <GiocatoreForm
-              onSave={handleAddGiocatore}
-              onCancel={() => setShowAdd(false)}
-              saving={savingAdd}
-            />
-          </div>
+          <GiocatoreWizard
+            onDone={() => setShowAdd(false)}
+            onCancel={() => setShowAdd(false)}
+          />
         </div>
       </div>
     </div>
