@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Receipt, Settings, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt, Settings, Shield, UserPlus } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -20,6 +20,7 @@ export default function SecretaryLayout() {
     { to: '/secretary/certificati',             icon: Shield,          label: 'Certificati' },
     { to: '/secretary/bacheca',                 icon: Bell,            label: 'Bacheca', badge: unread },
     { to: '/secretary/impostazioni',            icon: Settings,        label: 'Impostazioni' },
+    { to: '/secretary/setup',                   icon: UserPlus,        label: 'Setup' },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -39,16 +40,9 @@ export default function SecretaryLayout() {
           <NavLink to="/secretary/certificati" className={cls}>
             <Shield size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Certificati</span>
           </NavLink>
-          <NavLink to="/secretary/bacheca" className={cls}>
-            <div className="relative">
-              <Bell size={22} strokeWidth={1.8} />
-              {unread > 0 && (
-                <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
-                  {unread > 9 ? '9+' : unread}
-                </span>
-              )}
-            </div>
-            <span className="text-xs font-medium">Bacheca</span>
+          <NavLink to="/secretary/setup" className={cls}>
+            <UserPlus size={22} strokeWidth={1.8} />
+            <span className="text-xs font-medium">Setup</span>
           </NavLink>
         </div>
       </nav>
