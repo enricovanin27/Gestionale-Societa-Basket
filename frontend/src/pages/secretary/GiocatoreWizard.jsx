@@ -6,22 +6,29 @@ import { useAuth } from '../../hooks/useAuth'
 
 // ─── Stato iniziale ────────────────────────────────────────────────────────────
 
+// Step 1: Nome + Cognome + Squadra opzionale
 const STEP1_EMPTY = {
-  squadra: '', squadra2: '', squadra3: '',
+  cognome: '', nome: '', squadra: '',
+}
+
+// Step 2: Dati sportivi aggiuntivi
+const STEP2_EMPTY = {
+  squadra2: '', squadra3: '',
   numero_maglia: '', data_iscrizione: '',
 }
 
-const STEP2_EMPTY = {
-  cognome: '', nome: '',
+// Step 3: Anagrafica completa
+const STEP3_EMPTY = {
   data_nascita: '', luogo_nascita: '', codice_fiscale: '',
   indirizzo: '', citta: '', cap: '', provincia: '',
   cert_medico_scadenza: '',
 }
 
-const STEP3_EMPTY = {
+// Step 4: Genitore
+const STEP4_EMPTY = {
   nome_genitore: '', cognome_genitore: '', codice_fiscale_genitore: '',
   telefono: '', email_genitore: '',
-  accountOption: 'invite',  // 'invite' | 'link' | 'skip'
+  accountOption: 'invite',
   genitore_user_id: null,
 }
 
@@ -33,7 +40,7 @@ const sec = 'text-xs font-bold text-gray-400 uppercase tracking-widest mb-3'
 // ─── Indicatore step ──────────────────────────────────────────────────────────
 
 function StepIndicator({ step }) {
-  const steps = ['Squadra', 'Anagrafica', 'Genitore']
+  const steps = ['Nome', 'Squadre', 'Anagrafica', 'Genitore']
   return (
     <div className="flex gap-2 mb-6">
       {steps.map((label, i) => {
@@ -59,51 +66,89 @@ function StepIndicator({ step }) {
   )
 }
 
-// ─── Step 1: Squadra ──────────────────────────────────────────────────────────
+// ─── Step 1: Nome + Cognome + Squadra ─────────────────────────────────────────
 
-function Step1({ data, onChange, onNext, onCancel, squadreList }) {
-  const canNext = !!data.squadra.trim()
+function Step1({ data, onChange, onSave, onSaveAndContinue, onCancel, saving, squadreList }) {
+  const canSave = !!data.cognome.trim() && !!data.nome.trim()
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-400 mb-1 block">Cognome *</label>
+          <input
+            className={inp}
+            value={data.cognome}
+            onChange={e => onChange({ ...data, cognome: e.target.value })}
+            placeholder="Rossi"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400 mb-1 block">Nome *</label>
+          <input
+            className={inp}
+            value={data.nome}
+            onChange={e => onChange({ ...data, nome: e.target.value })}
+            placeholder="Marco"
+          />
+        </div>
+      </div>
+
       <div>
-        <label className="text-xs text-gray-400 mb-1 block">Squadra principale *</label>
+        <label className="text-xs text-gray-400 mb-1 block">Squadra principale <span className="text-gray-300">(opz.)</span></label>
         <select
           className={inp}
           value={data.squadra}
-          onChange={e => onChange({ ...data, squadra: e.target.value, squadra2: '', squadra3: '' })}
-          required
+          onChange={e => onChange({ ...data, squadra: e.target.value })}
         >
           <option value="">— Seleziona squadra —</option>
           {squadreList.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {squadreList.length === 0 && (
           <p className="text-xs text-amber-600 mt-1">
-            Nessuna squadra configurata. L'admin deve aggiungere le squadre dal Setup.
+            Nessuna squadra configurata. Aggiungila dal Setup admin.
           </p>
         )}
       </div>
 
+      <div className="flex gap-2 pt-2">
+        <button type="button" onClick={onCancel}
+          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50">
+          Annulla
+        </button>
+        <button type="button" onClick={onSave} disabled={!canSave || saving}
+          className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
+          {saving ? 'Salvataggio...' : 'Salva'}
+        </button>
+        <button type="button" onClick={onSaveAndContinue} disabled={!canSave || saving}
+          className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1 active:scale-95 transition-transform">
+          Salva e continua <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Step 2: Dati sportivi aggiuntivi ─────────────────────────────────────────
+
+function Step2({ data, onChange, onSaveAndClose, onNext, onBack, saving, squadreList, step1Squadra }) {
+  return (
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Squadra 2 <span className="text-gray-300">(opz.)</span></label>
-          <select
-            className={inp}
-            value={data.squadra2}
-            onChange={e => onChange({ ...data, squadra2: e.target.value })}
-          >
+          <select className={inp} value={data.squadra2}
+            onChange={e => onChange({ ...data, squadra2: e.target.value })}>
             <option value="">— nessuna —</option>
-            {squadreList.filter(s => s !== data.squadra).map(s => <option key={s} value={s}>{s}</option>)}
+            {squadreList.filter(s => s !== step1Squadra).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Squadra 3 <span className="text-gray-300">(opz.)</span></label>
-          <select
-            className={inp}
-            value={data.squadra3}
-            onChange={e => onChange({ ...data, squadra3: e.target.value })}
-          >
+          <select className={inp} value={data.squadra3}
+            onChange={e => onChange({ ...data, squadra3: e.target.value })}>
             <option value="">— nessuna —</option>
-            {squadreList.filter(s => s !== data.squadra && s !== data.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
+            {squadreList.filter(s => s !== step1Squadra && s !== data.squadra2).map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
@@ -111,29 +156,29 @@ function Step1({ data, onChange, onNext, onCancel, squadreList }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-400 mb-1 block">N° maglia <span className="text-gray-300">(opz.)</span></label>
-          <input
-            type="number" min="1" max="99" className={inp}
+          <input type="number" min="1" max="99" className={inp}
             value={data.numero_maglia}
             onChange={e => onChange({ ...data, numero_maglia: e.target.value })}
-            placeholder="es. 7"
-          />
+            placeholder="es. 7" />
         </div>
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Data iscrizione <span className="text-gray-300">(opz.)</span></label>
-          <input
-            type="date" className={inp}
+          <input type="date" className={inp}
             value={data.data_iscrizione}
-            onChange={e => onChange({ ...data, data_iscrizione: e.target.value })}
-          />
+            onChange={e => onChange({ ...data, data_iscrizione: e.target.value })} />
         </div>
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <button type="button" onClick={onCancel}
-          className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50">
-          Annulla
+      <div className="flex gap-2 pt-2">
+        <button type="button" onClick={onBack}
+          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+          <ChevronLeft size={16} /> Indietro
         </button>
-        <button type="button" onClick={onNext} disabled={!canNext}
+        <button type="button" onClick={onSaveAndClose} disabled={saving}
+          className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
+          {saving ? 'Salvataggio...' : 'Salva e chiudi'}
+        </button>
+        <button type="button" onClick={onNext} disabled={saving}
           className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1 active:scale-95 transition-transform">
           Avanti <ChevronRight size={16} />
         </button>
@@ -142,23 +187,11 @@ function Step1({ data, onChange, onNext, onCancel, squadreList }) {
   )
 }
 
-// ─── Step 2: Anagrafica ────────────────────────────────────────────────────────
+// ─── Step 3: Anagrafica ────────────────────────────────────────────────────────
 
-function Step2({ data, onChange, onNext, onBack }) {
-  const canNext = !!data.cognome.trim() && !!data.nome.trim()
+function Step3({ data, onChange, onSaveAndClose, onNext, onBack, saving }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-xs text-gray-400 mb-1 block">Cognome *</label>
-          <input className={inp} value={data.cognome} onChange={e => onChange({ ...data, cognome: e.target.value })} required />
-        </div>
-        <div>
-          <label className="text-xs text-gray-400 mb-1 block">Nome *</label>
-          <input className={inp} value={data.nome} onChange={e => onChange({ ...data, nome: e.target.value })} required />
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Data nascita</label>
@@ -207,12 +240,16 @@ function Step2({ data, onChange, onNext, onBack }) {
           onChange={e => onChange({ ...data, cert_medico_scadenza: e.target.value })} />
       </div>
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-2 pt-2">
         <button type="button" onClick={onBack}
-          className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-1">
+          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 flex items-center gap-1">
           <ChevronLeft size={16} /> Indietro
         </button>
-        <button type="button" onClick={onNext} disabled={!canNext}
+        <button type="button" onClick={onSaveAndClose} disabled={saving}
+          className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold disabled:opacity-50 active:scale-95 transition-transform">
+          {saving ? 'Salvataggio...' : 'Salva e chiudi'}
+        </button>
+        <button type="button" onClick={onNext} disabled={saving}
           className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-1 active:scale-95 transition-transform">
           Avanti <ChevronRight size={16} />
         </button>
@@ -221,9 +258,9 @@ function Step2({ data, onChange, onNext, onBack }) {
   )
 }
 
-// ─── Step 3: Genitore + Account ───────────────────────────────────────────────
+// ─── Step 4: Genitore + Account ───────────────────────────────────────────────
 
-function Step3({ data, onChange, onSave, onBack, saving, genitori }) {
+function Step4({ data, onChange, onSave, onBack, saving, genitori }) {
   const emailFilled = !!data.email_genitore.trim()
 
   return (
@@ -360,12 +397,14 @@ function Step3({ data, onChange, onSave, onBack, saving, genitori }) {
 export default function GiocatoreWizard({ onDone, onCancel }) {
   const { societaId } = useAuth()
   const qc = useQueryClient()
-  const [step,    setStep]    = useState(1)
-  const [step1,   setStep1]   = useState(STEP1_EMPTY)
-  const [step2,   setStep2]   = useState(STEP2_EMPTY)
-  const [step3,   setStep3]   = useState(STEP3_EMPTY)
-  const [saving,  setSaving]  = useState(false)
-  const [saveErr, setSaveErr] = useState(null)
+  const [step,        setStep]        = useState(1)
+  const [giocatoreId, setGiocatoreId] = useState(null)
+  const [step1,       setStep1]       = useState(STEP1_EMPTY)
+  const [step2,       setStep2]       = useState(STEP2_EMPTY)
+  const [step3,       setStep3]       = useState(STEP3_EMPTY)
+  const [step4,       setStep4]       = useState(STEP4_EMPTY)
+  const [saving,      setSaving]      = useState(false)
+  const [saveErr,     setSaveErr]     = useState(null)
 
   const { data: squadreList = [] } = useQuery({
     queryKey: ['squadre-segreteria', societaId],
@@ -392,54 +431,114 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     },
   })
 
-  async function saveGiocatore(accountOption) {
+  // ── Step 1: INSERT immediato ─────────────────────────────────────────────────
+  async function saveStep1(andContinue = false) {
     setSaving(true)
     setSaveErr(null)
     try {
-      // 1. Inserisci giocatore
-      let giocatoreId = null
-      const { data: inserted, error: insertErr } = await supabase
+      const { data: inserted, error } = await supabase
         .from('giocatori')
         .insert([{
-          societa_id:           societaId,
-          attivo:               true,
-          squadra:              step1.squadra,
-          squadra2:             step1.squadra2             || null,
-          squadra3:             step1.squadra3             || null,
-          numero_maglia:        step1.numero_maglia ? parseInt(step1.numero_maglia) : null,
-          data_iscrizione:      step1.data_iscrizione      || null,
-          cognome:              step2.cognome,
-          nome:                 step2.nome,
-          data_nascita:         step2.data_nascita         || null,
-          luogo_nascita:        step2.luogo_nascita        || null,
-          codice_fiscale:       step2.codice_fiscale       || null,
-          indirizzo:            step2.indirizzo            || null,
-          citta:                step2.citta                || null,
-          cap:                  step2.cap                  || null,
-          provincia:            step2.provincia            || null,
-          cert_medico_scadenza: step2.cert_medico_scadenza || null,
-          nome_genitore:        step3.nome_genitore        || null,
-          cognome_genitore:     step3.cognome_genitore     || null,
-          codice_fiscale_genitore: step3.codice_fiscale_genitore || null,
-          telefono:             step3.telefono             || null,
-          email_genitore:       step3.email_genitore       || null,
-          genitore_user_id:     null,
+          societa_id:       societaId,
+          cognome:          step1.cognome.trim(),
+          nome:             step1.nome.trim(),
+          squadra:          step1.squadra || null,
+          attivo:           true,
+          genitore_user_id: null,
         }])
         .select('id')
         .single()
-      if (insertErr) throw insertErr
-      giocatoreId = inserted.id
+      if (error) throw error
+      setGiocatoreId(inserted.id)
+      qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
+      qc.invalidateQueries({ queryKey: ['quote-nonpagate-map', societaId] })
+      if (!andContinue) { onDone(); return }
+      setStep(2)
+    } catch (err) {
+      setSaveErr(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
 
-      // 2. Gestione account
-      if (accountOption === 'invite') {
-        if (!supabaseAdmin) throw new Error('Service role key non configurata (VITE_SUPABASE_SERVICE_ROLE_KEY). Impossibile inviare l\'invito.')
+  // ── Step 2: UPDATE dati sportivi ────────────────────────────────────────────
+  async function saveStep2(andContinue = false) {
+    if (!giocatoreId) return
+    setSaving(true)
+    setSaveErr(null)
+    try {
+      const { error } = await supabase
+        .from('giocatori')
+        .update({
+          squadra2:        step2.squadra2        || null,
+          squadra3:        step2.squadra3        || null,
+          numero_maglia:   step2.numero_maglia   ? parseInt(step2.numero_maglia) : null,
+          data_iscrizione: step2.data_iscrizione || null,
+        })
+        .eq('id', giocatoreId)
+      if (error) throw error
+      if (!andContinue) { onDone(); return }
+      setStep(3)
+    } catch (err) {
+      setSaveErr(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Step 3: UPDATE anagrafica ───────────────────────────────────────────────
+  async function saveStep3(andContinue = false) {
+    if (!giocatoreId) return
+    setSaving(true)
+    setSaveErr(null)
+    try {
+      const { error } = await supabase
+        .from('giocatori')
+        .update({
+          data_nascita:         step3.data_nascita         || null,
+          luogo_nascita:        step3.luogo_nascita        || null,
+          codice_fiscale:       step3.codice_fiscale       || null,
+          indirizzo:            step3.indirizzo            || null,
+          citta:                step3.citta                || null,
+          cap:                  step3.cap                  || null,
+          provincia:            step3.provincia            || null,
+          cert_medico_scadenza: step3.cert_medico_scadenza || null,
+        })
+        .eq('id', giocatoreId)
+      if (error) throw error
+      if (!andContinue) { onDone(); return }
+      setStep(4)
+    } catch (err) {
+      setSaveErr(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Step 4: UPDATE genitore + gestione account ───────────────────────────────
+  async function saveStep4() {
+    if (!giocatoreId) return
+    setSaving(true)
+    setSaveErr(null)
+    try {
+      // Aggiorna dati anagrafici genitore sul record giocatore
+      await supabase.from('giocatori').update({
+        nome_genitore:           step4.nome_genitore           || null,
+        cognome_genitore:        step4.cognome_genitore        || null,
+        codice_fiscale_genitore: step4.codice_fiscale_genitore || null,
+        telefono:                step4.telefono                || null,
+        email_genitore:          step4.email_genitore          || null,
+      }).eq('id', giocatoreId)
+
+      if (step4.accountOption === 'invite') {
+        if (!supabaseAdmin) throw new Error('Service role key non configurata. Impossibile inviare l\'invito.')
         const { data: invData, error: invErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-          step3.email_genitore.trim(),
+          step4.email_genitore.trim(),
           {
             data: {
               ruolo:      'genitore',
-              nome:       step3.nome_genitore.trim()    || null,
-              cognome:    step3.cognome_genitore.trim() || null,
+              nome:       step4.nome_genitore.trim()    || null,
+              cognome:    step4.cognome_genitore.trim() || null,
               societa_id: societaId,
             },
             redirectTo: window.location.origin + '/login',
@@ -450,33 +549,35 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         if (!newUserId) throw new Error('Utente invitato ma ID non ricevuto')
         const { error: profErr } = await supabase.from('profiles').upsert([{
           id:               newUserId,
-          email:            step3.email_genitore.trim(),
-          nome:             step3.nome_genitore.trim()    || null,
-          cognome:          step3.cognome_genitore.trim() || null,
+          email:            step4.email_genitore.trim(),
+          nome:             step4.nome_genitore.trim()    || null,
+          cognome:          step4.cognome_genitore.trim() || null,
           ruolo:            'genitore',
           societa_id:       societaId,
           attivo:           true,
-          genitore_squadra: step1.squadra  || null,
-          genitore_squadra2: step1.squadra2 || null,
-          genitore_squadra3: step1.squadra3 || null,
+          genitore_squadra:  step1.squadra  || null,
+          genitore_squadra2: step2.squadra2 || null,
+          genitore_squadra3: step2.squadra3 || null,
         }], { onConflict: 'id' })
         if (profErr) throw profErr
-        const { error: linkErr } = await supabase.from('giocatori').update({ genitore_user_id: newUserId }).eq('id', giocatoreId)
+        const { error: linkErr } = await supabase.from('giocatori')
+          .update({ genitore_user_id: newUserId }).eq('id', giocatoreId)
         if (linkErr) throw linkErr
-      } else if (accountOption === 'link' && step3.genitore_user_id) {
-        const { error: linkErr2 } = await supabase.from('giocatori').update({ genitore_user_id: step3.genitore_user_id }).eq('id', giocatoreId)
-        if (linkErr2) throw linkErr2
+      } else if (step4.accountOption === 'link' && step4.genitore_user_id) {
+        const { error: linkErr } = await supabase.from('giocatori')
+          .update({ genitore_user_id: step4.genitore_user_id }).eq('id', giocatoreId)
+        if (linkErr) throw linkErr
       }
 
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
-      qc.invalidateQueries({ queryKey: ['quote-nonpagate-map', societaId] })
       onDone()
     } catch (err) {
-      // Se il giocatore è stato inserito ma il passo successivo è fallito, eliminalo
-      if (giocatoreId) {
-        await supabase.from('giocatori').delete().eq('id', giocatoreId).catch(() => {})
+      const msg = err.message ?? ''
+      if (msg.toLowerCase().includes('sending mail') || msg.toLowerCase().includes('smtp')) {
+        setSaveErr('Impossibile inviare l\'email di invito. Configura SMTP su Supabase Dashboard → Settings → Auth → SMTP Settings.')
+      } else {
+        setSaveErr(msg)
       }
-      setSaveErr(err.message)
     } finally {
       setSaving(false)
     }
@@ -495,21 +596,38 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
       {step === 1 && (
         <Step1
           data={step1} onChange={setStep1}
-          onNext={() => setStep(2)} onCancel={onCancel}
+          onSave={() => saveStep1(false)}
+          onSaveAndContinue={() => saveStep1(true)}
+          onCancel={onCancel}
+          saving={saving}
           squadreList={squadreList}
         />
       )}
       {step === 2 && (
         <Step2
           data={step2} onChange={setStep2}
-          onNext={() => setStep(3)} onBack={() => setStep(1)}
+          onSaveAndClose={() => saveStep2(false)}
+          onNext={() => saveStep2(true)}
+          onBack={() => setStep(1)}
+          saving={saving}
+          squadreList={squadreList}
+          step1Squadra={step1.squadra}
         />
       )}
       {step === 3 && (
         <Step3
           data={step3} onChange={setStep3}
-          onSave={() => saveGiocatore(step3.accountOption)}
+          onSaveAndClose={() => saveStep3(false)}
+          onNext={() => saveStep3(true)}
           onBack={() => setStep(2)}
+          saving={saving}
+        />
+      )}
+      {step === 4 && (
+        <Step4
+          data={step4} onChange={setStep4}
+          onSave={saveStep4}
+          onBack={() => setStep(3)}
           saving={saving}
           genitori={genitori}
         />
