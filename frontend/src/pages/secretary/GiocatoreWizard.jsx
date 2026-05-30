@@ -436,6 +436,9 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     setSaving(true)
     setSaveErr(null)
     try {
+      // TODO: se giocatoreId !== null (utente torna da step 2), fare UPDATE invece di INSERT
+      // per evitare duplicati. Per ora il workaround è non permettere modifica nome/cognome
+      // dopo che il giocatore è stato creato.
       const { data: inserted, error } = await supabase
         .from('giocatori')
         .insert([{
@@ -472,12 +475,16 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         .update({
           squadra2:        step2.squadra2        || null,
           squadra3:        step2.squadra3        || null,
-          numero_maglia:   step2.numero_maglia   ? parseInt(step2.numero_maglia) : null,
+          numero_maglia:   step2.numero_maglia   ? parseInt(step2.numero_maglia, 10) : null,
           data_iscrizione: step2.data_iscrizione || null,
         })
         .eq('id', giocatoreId)
       if (error) throw error
-      if (!andContinue) { onDone(); return }
+      if (!andContinue) {
+        qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
+        onDone()
+        return
+      }
       setStep(3)
     } catch (err) {
       setSaveErr(err.message)
@@ -506,7 +513,11 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         })
         .eq('id', giocatoreId)
       if (error) throw error
-      if (!andContinue) { onDone(); return }
+      if (!andContinue) {
+        qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
+        onDone()
+        return
+      }
       setStep(4)
     } catch (err) {
       setSaveErr(err.message)
@@ -522,13 +533,14 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     setSaveErr(null)
     try {
       // Aggiorna dati anagrafici genitore sul record giocatore
-      await supabase.from('giocatori').update({
+      const { error: geniDatiErr } = await supabase.from('giocatori').update({
         nome_genitore:           step4.nome_genitore           || null,
         cognome_genitore:        step4.cognome_genitore        || null,
         codice_fiscale_genitore: step4.codice_fiscale_genitore || null,
         telefono:                step4.telefono                || null,
         email_genitore:          step4.email_genitore          || null,
       }).eq('id', giocatoreId)
+      if (geniDatiErr) throw geniDatiErr
 
       if (step4.accountOption === 'invite') {
         if (!supabaseAdmin) throw new Error('Service role key non configurata. Impossibile inviare l\'invito.')
