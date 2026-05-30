@@ -62,7 +62,7 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
     queryFn: async () => {
       const { data } = await supabase
         .from('giocatori')
-        .select('id, nome, cognome, squadra, user_id, genitore_user_id')
+        .select('id, nome, cognome, squadra, squadra2, squadra3, user_id, genitore_user_id')
         .eq('societa_id', societaId).eq('attivo', true)
         .order('cognome').order('nome')
       return data ?? []
@@ -168,7 +168,16 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
         onSuccess?.()
       }, 3500)
     } catch (e) {
-      setErr(e.message)
+      const msg = e.message ?? ''
+      if (msg.toLowerCase().includes('sending mail') || msg.toLowerCase().includes('smtp')) {
+        setErr(
+          'Impossibile inviare l\'email di invito. ' +
+          'Configura un provider SMTP su Supabase Dashboard → Settings → Auth → SMTP Settings, ' +
+          'oppure abilita l\'invio email nel progetto Supabase.'
+        )
+      } else {
+        setErr(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -281,24 +290,54 @@ export default function InvitaUtenteForm({ ruoliConsentiti, onSuccess }) {
       </>)}
 
       {form.ruolo === 'genitore' && (<>
-        {[['genitore_squadra','Squadra figlio *'],['genitore_squadra2','Squadra figlio 2 (opz.)'],['genitore_squadra3','Squadra figlio 3 (opz.)']].map(([k, label]) => (
-          <div key={k}>
-            <label className="text-xs text-gray-400 mb-1 block">{label}</label>
-            <select className={sel} value={form[k]} onChange={e => set(k, e.target.value)}>
-              <option value="">— nessuna —</option>
-              {squadre.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        ))}
+        {/* Squadre manuali — visibili solo se non c'è un giocatore selezionato */}
+        {!form.giocatoreId && (
+          [['genitore_squadra','Squadra figlio *'],['genitore_squadra2','Squadra figlio 2 (opz.)'],['genitore_squadra3','Squadra figlio 3 (opz.)']].map(([k, label]) => (
+            <div key={k}>
+              <label className="text-xs text-gray-400 mb-1 block">{label}</label>
+              <select className={sel} value={form[k]} onChange={e => set(k, e.target.value)}>
+                <option value="">— nessuna —</option>
+                {squadre.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          ))
+        )}
+
+        {/* Collega a giocatore figlio */}
         <div>
           <label className="text-xs text-gray-400 mb-1 block">Collega a giocatore figlio (opz.)</label>
-          <select className={sel} value={form.giocatoreId} onChange={e => set('giocatoreId', e.target.value)}>
+          <select
+            className={sel}
+            value={form.giocatoreId}
+            onChange={e => {
+              const gid = e.target.value
+              const g = giocatoriGenitore.find(x => x.id === gid)
+              setForm(f => ({
+                ...f,
+                giocatoreId:       gid,
+                genitore_squadra:  g?.squadra  || '',
+                genitore_squadra2: g?.squadra2 || '',
+                genitore_squadra3: g?.squadra3 || '',
+              }))
+            }}
+          >
             <option value="">— non collegare —</option>
             {giocatoriGenitore.map(g => (
               <option key={g.id} value={g.id}>{g.cognome} {g.nome} ({g.squadra})</option>
             ))}
           </select>
         </div>
+
+        {/* Nota auto-fill */}
+        {form.giocatoreId && (() => {
+          const g = giocatoriGenitore.find(x => x.id === form.giocatoreId)
+          const sq = [g?.squadra, g?.squadra2, g?.squadra3].filter(Boolean).join(', ')
+          return (
+            <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">
+              📌 Squadra impostata automaticamente: <strong>{sq}</strong>
+            </p>
+          )
+        })()}
       </>)}
 
       {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
