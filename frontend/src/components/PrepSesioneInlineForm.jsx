@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
-export default function PrepSesioneInlineForm({ onChange }) {
-  const [quando, setQuando] = useState('prima')
-  const [durata, setDurata] = useState('30')
-  const [suCampo, setSuCampo] = useState(false)
+export default function PrepSesioneInlineForm({ onChange, initialQuando = 'prima', initialDurata = '30', initialSuCampo = false }) {
+  const [quando, setQuando] = useState(initialQuando)
+  const [durata, setDurata] = useState(String(initialDurata))
+  const [suCampo, setSuCampo] = useState(initialSuCampo)
 
   function update(nextWhen, nextDur, nextCampo) {
     onChange({ quando: nextWhen, durata_min: parseInt(nextDur) || 30, su_campo: nextCampo })

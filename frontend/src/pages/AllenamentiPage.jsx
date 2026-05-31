@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, endOfWeek, eachDayOfInterval, startOfWeek } from 'date-fns'
 import { it } from 'date-fns/locale'
@@ -137,8 +137,36 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
     },
     staleTime: 5 * 60 * 1000,
   })
+  const { data: existingPrep } = useQuery({
+    queryKey: ['prep-sessione-evento', societaId, event.data, event.squadra],
+    enabled: !!societaId && !!event.data && !!event.squadra,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_sessioni')
+        .select('quando, durata_min, su_campo')
+        .eq('societa_id', societaId)
+        .eq('data', event.data)
+        .eq('squadra', event.squadra)
+        .eq('tipo', 'allenamento')
+        .maybeSingle()
+      return data ?? null
+    },
+  })
+
   const [includiAtletica, setIncludiAtletica] = useState(false)
   const [prepData, setPrepData] = useState({ quando: 'prima', durata_min: 30, su_campo: false })
+
+  useEffect(() => {
+    if (existingPrep) {
+      setIncludiAtletica(true)
+      setPrepData({
+        quando:     existingPrep.quando,
+        durata_min: existingPrep.durata_min,
+        su_campo:   existingPrep.su_campo,
+      })
+    }
+  }, [existingPrep])
 
   const toggleAllenatore = (a) =>
     set('allenatori', form.allenatori.includes(a) ? form.allenatori.filter(x => x !== a) : [...form.allenatori, a])
@@ -212,7 +240,14 @@ function EditAllenamentoForm({ event, contextEvents, onSave, saving }) {
             {includiAtletica ? '✓ Inclusa' : 'Aggiungi'}
           </button>
         </div>
-        {includiAtletica && <PrepSesioneInlineForm onChange={d => setPrepData(d)} />}
+        {includiAtletica && (
+          <PrepSesioneInlineForm
+            onChange={d => setPrepData(d)}
+            initialQuando={prepData.quando}
+            initialDurata={String(prepData.durata_min)}
+            initialSuCampo={prepData.su_campo}
+          />
+        )}
       </div>
 
       <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
@@ -766,21 +801,31 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
   })
 
   const saveMut = useMutation({
-    mutationFn: async ({ event, formData }) => {
+    mutationFn: async ({ event, formData, isEdit = false }) => {
       await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
         await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
+      if (isEdit) {
+        // In modalità edit: cancella il record esistente (se c'è) per poi reinserirlo aggiornato
+        await supabase
+          .from('prep_sessioni')
+          .delete()
+          .eq('societa_id', societaId)
+          .eq('data', event.data)
+          .eq('squadra', event.squadra)
+          .eq('tipo', 'allenamento')
+      }
       if (formData._prepData) {
         await supabase.from('prep_sessioni').insert([{
-          societa_id: societaId,
+          societa_id:     societaId,
           preparatore_id: formData._prepPreparatoreId ?? null,
-          squadra: event.squadra,
-          data: event.data,
-          tipo: 'allenamento',
-          quando: formData._prepData.quando,
-          durata_min: formData._prepData.durata_min,
-          su_campo: formData._prepData.su_campo,
-          note: '',
+          squadra:        event.squadra,
+          data:           event.data,
+          tipo:           'allenamento',
+          quando:         formData._prepData.quando,
+          durata_min:     formData._prepData.durata_min,
+          su_campo:       formData._prepData.su_campo,
+          note:           '',
         }])
       }
     },
@@ -1076,7 +1121,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
             event={editingEvent}
             contextEvents={editingDayEvents}
             saving={saveMut.isPending}
-            onSave={formData => saveMut.mutateAsync({ event: editingEvent, formData })}
+            onSave={formData => saveMut.mutateAsync({ event: editingEvent, formData, isEdit: true })}
           />
         </Modal>
       )}
@@ -1113,10 +1158,32 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
   const [showAddForm,      setShowAddForm]      = useState(false)
 
   const saveMut = useMutation({
-    mutationFn: async ({ event, formData }) => {
+    mutationFn: async ({ event, formData, isEdit = false }) => {
       await saveToSettimana(event, formData, societaId)
       if (formData.condivisione && formData._palestraConflicts?.length)
         await markCondivisioneOnConflicts(formData._palestraConflicts, event.data, societaId)
+      if (isEdit) {
+        await supabase
+          .from('prep_sessioni')
+          .delete()
+          .eq('societa_id', societaId)
+          .eq('data', event.data)
+          .eq('squadra', event.squadra)
+          .eq('tipo', 'allenamento')
+      }
+      if (formData._prepData) {
+        await supabase.from('prep_sessioni').insert([{
+          societa_id:     societaId,
+          preparatore_id: formData._prepPreparatoreId ?? null,
+          squadra:        event.squadra,
+          data:           event.data,
+          tipo:           'allenamento',
+          quando:         formData._prepData.quando,
+          durata_min:     formData._prepData.durata_min,
+          su_campo:       formData._prepData.su_campo,
+          note:           '',
+        }])
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
   })
@@ -1252,7 +1319,7 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
             event={editingEvent}
             contextEvents={editingDayEvents}
             saving={saveMut.isPending}
-            onSave={formData => saveMut.mutateAsync({ event: editingEvent, formData })}
+            onSave={formData => saveMut.mutateAsync({ event: editingEvent, formData, isEdit: true })}
           />
         </Modal>
       )}
