@@ -42,7 +42,7 @@ import QuoteGenitore from './pages/parent/QuoteGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
 import AdminPersone from './pages/admin/AdminPersone'
-import SetupMenu from './pages/admin/SetupMenu'
+import AdminSetupPage from './pages/admin/AdminSetupPage'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
 import PrepLayout from './layouts/PrepLayout'
 import AgendaPrep from './pages/prep/AgendaPrep'
@@ -218,7 +218,7 @@ function AppShell() {
           <Route path="allenamenti" element={<AllenamentiPage />} />
           <Route path="presenze"    element={<PresenzeAdmin />} />
           <Route path="bacheca"     element={<BachecaPage />} />
-          <Route path="setup"       element={<SetupMenu />} />
+          <Route path="setup"       element={<AdminSetupPage />} />
           <Route path="setup/:tab"  element={<SetupPage />} />
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
