@@ -433,12 +433,15 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
 
   // ── Step 1: INSERT immediato ─────────────────────────────────────────────────
   async function saveStep1(andContinue = false) {
+    // Se il giocatore è già stato creato (utente tornato da step 2), non fare un secondo INSERT
+    if (giocatoreId) {
+      if (andContinue) setStep(2)
+      else onDone()
+      return
+    }
     setSaving(true)
     setSaveErr(null)
     try {
-      // TODO: se giocatoreId !== null (utente torna da step 2), fare UPDATE invece di INSERT
-      // per evitare duplicati. Per ora il workaround è non permettere modifica nome/cognome
-      // dopo che il giocatore è stato creato.
       const { data: inserted, error } = await supabase
         .from('giocatori')
         .insert([{

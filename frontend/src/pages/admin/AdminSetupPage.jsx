@@ -100,6 +100,7 @@ function PalestraModal({ onClose }) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['palestre'] })
+      qc.invalidateQueries({ queryKey: ['palestre', societaId] })
       onClose()
     },
   })
@@ -198,6 +199,7 @@ function SquadraModal({ onClose }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['squadre-table'] })
       qc.invalidateQueries({ queryKey: ['squadre-nomi'] })
+      qc.invalidateQueries({ queryKey: ['squadre-nomi-invita', societaId] })
       qc.invalidateQueries({ queryKey: ['squadre-segreteria', societaId] })
       onClose()
     },
