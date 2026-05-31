@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  Building2, Users, Dumbbell, UserCheck, ChevronRight, GitFork,
-  CalendarDays, Activity, Briefcase, X,
+  Building2, Users, Dumbbell, ChevronRight, GitFork,
+  CalendarDays, Activity, Briefcase,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -235,7 +235,7 @@ function DoppioGiocatoriModal({ onClose }) {
   const { societaId } = useAuth()
   const [squadraA, setSquadraA] = useState('')
   const [squadraB, setSquadraB] = useState('')
-  const [rows, setRows]         = useState([{ cognome: '', nome: '' }])
+  const [rows, setRows]         = useState([{ id: Date.now(), cognome: '', nome: '' }])
   const [saving, setSaving]     = useState(false)
   const [errors, setErrors]     = useState([])
 
@@ -252,6 +252,7 @@ function DoppioGiocatoriModal({ onClose }) {
 
   const { data: pairs = [] } = useQuery({
     queryKey: ['doppio-campionato'],
+    enabled: !!societaId,
     queryFn: async () => {
       const { data } = await supabase.from('doppio_campionato').select('squadra_a, squadra_b')
       return data ?? []
@@ -263,7 +264,7 @@ function DoppioGiocatoriModal({ onClose }) {
     (p.squadra_a === squadraB && p.squadra_b === squadraA)
   )
 
-  function addRow()            { setRows(r => [...r, { cognome: '', nome: '' }]) }
+  function addRow()            { setRows(r => [...r, { id: Date.now(), cognome: '', nome: '' }]) }
   function removeRow(i)        { setRows(r => r.filter((_, idx) => idx !== i)) }
   function updateRow(i, k, v)  {
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row))
@@ -281,7 +282,11 @@ function DoppioGiocatoriModal({ onClose }) {
         const { error } = await supabase.from('doppio_campionato').insert([{
           squadra_a: squadraA, squadra_b: squadraB, societa_id: societaId,
         }])
-        if (error) errs.push(`Coppia: ${error.message}`)
+        if (error) {
+          setErrors([`Coppia: ${error.message}`])
+          setSaving(false)
+          return
+        }
       }
 
       for (const row of rows.filter(r => r.cognome.trim())) {
@@ -342,7 +347,7 @@ function DoppioGiocatoriModal({ onClose }) {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Giocatori in questa coppia</p>
           <div className="space-y-2">
             {rows.map((row, i) => (
-              <div key={i} className="flex gap-2 items-center">
+              <div key={row.id} className="flex gap-2 items-center">
                 <input className={inp} placeholder="Cognome *"
                   value={row.cognome} onChange={e => updateRow(i, 'cognome', e.target.value)} />
                 <input className={inp} placeholder="Nome"
