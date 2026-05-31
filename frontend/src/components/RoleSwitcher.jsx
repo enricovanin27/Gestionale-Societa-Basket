@@ -5,7 +5,6 @@
  *   - fab:     bottone floating per mobile (posizionato sopra la bottom nav)
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
@@ -42,14 +41,13 @@ export const ROLE_LABEL_SHORT = {
 /** Versione sidebar (solo desktop, dentro AppSidebar) */
 export function RoleSwitcherSidebar() {
   const { allRuoli, activeRole, setActiveRole } = useAuth()
-  const navigate = useNavigate()
 
   const visibili = allRuoli.filter(r => r !== 'super_admin')
   if (visibili.length <= 1) return null
 
   function handleSwitch(role) {
     setActiveRole(role)
-    navigate(ROLE_PATH[role] ?? '/')
+    window.location.href = ROLE_PATH[role] ?? '/'
   }
 
   return (
@@ -79,7 +77,6 @@ export function RoleSwitcherSidebar() {
 /** Versione FAB mobile — da aggiungere ad AppShell */
 export function RoleSwitcherFAB() {
   const { allRuoli, activeRole, setActiveRole } = useAuth()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   const visibili = allRuoli.filter(r => r !== 'super_admin')
@@ -88,7 +85,7 @@ export function RoleSwitcherFAB() {
   function handleSwitch(role) {
     setActiveRole(role)
     setOpen(false)
-    navigate(ROLE_PATH[role] ?? '/')
+    window.location.href = ROLE_PATH[role] ?? '/'
   }
 
   return (
