@@ -829,9 +829,10 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
         }])
       }
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['cancelled-sett'] })
+      qc.invalidateQueries({ queryKey: ['prep-sessione-evento', societaId, variables.event.data, variables.event.squadra] })
       setEditingEvent(null)
     },
   })
@@ -1185,7 +1186,12 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
         }])
       }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['weekEvents'] }); setEditingEvent(null) },
+    onSuccess: (data, variables) => {
+      qc.invalidateQueries({ queryKey: ['weekEvents'] })
+      qc.invalidateQueries({ queryKey: ['cancelled-sett'] })
+      qc.invalidateQueries({ queryKey: ['prep-sessione-evento', societaId, variables.event.data, variables.event.squadra] })
+      setEditingEvent(null)
+    },
   })
   const cancelMut = useMutation({
     mutationFn: (event) => cancelAllenamento(event, societaId),
