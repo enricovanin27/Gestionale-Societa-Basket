@@ -152,7 +152,7 @@ export default function AgendaPrep() {
               return (
                 <div key={str} className="mb-2">
                   {/* Header giorno */}
-                  <div className={`flex items-center gap-2 mb-1.5 ${daySessioni.length === 0 ? 'opacity-40' : ''}`}>
+                  <div className={`flex items-center gap-2 mb-1.5 ${daySessioni.length === 0 ? 'opacity-35' : ''}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                       isToday ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600'
                     }`}>
@@ -172,7 +172,7 @@ export default function AgendaPrep() {
                   ) : (
                     <div className="ml-10 space-y-1.5">
                       {daySessioni.map(s => (
-                        <div key={s.id} className="border-l-4 border-amber-400 bg-white rounded-xl px-3 py-2 shadow-sm">
+                        <div key={s.id} className="border-l-4 border-amber-400 bg-white rounded-xl px-3 py-2.5 shadow-sm">
                           <div className="flex items-center justify-between">
                             <p className="text-sm font-semibold text-gray-900">{s.squadra}</p>
                             <button
