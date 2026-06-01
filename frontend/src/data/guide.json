@@ -87,14 +87,6 @@
       { "titolo": "Gestione duplicati", "testo": "Se una gara è già presente nel calendario, il sistema lo segnala. Puoi scegliere se sovrascrivere o saltare il duplicato." }
     ]
   },
-  "/coach/atletica": {
-    "titolo": "Atletica",
-    "sezioni": [
-      { "titolo": "Infortuni", "testo": "La tab 'Infortuni' mostra lo stato degli infortuni attivi per i giocatori delle tue squadre, con gravità e data di rientro prevista." },
-      { "titolo": "RPE settimanale", "testo": "La tab 'RPE' mostra il carico percepito (Rating of Perceived Exertion) dei giocatori per la settimana corrente. Verde = basso, giallo = medio, rosso = alto." },
-      { "titolo": "Schede atletiche", "testo": "Visualizza le schede di allenamento atletico assegnate ai tuoi giocatori dal preparatore atletico." }
-    ]
-  },
   "/secretary": {
     "titolo": "Dashboard Segreteria",
     "sezioni": [
@@ -190,15 +182,6 @@
       { "titolo": "Sessione legata", "testo": "Una sessione legata è collegata a un allenamento di squadra (prima, durante o dopo). Seleziona la squadra, la data e il momento rispetto all'allenamento." },
       { "titolo": "Sessione libera", "testo": "Una sessione libera è indipendente dagli allenamenti. Puoi impostare orario di inizio e durata." },
       { "titolo": "Su campo", "testo": "Attiva 'Su campo' se la sessione atletica si svolge in palestra insieme alla squadra, anziché in sala pesi." }
-    ]
-  },
-  "/prep/stato": {
-    "titolo": "Stato Atletico",
-    "sezioni": [
-      { "titolo": "Infortuni", "testo": "Registra e monitora gli infortuni dei giocatori delle tue squadre. Per ogni infortunio puoi indicare tipo, gravità e data di rientro prevista." },
-      { "titolo": "Gravità", "testo": "Lieve (giallo), Moderato (arancione), Grave (rosso). La gravità aiuta a prioritizzare il follow-up." },
-      { "titolo": "RPE settimanale", "testo": "Il carico percepito (RPE) viene mostrato per ogni giocatore nella settimana selezionata. Verde fino a 5, giallo 6-7, rosso oltre 7." },
-      { "titolo": "Filtrare per squadra", "testo": "Usa il selettore in cima per visualizzare lo stato atletico di una squadra specifica." }
     ]
   },
   "/prep/schede": {
