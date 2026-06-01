@@ -1035,7 +1035,7 @@ export default function CalendarioPage() {
     if (!actingAsAllenatore && !actingAsPrep) return null
     if (myCoachSquadre === null) return [] // ancora in caricamento
     return myCoachSquadre.length > 0 ? myCoachSquadre : null
-  }, [soloMieSquadre, actingAsAllenatore, myCoachSquadre])
+  }, [soloMieSquadre, actingAsAllenatore, actingAsPrep, myCoachSquadre])
 
   const displayEvents = useMemo(() => {
     if (!data) return []
