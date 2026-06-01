@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Calendar, BookOpen } from 'lucide-react'
+import { Home, Calendar, CalendarDays, BookOpen } from 'lucide-react'
 import AppSidebar from '../components/AppSidebar'
 
 const cls = ({ isActive }) =>
@@ -8,8 +8,10 @@ const cls = ({ isActive }) =>
   }`
 
 const SIDEBAR_ITEMS = [
-  { to: '/prep',        end: true, icon: Calendar,  label: 'Agenda' },
-  { to: '/prep/schede',            icon: BookOpen,  label: 'Schede' },
+  { to: '/prep',           end: true, icon: Home,        label: 'Home' },
+  { to: '/prep/agenda',               icon: Calendar,    label: 'Agenda' },
+  { to: '/prep/calendario',           icon: CalendarDays,label: 'Calendario' },
+  { to: '/prep/schede',               icon: BookOpen,    label: 'Schede' },
 ]
 
 export default function PrepLayout() {
@@ -18,10 +20,18 @@ export default function PrepLayout() {
       <AppSidebar items={SIDEBAR_ITEMS} accentColor="amber" />
       <div className="pb-20 lg:pb-0 lg:pl-56"><Outlet /></div>
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-        <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-4">
+        <div className="flex justify-around items-center h-16 max-w-lg mx-auto px-2">
           <NavLink to="/prep" end className={cls}>
+            <Home size={20} strokeWidth={1.8} />
+            <span className="text-[10px] font-medium">Home</span>
+          </NavLink>
+          <NavLink to="/prep/agenda" className={cls}>
             <Calendar size={20} strokeWidth={1.8} />
             <span className="text-[10px] font-medium">Agenda</span>
+          </NavLink>
+          <NavLink to="/prep/calendario" className={cls}>
+            <CalendarDays size={20} strokeWidth={1.8} />
+            <span className="text-[10px] font-medium">Calendario</span>
           </NavLink>
           <NavLink to="/prep/schede" className={cls}>
             <BookOpen size={20} strokeWidth={1.8} />
