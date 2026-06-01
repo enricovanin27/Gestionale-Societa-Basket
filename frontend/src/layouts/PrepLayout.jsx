@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Calendar, Activity, BookOpen } from 'lucide-react'
+import { Calendar, BookOpen } from 'lucide-react'
 import AppSidebar from '../components/AppSidebar'
 
 const cls = ({ isActive }) =>
@@ -9,7 +9,6 @@ const cls = ({ isActive }) =>
 
 const SIDEBAR_ITEMS = [
   { to: '/prep',        end: true, icon: Calendar,  label: 'Agenda' },
-  { to: '/prep/stato',             icon: Activity,  label: 'Stato' },
   { to: '/prep/schede',            icon: BookOpen,  label: 'Schede' },
 ]
 
@@ -23,10 +22,6 @@ export default function PrepLayout() {
           <NavLink to="/prep" end className={cls}>
             <Calendar size={20} strokeWidth={1.8} />
             <span className="text-[10px] font-medium">Agenda</span>
-          </NavLink>
-          <NavLink to="/prep/stato" className={cls}>
-            <Activity size={20} strokeWidth={1.8} />
-            <span className="text-[10px] font-medium">Stato</span>
           </NavLink>
           <NavLink to="/prep/schede" className={cls}>
             <BookOpen size={20} strokeWidth={1.8} />

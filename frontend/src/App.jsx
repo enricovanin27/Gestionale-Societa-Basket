@@ -46,7 +46,6 @@ import AdminSetupPage from './pages/admin/AdminSetupPage'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
 import PrepLayout from './layouts/PrepLayout'
 import AgendaPrep from './pages/prep/AgendaPrep'
-import StatoPage from './pages/prep/StatoPage'
 import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
 import AtleticaCoach from './pages/coach/AtleticaCoach'
 import LandingPage       from './pages/LandingPage'
@@ -226,7 +225,6 @@ function AppShell() {
         {/* -- Preparatore Atletico -------------------------------- */}
         <Route path="/prep" element={<ProtectedRoute requiredRole="preparatore_atletico"><PrepLayout /></ProtectedRoute>}>
           <Route index          element={<AgendaPrep />} />
-          <Route path="stato"   element={<StatoPage />} />
           <Route path="schede"  element={<SchedeAtletichePage />} />
         </Route>
 
