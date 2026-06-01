@@ -48,6 +48,7 @@ import PrepLayout from './layouts/PrepLayout'
 import AgendaPrep from './pages/prep/AgendaPrep'
 import HomePrepPage from './pages/prep/HomePrepPage'
 import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
+import MessaggiRicevutiPage from './pages/coach/MessaggiRicevutiPage'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
 import { RoleSwitcherFAB } from './components/RoleSwitcher'
@@ -207,6 +208,7 @@ function AppShell() {
           <Route path="calendario"  element={<CalendarioPage />} />
           <Route path="attivita"    element={<AttivitaPage />} />
           <Route path="bacheca"     element={<BachecaPage />} />
+          <Route path="messaggi"    element={<MessaggiRicevutiPage />} />
           <Route path="importa"     element={<ImportaCalendarioPage />} />
         </Route>
 
@@ -228,6 +230,7 @@ function AppShell() {
           <Route path="agenda"      element={<AgendaPrep />} />
           <Route path="calendario"  element={<CalendarioPage />} />
           <Route path="schede"      element={<SchedeAtletichePage />} />
+          <Route path="messaggi"    element={<MessaggiRicevutiPage />} />
         </Route>
 
         {/* ── Legacy redirects ─────────────────────────────────── */}

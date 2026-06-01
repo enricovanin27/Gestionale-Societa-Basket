@@ -1,7 +1,8 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Home, Calendar, Activity, Bell } from 'lucide-react'
+import { Home, Calendar, Activity, Bell, MessageSquare } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
+import { useUnreadMessaggi } from '../pages/coach/MessaggiRicevutiPage'
 import GuideDrawer from '../components/GuideDrawer'
 import AppSidebar from '../components/AppSidebar'
 
@@ -11,13 +12,15 @@ const cls = ({ isActive }) =>
   }`
 
 export default function CoachLayout() {
-  const { societaId } = useAuth()
+  const { societaId, squadreAllenatore } = useAuth()
   const { data: unread = 0 } = useUnreadAnnunci(societaId)
+  const { data: unreadMsg = 0 } = useUnreadMessaggi(societaId, squadreAllenatore ?? [])
   const sidebarItems = [
-    { to: '/coach',           end: true, icon: Home,     label: 'Home' },
-    { to: '/coach/calendario',           icon: Calendar,  label: 'Calendario' },
-    { to: '/coach/attivita',             icon: Activity,  label: 'Attività' },
-    { to: '/coach/bacheca',              icon: Bell,      label: 'Bacheca', badge: unread },
+    { to: '/coach',           end: true, icon: Home,          label: 'Home' },
+    { to: '/coach/calendario',           icon: Calendar,       label: 'Calendario' },
+    { to: '/coach/attivita',             icon: Activity,       label: 'Attività' },
+    { to: '/coach/bacheca',              icon: Bell,           label: 'Bacheca', badge: unread },
+    { to: '/coach/messaggi',             icon: MessageSquare,  label: 'Messaggi', badge: unreadMsg },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -44,6 +47,17 @@ export default function CoachLayout() {
               )}
             </div>
             <span className="text-xs font-medium">Bacheca</span>
+          </NavLink>
+          <NavLink to="/coach/messaggi" className={cls}>
+            <div className="relative">
+              <MessageSquare size={21} strokeWidth={1.8} />
+              {unreadMsg > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                  {unreadMsg > 9 ? '9+' : unreadMsg}
+                </span>
+              )}
+            </div>
+            <span className="text-xs font-medium">Messaggi</span>
           </NavLink>
         </div>
       </nav>

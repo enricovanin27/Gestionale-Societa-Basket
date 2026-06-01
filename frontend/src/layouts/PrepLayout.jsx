@@ -1,5 +1,9 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Home, Calendar, CalendarDays, BookOpen } from 'lucide-react'
+import { Home, Calendar, CalendarDays, BookOpen, MessageSquare } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../lib/supabase'
+import { useUnreadMessaggi } from '../pages/coach/MessaggiRicevutiPage'
 import AppSidebar from '../components/AppSidebar'
 
 const cls = ({ isActive }) =>
@@ -7,14 +11,32 @@ const cls = ({ isActive }) =>
     isActive ? 'text-amber-600' : 'text-gray-400 hover:text-gray-600'
   }`
 
-const SIDEBAR_ITEMS = [
-  { to: '/prep',           end: true, icon: Home,        label: 'Home' },
-  { to: '/prep/agenda',               icon: Calendar,    label: 'Agenda' },
-  { to: '/prep/calendario',           icon: CalendarDays,label: 'Calendario' },
-  { to: '/prep/schede',               icon: BookOpen,    label: 'Schede' },
-]
-
 export default function PrepLayout() {
+  const { societaId, profile } = useAuth()
+
+  const { data: prepSquadre = [] } = useQuery({
+    queryKey: ['prep-squadre-mie', societaId, profile?.id],
+    enabled: !!societaId && !!profile?.id,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('prep_squadre').select('squadra')
+        .eq('societa_id', societaId)
+        .eq('preparatore_id', profile.id)
+      return (data ?? []).map(r => r.squadra)
+    },
+  })
+
+  const { data: unreadMsg = 0 } = useUnreadMessaggi(societaId, prepSquadre)
+
+  const SIDEBAR_ITEMS = [
+    { to: '/prep',           end: true, icon: Home,          label: 'Home' },
+    { to: '/prep/agenda',               icon: Calendar,       label: 'Agenda' },
+    { to: '/prep/calendario',           icon: CalendarDays,   label: 'Calendario' },
+    { to: '/prep/schede',               icon: BookOpen,       label: 'Schede' },
+    { to: '/prep/messaggi',             icon: MessageSquare,  label: 'Messaggi', badge: unreadMsg },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AppSidebar items={SIDEBAR_ITEMS} accentColor="amber" />
@@ -36,6 +58,17 @@ export default function PrepLayout() {
           <NavLink to="/prep/schede" className={cls}>
             <BookOpen size={20} strokeWidth={1.8} />
             <span className="text-[10px] font-medium">Schede</span>
+          </NavLink>
+          <NavLink to="/prep/messaggi" className={cls}>
+            <div className="relative">
+              <MessageSquare size={20} strokeWidth={1.8} />
+              {unreadMsg > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                  {unreadMsg > 9 ? '9+' : unreadMsg}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-medium">Messaggi</span>
           </NavLink>
         </div>
       </nav>
