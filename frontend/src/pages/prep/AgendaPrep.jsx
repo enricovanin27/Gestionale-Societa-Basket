@@ -143,43 +143,58 @@ export default function AgendaPrep() {
         </div>
 
         {isLoading ? <LoadingSpinner /> : (
-          <div className="space-y-3">
+          <div className="space-y-1 pb-4">
             {giorni.map(({ str, label }) => {
               const daySessioni = sessioni.filter(s => s.data === str)
-              if (daySessioni.length === 0) return null
+              const isToday = str === format(new Date(), 'yyyy-MM-dd')
+              const dayNum = new Date(str + 'T12:00:00').getDate()
+
               return (
-                <div key={str}>
-                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">
-                    {label}
-                  </div>
-                  {daySessioni.map(s => (
-                    <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 mb-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="font-semibold text-sm text-gray-900">{s.squadra}</div>
-                          <div className="flex gap-1.5 mt-1 flex-wrap">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${QUANDO_COLOR[s.quando]}`}>
-                              {QUANDO_LABEL[s.quando]}
-                            </span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                              s.su_campo ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                            }`}>
-                              {s.su_campo ? '⚠ Su campo' : 'Fuori campo'}
-                            </span>
-                            {s.durata_min && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                                {s.durata_min} min
-                              </span>
-                            )}
-                          </div>
-                          {s.note && <div className="text-xs text-gray-400 mt-1">{s.note}</div>}
-                        </div>
-                        <button onClick={() => deleteMut.mutate(s.id)} className="text-gray-300 hover:text-red-400 p-1">
-                          <X size={14} />
-                        </button>
-                      </div>
+                <div key={str} className="mb-2">
+                  {/* Header giorno */}
+                  <div className={`flex items-center gap-2 mb-1.5 ${daySessioni.length === 0 ? 'opacity-40' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                      isToday ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600'
+                    }`}>
+                      {dayNum}
                     </div>
-                  ))}
+                    <p className={`text-xs font-semibold uppercase tracking-wide ${isToday ? 'text-amber-600' : 'text-gray-500'}`}>
+                      {label}
+                    </p>
+                    {isToday && (
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Oggi</span>
+                    )}
+                  </div>
+
+                  {/* Sessioni o placeholder */}
+                  {daySessioni.length === 0 ? (
+                    <div className="ml-10 text-xs text-gray-300 pb-1">–</div>
+                  ) : (
+                    <div className="ml-10 space-y-1.5">
+                      {daySessioni.map(s => (
+                        <div key={s.id} className="border-l-4 border-amber-400 bg-white rounded-xl px-3 py-2 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold text-gray-900">{s.squadra}</p>
+                            <button
+                              onClick={() => deleteMut.mutate(s.id)}
+                              className="text-gray-300 hover:text-red-400 p-1 -mr-1 active:scale-90 transition-transform"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {QUANDO_LABEL[s.quando]}
+                            {s.durata_min ? ` · ${s.durata_min} min` : ''}
+                            {s.su_campo ? ' · ⚠ su campo' : ' · fuori campo'}
+                            {s.quando === 'standalone' && s.ora_inizio ? ` · ${s.ora_inizio.slice(0, 5)}` : ''}
+                          </p>
+                          {s.note && (
+                            <p className="text-xs text-gray-400 mt-0.5 italic">{s.note}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
