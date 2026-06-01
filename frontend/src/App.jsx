@@ -47,7 +47,6 @@ import PresenzeAdmin from './pages/admin/PresenzeAdmin'
 import PrepLayout from './layouts/PrepLayout'
 import AgendaPrep from './pages/prep/AgendaPrep'
 import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
-import AtleticaCoach from './pages/coach/AtleticaCoach'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
 import { RoleSwitcherFAB } from './components/RoleSwitcher'
@@ -227,9 +226,6 @@ function AppShell() {
           <Route index          element={<AgendaPrep />} />
           <Route path="schede"  element={<SchedeAtletichePage />} />
         </Route>
-
-        {/* -- Tab Atletica allenatore ----------------------------- */}
-        <Route path="/coach/atletica" element={<ProtectedRoute requiredRole="allenatore"><AtleticaCoach /></ProtectedRoute>} />
 
         {/* ── Legacy redirects ─────────────────────────────────── */}
         <Route path="/bacheca"    element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />

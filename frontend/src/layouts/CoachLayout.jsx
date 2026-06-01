@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Home, Calendar, Activity, Bell, Dumbbell } from 'lucide-react'
+import { Home, Calendar, Activity, Bell } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -18,7 +18,6 @@ export default function CoachLayout() {
     { to: '/coach/calendario',           icon: Calendar,  label: 'Calendario' },
     { to: '/coach/attivita',             icon: Activity,  label: 'Attività' },
     { to: '/coach/bacheca',              icon: Bell,      label: 'Bacheca', badge: unread },
-    { to: '/coach/atletica',             icon: Dumbbell,  label: 'Atletica' },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,10 +44,6 @@ export default function CoachLayout() {
               )}
             </div>
             <span className="text-xs font-medium">Bacheca</span>
-          </NavLink>
-          <NavLink to="/coach/atletica" className={cls}>
-            <Dumbbell size={21} strokeWidth={1.8} />
-            <span className="text-xs font-medium">Atletica</span>
           </NavLink>
         </div>
       </nav>
