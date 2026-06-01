@@ -945,16 +945,17 @@ const LEGEND = [
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CalendarioPage() {
-  const { user, isAdmin, isAllenatore, societaId, profile } = useAuth()
+  const { user, isAdmin, isAllenatore, isPreparatore, societaId, profile } = useAuth()
   const location = useLocation()
   const actingAsAllenatore = location.pathname.startsWith('/coach') && isAllenatore
+  const actingAsPrep = location.pathname.startsWith('/prep') && isPreparatore
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
   const [calTab,           setCalTab]           = useState('settimana') // 'partite' | 'settimana' | 'importa'
   const [weekOffset,       setWeekOffset]       = useState(0)
   const [squadraFilter,    setSquadraFilter]    = useState('')
-  const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!actingAsAllenatore)
+  const [soloMieSquadre,   setSoloMieSquadre]   = useState(!!actingAsAllenatore || !!actingAsPrep)
   const [selectedEvent,    setSelectedEvent]    = useState(null)
   const [showForm,         setShowForm]         = useState(false)
   const [editingEvent,     setEditingEvent]     = useState(null)
@@ -1194,7 +1195,7 @@ export default function CalendarioPage() {
     setShowForm(true)
   }
 
-  const canModify = isAdmin || actingAsAllenatore
+  const canModify = isAdmin || actingAsAllenatore || actingAsPrep
 
   async function handleExportICS() {
     setExportingICS(true)
