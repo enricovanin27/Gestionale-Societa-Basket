@@ -1032,7 +1032,7 @@ export default function CalendarioPage() {
 
   const effectiveSquadre = useMemo(() => {
     if (!soloMieSquadre) return null
-    if (!actingAsAllenatore) return null
+    if (!actingAsAllenatore && !actingAsPrep) return null
     if (myCoachSquadre === null) return [] // ancora in caricamento
     return myCoachSquadre.length > 0 ? myCoachSquadre : null
   }, [soloMieSquadre, actingAsAllenatore, myCoachSquadre])
@@ -1261,7 +1261,7 @@ export default function CalendarioPage() {
       <div className="bg-white border-b shadow-sm isolate">
         {(calTab === 'partite' || calTab === 'settimana') && (
           <div className="px-4 pt-2 pb-2 space-y-2">
-            {actingAsAllenatore && (
+            {(actingAsAllenatore || actingAsPrep) && (
               <button
                 onClick={() => { setSoloMieSquadre(v => !v); setSquadraFilter('') }}
                 className={`text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
