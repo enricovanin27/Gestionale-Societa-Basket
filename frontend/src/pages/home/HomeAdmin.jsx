@@ -189,12 +189,14 @@ export default function HomeAdmin() {
         .select('id, nome, cognome, squadra')
         .in('id', idsBassa)
 
-      return (giocatori ?? []).map(g => ({
-        ...g,
-        presenti: byGiocatore[g.id].presenti,
-        totale:   byGiocatore[g.id].totale,
-        pct: Math.round(byGiocatore[g.id].presenti / byGiocatore[g.id].totale * 100),
-      }))
+      return (giocatori ?? [])
+        .filter(g => byGiocatore[g.id])
+        .map(g => ({
+          ...g,
+          presenti: byGiocatore[g.id].presenti,
+          totale:   byGiocatore[g.id].totale,
+          pct: Math.round(byGiocatore[g.id].presenti / byGiocatore[g.id].totale * 100),
+        }))
     },
     staleTime: 5 * 60 * 1000,
   })
