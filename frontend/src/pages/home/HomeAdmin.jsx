@@ -154,6 +154,51 @@ export default function HomeAdmin() {
     staleTime: 5 * 60 * 1000,
   })
 
+  // ── Giocatori con presenze < 50% ultimi 30 giorni ─────────────────────────
+  const { data: giocatoriBassaPresenza = [] } = useQuery({
+    queryKey: ['admin-giocatori-bassa-presenza', societaId, da30Str],
+    enabled: !!societaId,
+    queryFn: async () => {
+      const { data: presenze } = await supabase
+        .from('presenze_allenamento')
+        .select('giocatore_id, presente')
+        .eq('societa_id', societaId)
+        .gte('data', da30Str)
+        .lte('data', todayStr)
+
+      if (!presenze?.length) return []
+
+      // Raggruppa per giocatore_id
+      const byGiocatore = {}
+      for (const p of presenze) {
+        if (!byGiocatore[p.giocatore_id])
+          byGiocatore[p.giocatore_id] = { presenti: 0, totale: 0 }
+        byGiocatore[p.giocatore_id].totale++
+        if (p.presente) byGiocatore[p.giocatore_id].presenti++
+      }
+
+      // Filtra: min 3 allenamenti registrati e presenza < 50%
+      const idsBassa = Object.entries(byGiocatore)
+        .filter(([, { presenti, totale }]) => totale >= 3 && presenti / totale < 0.5)
+        .map(([id]) => id)
+
+      if (!idsBassa.length) return []
+
+      const { data: giocatori } = await supabase
+        .from('giocatori')
+        .select('id, nome, cognome, squadra')
+        .in('id', idsBassa)
+
+      return (giocatori ?? []).map(g => ({
+        ...g,
+        presenti: byGiocatore[g.id].presenti,
+        totale:   byGiocatore[g.id].totale,
+        pct: Math.round(byGiocatore[g.id].presenti / byGiocatore[g.id].totale * 100),
+      }))
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const presenzePerSquadra = useMemo(() => {
     const grouped = {}
     for (const p of presenzeScorsa) {
@@ -240,7 +285,7 @@ export default function HomeAdmin() {
       .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
   }, [thisWeek, todayStr])
 
-  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length + squadreBassaPresenza.length
+  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length + squadreBassaPresenza.length + (giocatoriBassaPresenza.length > 0 ? 1 : 0)
   const isLoading      = loadingP || loadingProv || loadingG
   const isError        = isErrorP
 
@@ -375,6 +420,17 @@ export default function HomeAdmin() {
                     </p>
                   </button>
                 ))}
+                {giocatoriBassaPresenza.length > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/presenze')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-orange-300 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      👤 {giocatoriBassaPresenza.length}{' '}
+                      giocator{giocatoriBassaPresenza.length === 1 ? 'e' : 'i'} con meno del 50% di presenze nell&apos;ultimo mese
+                    </p>
+                  </button>
+                )}
               </div>
             </div>
           )}
