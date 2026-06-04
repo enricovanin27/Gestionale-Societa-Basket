@@ -169,6 +169,11 @@ export default function HomeAdmin() {
       .sort((a, b) => (a.pct ?? 100) - (b.pct ?? 100)) // prima le più basse
   }, [presenzeScorsa])
 
+  const squadreBassaPresenza = useMemo(
+    () => presenzePerSquadra.filter(p => p.pct !== null && p.pct < 60),
+    [presenzePerSquadra]
+  )
+
   // ── Partite future (prossimi 14gg) ─────────────────────────────────────────
   const { data: partiteFuture = [], isLoading: loadingP, isError: isErrorP } = useQuery({
     queryKey: ['admin-partite-future', todayStr, societaId],
@@ -235,7 +240,7 @@ export default function HomeAdmin() {
       .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
   }, [thisWeek, todayStr])
 
-  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length
+  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length + squadreBassaPresenza.length
   const isLoading      = loadingP || loadingProv || loadingG
   const isError        = isErrorP
 
@@ -356,6 +361,17 @@ export default function HomeAdmin() {
                       {a.data === ieriStr
                         ? 'ieri'
                         : format(parseISO(a.data), 'EEE d MMM', { locale: it })}
+                    </p>
+                  </button>
+                ))}
+                {squadreBassaPresenza.map(p => (
+                  <button
+                    key={`bassa-presenza-${p.squadra}`}
+                    onClick={() => navigate('/admin/presenze')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-orange-400 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      📉 {p.squadra}: solo {p.pct}% di presenze la settimana scorsa
                     </p>
                   </button>
                 ))}
