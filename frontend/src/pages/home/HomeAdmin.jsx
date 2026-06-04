@@ -36,9 +36,9 @@ export default function HomeAdmin() {
   const weekEndStr    = useMemo(() => format(addDays(weekStart, 6), 'yyyy-MM-dd'), [weekStart])
   const lastWeekStart = useMemo(() => format(addDays(weekStart, -7), 'yyyy-MM-dd'), [weekStart])
   const lastWeekEnd   = useMemo(() => format(addDays(weekStart, -1), 'yyyy-MM-dd'), [weekStart])
-  const da30Str = format(subDays(today, 30), 'yyyy-MM-dd')
-  const da2Str  = format(subDays(today, 2),  'yyyy-MM-dd')
-  const ieriStr = format(subDays(today, 1),  'yyyy-MM-dd')
+  const da30Str = useMemo(() => format(subDays(today, 30), 'yyyy-MM-dd'), [])
+  const da2Str  = useMemo(() => format(subDays(today, 2),  'yyyy-MM-dd'), [])
+  const ieriStr = useMemo(() => format(subDays(today, 1),  'yyyy-MM-dd'), [])
 
   // ── KPI: giocatori, squadre, cert ──────────────────────────────────────────
   const { data: giocatori = [], isLoading: loadingG } = useQuery({
