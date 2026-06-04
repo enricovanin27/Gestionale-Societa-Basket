@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { format, addDays, addWeeks, startOfWeek, startOfMonth, endOfMonth, parseISO } from 'date-fns'
+import { format, addDays, addWeeks, startOfWeek, startOfMonth, endOfMonth, parseISO, subDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { CheckCircle2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -36,6 +36,9 @@ export default function HomeAdmin() {
   const weekEndStr    = useMemo(() => format(addDays(weekStart, 6), 'yyyy-MM-dd'), [weekStart])
   const lastWeekStart = useMemo(() => format(addDays(weekStart, -7), 'yyyy-MM-dd'), [weekStart])
   const lastWeekEnd   = useMemo(() => format(addDays(weekStart, -1), 'yyyy-MM-dd'), [weekStart])
+  const da30Str = format(subDays(today, 30), 'yyyy-MM-dd')
+  const da2Str  = format(subDays(today, 2),  'yyyy-MM-dd')
+  const ieriStr = format(subDays(today, 1),  'yyyy-MM-dd')
 
   // ── KPI: giocatori, squadre, cert ──────────────────────────────────────────
   const { data: giocatori = [], isLoading: loadingG } = useQuery({
@@ -111,6 +114,42 @@ export default function HomeAdmin() {
         .gte('data', lastWeekStart)
         .lte('data', lastWeekEnd)
       return data ?? []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // ── Appelli mancanti ultimi 2 giorni ──────────────────────────────────────
+  const { data: appelliMancanti = [] } = useQuery({
+    queryKey: ['admin-appelli-mancanti', da2Str, todayStr, societaId],
+    enabled: !!societaId,
+    queryFn: async () => {
+      // Allenamenti programmati (non annullati) negli ultimi 2 giorni, escluso oggi
+      const { data: allenamenti } = await supabase
+        .from('orario_settimana')
+        .select('id, squadra, data, ora_inizio')
+        .eq('societa_id', societaId)
+        .eq('annullato', false)
+        .gte('data', da2Str)
+        .lt('data', todayStr)
+        .order('data').order('ora_inizio')
+
+      if (!allenamenti?.length) return []
+
+      // Presenze registrate nello stesso range
+      const { data: presenze } = await supabase
+        .from('presenze_allenamento')
+        .select('data, squadra')
+        .eq('societa_id', societaId)
+        .gte('data', da2Str)
+        .lt('data', todayStr)
+
+      // Set di coppie (data|squadra) che hanno almeno una presenza registrata
+      const conAppello = new Set(
+        (presenze ?? []).map(p => `${p.data}|${p.squadra}`)
+      )
+
+      // Restituisce solo gli allenamenti senza appello registrato
+      return allenamenti.filter(a => !conAppello.has(`${a.data}|${a.squadra}`))
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -196,7 +235,7 @@ export default function HomeAdmin() {
       .sort((a, b) => (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? ''))
   }, [thisWeek, todayStr])
 
-  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0)
+  const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length
   const isLoading      = loadingP || loadingProv || loadingG
   const isError        = isErrorP
 
@@ -305,6 +344,21 @@ export default function HomeAdmin() {
                     </p>
                   </button>
                 )}
+                {appelliMancanti.map(a => (
+                  <button
+                    key={`appello-${a.id}`}
+                    onClick={() => navigate('/admin/presenze')}
+                    className="w-full text-left bg-white rounded-xl border-l-4 border-blue-400 px-4 py-3 shadow-sm active:scale-[0.99] transition-transform"
+                  >
+                    <p className="text-sm text-gray-800">
+                      📋 Appello mancante: {a.squadra}
+                      {' — '}
+                      {a.data === ieriStr
+                        ? 'ieri'
+                        : format(parseISO(a.data), 'EEE d MMM', { locale: it })}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
           )}
