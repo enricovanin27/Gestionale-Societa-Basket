@@ -119,7 +119,7 @@ export default function HomeAdmin() {
   })
 
   // ── Appelli mancanti ultimi 2 giorni ──────────────────────────────────────
-  const { data: appelliMancanti = [] } = useQuery({
+  const { data: appelliMancanti = [], isLoading: loadingAppelli } = useQuery({
     queryKey: ['admin-appelli-mancanti', da2Str, todayStr, societaId],
     enabled: !!societaId,
     queryFn: async () => {
@@ -155,8 +155,8 @@ export default function HomeAdmin() {
   })
 
   // ── Giocatori con presenze < 50% ultimi 30 giorni ─────────────────────────
-  const { data: giocatoriBassaPresenza = [] } = useQuery({
-    queryKey: ['admin-giocatori-bassa-presenza', societaId, da30Str],
+  const { data: giocatoriBassaPresenza = [], isLoading: loadingGiocBassa } = useQuery({
+    queryKey: ['admin-giocatori-bassa-presenza', societaId, da30Str, todayStr],
     enabled: !!societaId,
     queryFn: async () => {
       const { data: presenze } = await supabase
@@ -288,7 +288,7 @@ export default function HomeAdmin() {
   }, [thisWeek, todayStr])
 
   const urgenzeTot     = provvisorie.length + totalConflicts + certScadutiN + (certInScad30N > 0 ? 1 : 0) + appelliMancanti.length + squadreBassaPresenza.length + (giocatoriBassaPresenza.length > 0 ? 1 : 0)
-  const isLoading      = loadingP || loadingProv || loadingG
+  const isLoading      = loadingP || loadingProv || loadingG || loadingAppelli || loadingGiocBassa
   const isError        = isErrorP
 
   return (
