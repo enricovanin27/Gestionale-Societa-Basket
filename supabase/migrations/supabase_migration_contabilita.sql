@@ -32,11 +32,14 @@ BEGIN
         FOR SELECT TO authenticated
         USING (
           societa_id = (SELECT societa_id FROM profiles WHERE id = auth.uid())
-          AND (
-            (SELECT ruolo FROM profiles WHERE id = auth.uid())
-              IN ('segreteria', 'dirigente', 'admin', 'super_admin')
-            OR 'segreteria' = ANY((SELECT ruoli_extra FROM profiles WHERE id = auth.uid()))
-            OR 'dirigente'  = ANY((SELECT ruoli_extra FROM profiles WHERE id = auth.uid()))
+          AND EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND (
+              ruolo IN ('segreteria', 'dirigente', 'admin', 'super_admin')
+              OR 'segreteria' = ANY(ruoli_extra)
+              OR 'dirigente'  = ANY(ruoli_extra)
+            )
           )
         );
     $policy$;
@@ -53,10 +56,13 @@ BEGIN
         FOR INSERT TO authenticated
         WITH CHECK (
           societa_id = (SELECT societa_id FROM profiles WHERE id = auth.uid())
-          AND (
-            (SELECT ruolo FROM profiles WHERE id = auth.uid())
-              IN ('segreteria', 'admin', 'super_admin')
-            OR 'segreteria' = ANY((SELECT ruoli_extra FROM profiles WHERE id = auth.uid()))
+          AND EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND (
+              ruolo IN ('segreteria', 'admin', 'super_admin')
+              OR 'segreteria' = ANY(ruoli_extra)
+            )
           )
         );
     $policy$;
@@ -73,10 +79,13 @@ BEGIN
         FOR DELETE TO authenticated
         USING (
           societa_id = (SELECT societa_id FROM profiles WHERE id = auth.uid())
-          AND (
-            (SELECT ruolo FROM profiles WHERE id = auth.uid())
-              IN ('segreteria', 'admin', 'super_admin')
-            OR 'segreteria' = ANY((SELECT ruoli_extra FROM profiles WHERE id = auth.uid()))
+          AND EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND (
+              ruolo IN ('segreteria', 'admin', 'super_admin')
+              OR 'segreteria' = ANY(ruoli_extra)
+            )
           )
         );
     $policy$;
