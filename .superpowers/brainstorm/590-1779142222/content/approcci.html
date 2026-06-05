@@ -1,0 +1,42 @@
+<h2>Come integrare il modulo nell'architettura esistente?</h2>
+<p class="subtitle">Tre approcci — stesso insieme di funzionalità, organizzazione diversa</p>
+
+<div class="options">
+  <div class="option" data-choice="autonomo" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Modulo autonomo</h3>
+      <p>Il preparatore ha il suo layout e routing separato <code>/prep/*</code> (come <code>/coach</code>, <code>/admin</code>). Gli allenatori vedono i dati nella loro area con una tab aggiuntiva.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Separazione netta delle responsabilità</li><li>Facile da estendere in futuro</li><li>Coerente con i pattern esistenti dell'app</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Più routing e layout da creare</li><li>Piccolo overhead iniziale di sviluppo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="integrato" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Integrato nel profilo giocatore</h3>
+      <p>I dati atletici (test, infortuni, antropometria) vengono aggiunti come tab nella pagina <code>GiocatoreDetail</code> della segreteria. Le schede di lavoro e la sala pesi diventano sezioni nel pannello admin.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Meno file nuovi da creare</li><li>Dati sempre nel contesto del giocatore</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Accoppia preparazione atletica con la segreteria</li><li>Il preparatore non ha una "casa" propria nell'app</li><li>Difficile separare i permessi</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="ibrido" onclick="toggleSelect(this)">
+    <div class="letter">C — Raccomandato</div>
+    <div class="content">
+      <h3>Ibrido: layout dedicato + integrazione leggera</h3>
+      <p>Il preparatore ha un proprio layout <code>/prep/*</code> con accesso completo. Gli allenatori trovano i dati dei propri giocatori in una nuova tab in <code>/coach</code> (sola lettura). La sala pesi riutilizza il sistema <code>orario_fisso + orario_settimana</code> già esistente.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Coerente con AdminLayout / CoachLayout / ecc.</li><li>Permessi granulari (preparatore scrive, coach legge)</li><li>La sala pesi non richiede nuovo codice di scheduling</li><li>Estensibile senza toccare la logica esistente</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Richiede un nuovo layout e nuovo ruolo nel DB</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Seleziona l'approccio preferito, poi rispondimi nel terminale.</p>

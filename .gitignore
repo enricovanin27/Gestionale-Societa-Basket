@@ -1,0 +1,13 @@
+﻿# Credenziali — mai in git
+credenziali.json
+config.py
+.streamlit/secrets.toml
+migrate.py
+debug_dv.py
+test_email.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env

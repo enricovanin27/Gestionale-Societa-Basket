@@ -1,0 +1,271 @@
+<h2>Setup — Redesign struttura</h2>
+<p class="subtitle">Il Setup attuale ha 8 tab orizzontali scrollabili senza gerarchia. Propongo due approcci migliori. L'attuale è mostrato a sinistra per confronto.</p>
+
+<style>
+.three-col { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 16px; }
+.mock-header { border-radius: 12px 12px 0 0; padding: 12px 14px; color: white; }
+.mock-header .title { font-weight: 700; font-size: 14px; }
+.mock-header .sub { font-size: 10px; opacity: 0.8; margin-top: 1px; }
+
+/* Current design */
+.tab-scroll { display: flex; gap: 0; overflow-x: auto; border-bottom: 2px solid #e5e7eb; padding-bottom: 0; }
+.old-tab {
+  padding: 8px 12px; font-size: 10px; font-weight: 600; white-space: nowrap;
+  color: #9ca3af; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  display: flex; align-items: center; gap: 4px;
+}
+.old-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+
+/* Option A — grouped card menu */
+.setup-group { margin-bottom: 12px; }
+.group-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; margin-bottom: 5px; padding: 0 2px; }
+.menu-card { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; }
+.menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid #f3f4f6; cursor: default;
+}
+.menu-item:last-child { border-bottom: none; }
+.menu-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;
+}
+.menu-text { flex: 1; }
+.menu-text .name { font-size: 12px; font-weight: 600; color: #1f2937; }
+.menu-text .desc { font-size: 9px; color: #9ca3af; margin-top: 1px; }
+.menu-count { font-size: 10px; font-weight: 700; color: #6b7280; margin-right: 2px; }
+.chevron { color: #d1d5db; font-size: 11px; }
+
+/* Option B — tabs with category headers */
+.tab-group-header { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; padding: 5px 10px 2px; background: #f9fafb; }
+.new-tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 8px 12px; font-size: 10px; font-weight: 600; color: #4b5563;
+  border-left: 3px solid transparent;
+}
+.new-tab.active { color: #d97706; border-left-color: #d97706; background: #fff7ed; }
+
+/* Reorganization note */
+.move-tag {
+  font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+  background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; margin-left: 4px;
+}
+.remove-tag {
+  font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
+  background: #fdf4ff; color: #7e22ce; border: 1px solid #e9d5ff; margin-left: 4px;
+}
+</style>
+
+<div class="three-col">
+
+  <!-- ATTUALE (problema) -->
+  <div class="mockup">
+    <div class="mockup-header" style="background: #1f2937;">ATTUALE — 8 tab scrollabili (problema)</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:0; border-radius:0 0 8px 8px;">
+      <div class="mock-header" style="background:#374151; border-radius:0;">
+        <div class="title">⚙️ Setup</div>
+      </div>
+      <div style="background:white; border-bottom: 1px solid #e5e7eb;">
+        <div class="tab-scroll">
+          <div class="old-tab active">🏀 Squadre</div>
+          <div class="old-tab">🏛 Palestre</div>
+          <div class="old-tab">🏋️ Allenatori</div>
+          <div class="old-tab">👥 Giocatori</div>
+          <div class="old-tab">💰 Quote</div>
+          <div class="old-tab">👤 Utenti</div>
+          <div class="old-tab">📅 Sched.</div>
+          <div class="old-tab">🏢 Società</div>
+        </div>
+      </div>
+      <div style="padding:12px;">
+        <div style="background:#fef2f2; border: 1px solid #fecaca; border-radius:10px; padding:10px; font-size:11px; color:#991b1b;">
+          <strong>Problemi:</strong><br>
+          • Tutto allo stesso livello — nessuna gerarchia<br>
+          • Su mobile bisogna scrollare per trovare le tab<br>
+          • "Quote" in setup ≠ "Quote" in segreteria — confuso<br>
+          • Giocatori/Allenatori mischiati con Palestre/Società<br>
+          • "Scheduling" è uno strumento, non una impostazione<br>
+          • 8 voci sono troppe per una barra orizzontale
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPZIONE A — grouped card menu (raccomandato) -->
+  <div class="mockup" data-choice="A" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">A — Menu a sezioni (stile iOS Settings) ✦ Raccomandato</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:0 0 8px 8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#92400e,#d97706); border-radius:10px; margin-bottom:12px;">
+        <div class="title">⚙️ Setup — ASD Basket Oderzo</div>
+        <div class="sub">Stagione 2025/26</div>
+      </div>
+
+      <!-- Persone -->
+      <div class="setup-group">
+        <div class="group-label">👥 Persone</div>
+        <div class="menu-card">
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#eff6ff;">🏀</div>
+            <div class="menu-text">
+              <div class="name">Giocatori</div>
+              <div class="desc">Lista, squadre, info anagrafiche</div>
+            </div>
+            <span class="menu-count">48</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#fff7ed;">🏋️</div>
+            <div class="menu-text">
+              <div class="name">Allenatori</div>
+              <div class="desc">Profili e assegnazione squadre</div>
+            </div>
+            <span class="menu-count">6</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#f0fdf4;">👤</div>
+            <div class="menu-text">
+              <div class="name">Utenti & Accessi</div>
+              <div class="desc">Inviti, ruoli, reset password</div>
+            </div>
+            <span class="menu-count">32</span>
+            <span class="chevron">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Struttura -->
+      <div class="setup-group">
+        <div class="group-label">🏢 Struttura societaria</div>
+        <div class="menu-card">
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#fdf4ff;">🏀</div>
+            <div class="menu-text">
+              <div class="name">Squadre</div>
+              <div class="desc">Categorie e nomi squadre</div>
+            </div>
+            <span class="menu-count">6</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#f0fdf4;">🏛</div>
+            <div class="menu-text">
+              <div class="name">Palestre</div>
+              <div class="desc">Sedi, orari disponibilità</div>
+            </div>
+            <span class="menu-count">3</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#fef9c3;">🏢</div>
+            <div class="menu-text">
+              <div class="name">Società</div>
+              <div class="desc">Nome, info generali, stagione</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strumenti -->
+      <div class="setup-group">
+        <div class="group-label">🛠 Strumenti & Configurazione</div>
+        <div class="menu-card">
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#fdf4ff;">💰</div>
+            <div class="menu-text">
+              <div class="name">Tipologie Quote</div>
+              <div class="desc">Configura iscrizioni, mensili, ecc.</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#eff6ff;">📅</div>
+            <div class="menu-text">
+              <div class="name">Scheduling Allenamenti</div>
+              <div class="desc">Suggeritore automatico orari</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <div class="menu-icon" style="background:#fff7ed;">🏀</div>
+            <div class="menu-text">
+              <div class="name">Doppio Campionato</div>
+              <div class="desc">Squadre con giocatori in comune</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Pro:</strong> gerarchia chiara, zero scroll orizzontale, scalabile (aggiungi voci senza rompere nulla), ogni sezione è una sub-pagina con back button.<br>
+      <strong>Contro:</strong> un tap in più per arrivare alla voce (home → sezione → contenuto).
+    </div>
+  </div>
+
+  <!-- OPZIONE B — sidebar categorizzata -->
+  <div class="mockup" data-choice="B" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">B — Tab verticali con gruppi</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:0; border-radius:0 0 8px 8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#92400e,#d97706); border-radius:0;">
+        <div class="title">⚙️ Setup</div>
+        <div class="sub">ASD Basket Oderzo</div>
+      </div>
+      <div style="display:flex; min-height: 280px;">
+        <!-- Sidebar -->
+        <div style="width:120px; background:white; border-right:1px solid #f3f4f6; flex-shrink:0;">
+          <div class="tab-group-header">PERSONE</div>
+          <div class="new-tab active">🏀 Giocatori</div>
+          <div class="new-tab">🏋️ Allenatori</div>
+          <div class="new-tab">👤 Utenti</div>
+          <div class="tab-group-header">STRUTTURA</div>
+          <div class="new-tab">🏀 Squadre</div>
+          <div class="new-tab">🏛 Palestre</div>
+          <div class="new-tab">🏢 Società</div>
+          <div class="tab-group-header">STRUMENTI</div>
+          <div class="new-tab">💰 Quote</div>
+          <div class="new-tab">📅 Sched.</div>
+        </div>
+        <!-- Content area -->
+        <div style="flex:1; padding:10px;">
+          <div style="font-size:12px; font-weight:700; color:#1f2937; margin-bottom:8px;">Giocatori (48)</div>
+          <div style="background:white; border-radius:8px; border:1px solid #e5e7eb; padding:8px; font-size:10px; color:#6b7280; text-align:center;">
+            Lista giocatori qui...
+          </div>
+          <div style="background:#fef9c3; border:1px solid #fde68a; border-radius:8px; padding:7px; margin-top:8px; font-size:10px; color:#854d0e;">
+            ⚠️ Su schermi piccoli la sidebar comprime troppo il contenuto
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Pro:</strong> vedi sempre dove sei senza tornare indietro, navigazione rapida.<br>
+      <strong>Contro:</strong> su mobile la sidebar stringe lo spazio contenuto — problematico con form e liste lunghe.
+    </div>
+  </div>
+
+</div>
+
+<!-- Riepilogo riorganizzazione -->
+<div style="margin-top:20px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:14px;">
+  <p style="font-weight:700; font-size:12px; color:#166534; margin:0 0 8px;">📦 Riorganizzazione contenuti (indipendente dall'opzione scelta)</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:11px; color:#374151;">
+    <div style="background:white; border-radius:8px; padding:8px; border:1px solid #e5e7eb;">
+      <strong>Rimane in Setup</strong><br>
+      • Giocatori (anagrafica, squadre)<br>
+      • Allenatori (profili, squadre)<br>
+      • Utenti & Accessi (inviti, ruoli)<br>
+      • Squadre, Palestre, Società<br>
+      • Tipologie Quote (config template)<br>
+      • Scheduling, Doppio Campionato
+    </div>
+    <div style="background:white; border-radius:8px; padding:8px; border:1px solid #e5e7eb;">
+      <strong>Si sposta altrove</strong><br>
+      • <em>Quote tracking</em> → /secretary/quote<br>
+      • <em>Cert. medico</em> → /secretary/giocatori<br>
+      • <em>Presenze</em> → /coach/presenze<br>
+      • <em>Vista giocatori per admin</em> → /admin/persone<br><br>
+      <span style="color:#9ca3af; font-size:10px;">Setup = configurazione. Le operazioni quotidiane vivono nei loro namespace.</span>
+    </div>
+  </div>
+</div>

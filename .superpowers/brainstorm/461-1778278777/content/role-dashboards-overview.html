@@ -1,0 +1,287 @@
+<h2>Dashboard dedicata per ogni ruolo — Panoramica</h2>
+<p class="subtitle">Ecco come apparirebbe l'app con una home e navigazione su misura per ciascun ruolo. Scorrendo vedi tutti e 5. Clicca su un ruolo per selezionarlo e darmi feedback.</p>
+
+<style>
+.roles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+.role-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.role-card:hover { border-color: #d97706; box-shadow: 0 4px 16px rgba(217,119,6,0.15); }
+.role-card.selected { border-color: #d97706; box-shadow: 0 4px 16px rgba(217,119,6,0.25); }
+.role-badge {
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex; align-items: center; gap: 8px;
+}
+.phone-frame {
+  background: #f9fafb;
+  padding: 12px;
+  min-height: 340px;
+  border-top: 1px solid #f3f4f6;
+}
+/* Mock phone elements */
+.mock-header {
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  color: white;
+  margin-bottom: 10px;
+}
+.mock-header .role-label { font-size: 10px; opacity: 0.75; margin-bottom: 2px; }
+.mock-header .title { font-weight: 700; font-size: 15px; }
+.mock-header .subtitle { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+.kpi-row { display: grid; gap: 6px; margin-bottom: 8px; }
+.kpi-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.kpi-box {
+  background: white;
+  border-radius: 10px;
+  padding: 8px;
+  text-align: center;
+  border: 1px solid #f3f4f6;
+}
+.kpi-box .num { font-size: 20px; font-weight: 800; }
+.kpi-box .lbl { font-size: 9px; color: #6b7280; margin-top: 1px; }
+.alert-row {
+  background: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-left: 3px solid;
+  font-size: 11px;
+}
+.event-row {
+  background: white;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.event-day {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: white; text-align: center;
+  line-height: 1.2;
+}
+.event-info { flex: 1; }
+.event-info .name { font-size: 11px; font-weight: 600; color: #1f2937; }
+.event-info .meta { font-size: 9px; color: #6b7280; }
+.section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 6px 0 4px; }
+/* Mock bottom nav */
+.mock-nav {
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  border-radius: 0 0 12px 12px;
+  padding: 6px 8px 8px;
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; font-size: 8px; font-weight: 600; color: #9ca3af; min-width: 36px;
+}
+.nav-item.active { color: #d97706; }
+.nav-icon { font-size: 15px; }
+/* Missing feature tag */
+.new-tag {
+  display: inline-block;
+  background: #fef9c3; color: #854d0e;
+  font-size: 8px; font-weight: 700; border-radius: 4px; padding: 1px 4px;
+  margin-left: 4px; vertical-align: middle; border: 1px solid #fde68a;
+}
+</style>
+
+<div class="roles-grid">
+
+  <!-- ─── ADMIN ───────────────────────────────────────── -->
+  <div class="role-card" data-choice="admin" onclick="toggleSelect(this)">
+    <div class="role-badge" style="background:#fff7ed; color:#92400e;">
+      <span>🏛</span> Admin / Dirigente
+    </div>
+    <div class="phone-frame">
+      <div class="mock-header" style="background: linear-gradient(135deg,#92400e,#d97706);">
+        <div class="role-label">ASD Basket Oderzo</div>
+        <div class="title">Dashboard</div>
+        <div class="subtitle">Venerdì 9 Maggio 2026</div>
+      </div>
+      <div class="kpi-row cols-3">
+        <div class="kpi-box"><div class="num" style="color:#d97706">6</div><div class="lbl">Squadre</div></div>
+        <div class="kpi-box"><div class="num" style="color:#dc2626">3</div><div class="lbl">Cert. scaduti</div></div>
+        <div class="kpi-box"><div class="num" style="color:#16a34a">12</div><div class="lbl">Partite mese</div></div>
+      </div>
+      <div class="kpi-row cols-2">
+        <div class="kpi-box"><div class="num" style="color:#f59e0b">5</div><div class="lbl">Quote non pagate</div></div>
+        <div class="kpi-box"><div class="num" style="color:#7c3aed">2</div><div class="lbl">Provvisorie</div></div>
+      </div>
+      <div class="section-label">Azioni urgenti</div>
+      <div class="alert-row" style="border-color:#dc2626; color:#374151">⚠️ 3 allenamenti in conflitto con partite</div>
+      <div class="alert-row" style="border-color:#f59e0b; color:#374151">📋 2 partite provvisorie da confermare</div>
+      <div class="mock-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div>Dashboard</div>
+        <div class="nav-item"><div class="nav-icon">🏀</div>Partite</div>
+        <div class="nav-item"><div class="nav-icon">🏋️</div>Allenamenti</div>
+        <div class="nav-item"><div class="nav-icon">👥</div>Persone</div>
+        <div class="nav-item"><div class="nav-icon">⚙️</div>Setup</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ALLENATORE ──────────────────────────────────── -->
+  <div class="role-card" data-choice="allenatore" onclick="toggleSelect(this)">
+    <div class="role-badge" style="background:#fff7ed; color:#92400e;">
+      <span>🏋️</span> Allenatore
+    </div>
+    <div class="phone-frame">
+      <div class="mock-header" style="background: linear-gradient(135deg,#d97706,#f59e0b);">
+        <div class="role-label">Ciao, Marco!</div>
+        <div class="title">U14 · U16</div>
+        <div class="subtitle">Venerdì 9 Maggio 2026</div>
+      </div>
+      <div class="section-label">Prossima gara — U14</div>
+      <div class="alert-row" style="border-color:#2563eb; background:#eff6ff; color:#1e3a8a; font-size:12px; font-weight:600;">
+        🏀 Dom 11 Mag · vs Treviso · Ore 15:00 · PalaOderzo
+      </div>
+      <div class="section-label">Allenamenti questa settimana</div>
+      <div class="event-row">
+        <div class="event-day" style="background:#d97706">MAR<br>13</div>
+        <div class="event-info"><div class="name">U14 — Allenamento</div><div class="meta">18:30–20:00 · Palestra A</div></div>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#16a34a">GIO<br>15</div>
+        <div class="event-info"><div class="name">U16 — Allenamento</div><div class="meta">19:00–21:00 · Palestra B</div></div>
+      </div>
+      <div class="mock-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
+        <div class="nav-item"><div class="nav-icon">📅</div>Calendario</div>
+        <div class="nav-item"><div class="nav-icon">✅</div>Presenze<span class="new-tag">NEW</span></div>
+        <div class="nav-item"><div class="nav-icon">📊</div>Statistiche</div>
+        <div class="nav-item"><div class="nav-icon">🔔</div>Bacheca</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── GENITORE ─────────────────────────────────────── -->
+  <div class="role-card" data-choice="genitore" onclick="toggleSelect(this)">
+    <div class="role-badge" style="background:#f0fdf4; color:#166534;">
+      <span>👨‍👧</span> Genitore
+    </div>
+    <div class="phone-frame">
+      <div class="mock-header" style="background: linear-gradient(135deg,#166534,#16a34a);">
+        <div class="role-label">Ciao, Paola!</div>
+        <div class="title">Luca Rossi — U14</div>
+        <div class="subtitle">Prossimi impegni</div>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#d97706">MAR<br>13</div>
+        <div class="event-info"><div class="name">Allenamento U14</div><div class="meta">18:30–20:00 · Palestra A</div></div>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#2563eb">DOM<br>18</div>
+        <div class="event-info"><div class="name">Partita vs Treviso</div><div class="meta">15:00 · PalaOderzo · Casa</div></div>
+      </div>
+      <div class="section-label">Informazioni figlio</div>
+      <div class="kpi-row cols-2">
+        <div class="kpi-box"><div class="num" style="color:#dc2626; font-size:13px">12 Nov</div><div class="lbl">Cert. medico scade</div></div>
+        <div class="kpi-box"><div class="num" style="color:#f59e0b; font-size:13px">€50</div><div class="lbl">Quota da pagare<span class="new-tag">NEW</span></div></div>
+      </div>
+      <div class="mock-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
+        <div class="nav-item"><div class="nav-icon">💰</div>Quote<span class="new-tag">NEW</span></div>
+        <div class="nav-item"><div class="nav-icon">🔔</div>Bacheca</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── GIOCATORE ─────────────────────────────────────── -->
+  <div class="role-card" data-choice="giocatore" onclick="toggleSelect(this)">
+    <div class="role-badge" style="background:#eff6ff; color:#1e40af;">
+      <span>🏀</span> Giocatore
+    </div>
+    <div class="phone-frame">
+      <div class="mock-header" style="background: linear-gradient(135deg,#1e40af,#2563eb);">
+        <div class="role-label">Ciao, Luca!</div>
+        <div class="title">Il mio programma</div>
+        <div class="subtitle">U14 · #7</div>
+      </div>
+      <div class="section-label">Questa settimana</div>
+      <div class="event-row">
+        <div class="event-day" style="background:#d97706">MAR<br>13</div>
+        <div class="event-info"><div class="name">Allenamento U14</div><div class="meta">18:30–20:00 · Palestra A</div></div>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#2563eb">DOM<br>18</div>
+        <div class="event-info"><div class="name">Partita vs Treviso</div><div class="meta">15:00 · PalaOderzo</div></div>
+      </div>
+      <div class="section-label">Le mie statistiche<span class="new-tag">NEW</span></div>
+      <div class="kpi-row cols-3">
+        <div class="kpi-box"><div class="num" style="color:#2563eb">87%</div><div class="lbl">Presenze</div></div>
+        <div class="kpi-box"><div class="num" style="color:#16a34a">18</div><div class="lbl">Allenamenti</div></div>
+        <div class="kpi-box"><div class="num" style="color:#d97706">4</div><div class="lbl">Partite</div></div>
+      </div>
+      <div class="mock-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div>Home</div>
+        <div class="nav-item"><div class="nav-icon">📊</div>Statistiche<span class="new-tag">NEW</span></div>
+        <div class="nav-item"><div class="nav-icon">🔔</div>Bacheca</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SEGRETERIA ─────────────────────────────────────── -->
+  <div class="role-card" data-choice="segreteria" onclick="toggleSelect(this)">
+    <div class="role-badge" style="background:#fdf4ff; color:#7e22ce;">
+      <span>📋</span> Segreteria
+    </div>
+    <div class="phone-frame">
+      <div class="mock-header" style="background: linear-gradient(135deg,#7e22ce,#9333ea);">
+        <div class="role-label">Segreteria</div>
+        <div class="title">Dashboard</div>
+        <div class="subtitle">Azioni urgenti oggi</div>
+      </div>
+      <div class="kpi-row cols-3">
+        <div class="kpi-box"><div class="num" style="color:#dc2626">3</div><div class="lbl">Cert. scaduti</div></div>
+        <div class="kpi-box"><div class="num" style="color:#f59e0b">5</div><div class="lbl">In scadenza</div></div>
+        <div class="kpi-box"><div class="num" style="color:#7c3aed">8</div><div class="lbl">Quote aperte</div></div>
+      </div>
+      <div class="section-label">Priorità alta</div>
+      <div class="alert-row" style="border-color:#dc2626; color:#374151">🔴 Mario Bianchi — cert. scaduto il 2 Mag</div>
+      <div class="alert-row" style="border-color:#f59e0b; color:#374151">🟡 Luca Rossi — cert. scade in 4 giorni</div>
+      <div class="alert-row" style="border-color:#7c3aed; color:#374151">💰 Giulia Verde — quota apr. non pagata</div>
+      <div class="mock-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div>Dashboard</div>
+        <div class="nav-item"><div class="nav-icon">👥</div>Giocatori</div>
+        <div class="nav-item"><div class="nav-icon">💰</div>Quote</div>
+        <div class="nav-item"><div class="nav-icon">🔔</div>Bacheca</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 24px; background: #fefce8; border: 1px solid #fde68a; border-radius: 12px; padding: 14px;">
+  <p style="font-weight: 700; font-size: 13px; color: #854d0e; margin-bottom: 8px;">🆕 Funzionalità non ancora implementate (identificate in questo redesign)</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Presenze allenamenti</strong> — per allenatori</div>
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Quote genitore</strong> — il genitore vede cosa deve pagare</div>
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Profilo giocatore</strong> — statistiche personali, presenze</div>
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Cert. medico visibile</strong> — al genitore (scadenza)</div>
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Dashboard segreteria</strong> — alert urgenti per cert+quote</div>
+    <div style="font-size: 12px; color: #78350f;">✅ <strong>Navigazione per ruolo</strong> — nav diversa per ogni profilo</div>
+  </div>
+</div>

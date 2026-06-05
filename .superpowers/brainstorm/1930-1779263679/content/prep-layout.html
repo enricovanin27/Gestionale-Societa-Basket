@@ -1,0 +1,109 @@
+<h2>Layout Preparatore Atletico — 3 tab</h2>
+<p class="subtitle">Come appare la navigazione del preparatore (bottom nav, come gli altri ruoli)</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;font-size:12px;">
+        <!-- Screen content -->
+        <div style="background:linear-gradient(to right,#92400e,#d97706);color:white;padding:12px 16px;">
+          <div style="font-weight:700;font-size:14px;">Preparazione Atletica</div>
+          <div style="font-size:11px;opacity:.8;">Agenda settimana</div>
+        </div>
+        <div style="padding:10px;space-y:8px;">
+          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:11px;color:#92400e;">LUN 19/05 · Under 17</div>
+            <div style="font-size:10px;color:#78350f;">Prima dell'allenamento · 17:30–18:00</div>
+            <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:9px;padding:2px 6px;border-radius:9999px;margin-top:3px;">Fuori campo</div>
+          </div>
+          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px;margin-bottom:6px;">
+            <div style="font-weight:600;font-size:11px;color:#92400e;">MER 21/05 · Prima Squadra</div>
+            <div style="font-size:10px;color:#78350f;">Durante l'allenamento · 18:00–18:30</div>
+            <div style="display:inline-block;background:#fee2e2;color:#991b1b;font-size:9px;padding:2px 6px;border-radius:9999px;margin-top:3px;">⚠ Su campo</div>
+          </div>
+          <div style="background:#f3f4f6;border-radius:8px;padding:8px;">
+            <div style="font-weight:600;font-size:11px;color:#374151;">GIO 22/05 · Sessione libera</div>
+            <div style="font-size:10px;color:#6b7280;">Sala pesi · 10:00–11:00</div>
+            <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:9px;padding:2px 6px;border-radius:9999px;margin-top:3px;">Fuori campo</div>
+          </div>
+        </div>
+        <!-- Bottom nav -->
+        <div style="border-top:1px solid #e5e7eb;display:flex;justify-content:space-around;padding:8px 4px;background:white;">
+          <div style="text-align:center;color:#d97706;">
+            <div style="font-size:16px;">📅</div>
+            <div style="font-size:8px;font-weight:600;">Agenda</div>
+          </div>
+          <div style="text-align:center;color:#9ca3af;">
+            <div style="font-size:16px;">🏥</div>
+            <div style="font-size:8px;">Stato</div>
+          </div>
+          <div style="text-align:center;color:#9ca3af;">
+            <div style="font-size:16px;">📋</div>
+            <div style="font-size:8px;">Schede</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Opzione A — Agenda come home</h3>
+      <p>Home = agenda turni settimanale. I 3 tab sono: Agenda · Stato · Schede.<br>Il preparatore apre l'app e vede subito i propri turni della settimana.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;font-size:12px;">
+        <!-- Screen content -->
+        <div style="background:linear-gradient(to right,#92400e,#d97706);color:white;padding:12px 16px;">
+          <div style="font-weight:700;font-size:14px;">Benvenuto, Marco!</div>
+          <div style="font-size:11px;opacity:.8;">Under 17 · Prima Squadra</div>
+        </div>
+        <div style="padding:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px;">
+              <div style="font-size:10px;font-weight:700;color:#991b1b;">🏥 Infortuni</div>
+              <div style="font-size:18px;font-weight:700;color:#dc2626;margin-top:2px;">2</div>
+              <div style="font-size:9px;color:#9ca3af;">attivi</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px;">
+              <div style="font-size:10px;font-weight:700;color:#166534;">📊 RPE medio</div>
+              <div style="font-size:18px;font-weight:700;color:#16a34a;margin-top:2px;">6.2</div>
+              <div style="font-size:9px;color:#9ca3af;">settimana</div>
+            </div>
+          </div>
+          <div style="background:#fef3c7;border-radius:8px;padding:8px;">
+            <div style="font-size:10px;font-weight:700;color:#92400e;margin-bottom:4px;">⏰ Prossimo turno</div>
+            <div style="font-size:11px;color:#78350f;">Oggi 17:30 · Under 17 · Pre-allenamento</div>
+          </div>
+        </div>
+        <!-- Bottom nav -->
+        <div style="border-top:1px solid #e5e7eb;display:flex;justify-content:space-around;padding:8px 4px;background:white;">
+          <div style="text-align:center;color:#d97706;">
+            <div style="font-size:16px;">🏠</div>
+            <div style="font-size:8px;font-weight:600;">Home</div>
+          </div>
+          <div style="text-align:center;color:#9ca3af;">
+            <div style="font-size:16px;">📅</div>
+            <div style="font-size:8px;">Turni</div>
+          </div>
+          <div style="text-align:center;color:#9ca3af;">
+            <div style="font-size:16px;">🏥</div>
+            <div style="font-size:8px;">Stato</div>
+          </div>
+          <div style="text-align:center;color:#9ca3af;">
+            <div style="font-size:16px;">📋</div>
+            <div style="font-size:8px;">Schede</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Opzione B — Dashboard + 4 tab</h3>
+      <p>Home = dashboard con KPI (infortuni attivi, RPE medio, prossimo turno). 4 tab: Home · Turni · Stato · Schede.<br>Un colpo d'occhio rapido prima di entrare nei dettagli.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Clicca l'opzione che preferisci, poi rispondi nel terminale.</p>

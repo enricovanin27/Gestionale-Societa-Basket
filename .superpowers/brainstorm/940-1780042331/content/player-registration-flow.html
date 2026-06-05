@@ -1,0 +1,94 @@
+<h2>Come semplificare l'inserimento giocatori?</h2>
+<p class="subtitle">Il problema: form troppo complessa, squadre mancanti, flusso spezzato tra segreteria e admin</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Wizard a 3 step</h3>
+      <p>Il form si divide in passaggi chiari. La segreteria completa tutto, ma in modo guidato.</p>
+      <div style="margin-top:10px;padding:10px;background:#f8f9ff;border-radius:8px;font-size:12px;">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+          <span style="background:#7c3aed;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0">1</span>
+          <span><strong>Dati atleta</strong> — nome, cognome, CF, data nascita</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+          <span style="background:#7c3aed;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0">2</span>
+          <span><strong>Squadra &amp; cert.</strong> — squadra principale (da lista ufficiale), data cert. medico</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="background:#e5e7eb;color:#6b7280;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0">3</span>
+          <span style="color:#9ca3af"><strong>Genitore / Account</strong> — opzionale, completabile dopo</span>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#059669;background:#ecfdf5;padding:6px 8px;border-radius:6px;">
+        ✓ Segreteria completa tutto da sola<br>
+        ✓ Squadra selezionata da lista ufficiale<br>
+        ✓ Genitore/account: opzionale, completabile dopo
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Inserimento rapido + completa dopo</h3>
+      <p>La segreteria crea il giocatore con il minimo indispensabile. Tutto il resto si completa dalla scheda individuale.</p>
+      <div style="margin-top:10px;padding:10px;background:#f8f9ff;border-radius:8px;font-size:12px;">
+        <div style="margin-bottom:8px;">
+          <span style="background:#7c3aed;color:white;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:600">CREA (30 sec)</span>
+          <div style="margin-top:4px;color:#374151">Nome, Cognome, Squadra → Salva</div>
+        </div>
+        <div>
+          <span style="background:#d1d5db;color:#374151;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:600">COMPLETA (dopo)</span>
+          <div style="margin-top:4px;color:#374151">Dalla scheda giocatore → aggiungi dati mancanti</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#059669;background:#ecfdf5;padding:6px 8px;border-radius:6px;">
+        ✓ Massima velocità di inserimento<br>
+        ✓ Nessun blocco per dati mancanti
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#dc2626;background:#fef2f2;padding:6px 8px;border-radius:6px;">
+        ✗ Rischio di giocatori con dati incompleti<br>
+        ✗ Serve una dashboard "da completare"
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Form unico semplificato (riorganizzato)</h3>
+      <p>Stessa schermata di oggi, ma con squadra da lista ufficiale e genitore/account staccati in sezione collassabile.</p>
+      <div style="margin-top:10px;padding:10px;background:#f8f9ff;border-radius:8px;font-size:12px;">
+        <div style="margin-bottom:6px;padding:6px 8px;background:white;border:1px solid #e5e7eb;border-radius:6px;">
+          <div style="font-size:10px;color:#7c3aed;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Obbligatori</div>
+          <div style="color:#374151;margin-top:2px">Nome · Cognome · Squadra (dropdown) · Cert. medico</div>
+        </div>
+        <div style="padding:6px 8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;color:#6b7280;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">▶ Dati facoltativi (espandi)</div>
+          <div style="margin-top:2px;font-size:11px">CF · indirizzo · genitore · account app</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#059669;background:#ecfdf5;padding:6px 8px;border-radius:6px;">
+        ✓ Cambiamento minimo rispetto a oggi<br>
+        ✓ Nessuna nuova pagina da costruire
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:#d97706;background:#fffbeb;padding:6px 8px;border-radius:6px;">
+        ~ Non risolve il problema "chi fa cosa"<br>
+        ~ Genitore/account rimane responsabilità ambigua
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;padding:14px;background:#fef3c7;border-radius:10px;border:1px solid #fde68a;">
+  <p style="font-size:12px;color:#92400e;font-weight:600;margin-bottom:6px;">🔧 Bug risolti in tutte le opzioni:</p>
+  <ul style="font-size:12px;color:#78350f;padding-left:16px;margin:0;line-height:1.6">
+    <li>Squadre caricate dalla tabella <code>squadre</code> ufficiale (non dai giocatori esistenti)</li>
+    <li>Campo genitore vuoto inviato come <code>null</code> invece di <code>""</code></li>
+    <li>Squadre secondarie opzionali mantenute per giocatori in doppio campionato</li>
+  </ul>
+</div>

@@ -1,0 +1,68 @@
+<h2>Design Guida In-App</h2>
+<p class="subtitle">Come si apre il pannello di aiuto quando clicchi "?". Mobile first (max 448px).</p>
+
+<div class="cards">
+
+  <!-- Opzione A: Bottom Sheet -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f8fafc;border-radius:12px;padding:0;font-family:sans-serif;max-width:220px;margin:0 auto;font-size:11px;color:#1e293b;position:relative;overflow:hidden;min-height:300px;">
+        <!-- App screen behind -->
+        <div style="padding:12px;opacity:.4;">
+          <div style="background:#d97706;border-radius:8px;padding:8px;color:#fff;font-weight:600;font-size:12px;margin-bottom:8px;">📅 Calendario</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:6px;border:1px solid #e2e8f0;">Lun 19 — Allenamento U16</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:6px;border:1px solid #e2e8f0;">Mar 20 — Partita vs Treviso</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;border:1px solid #e2e8f0;">Gio 22 — Allenamento U18</div>
+        </div>
+        <!-- Floating ? button -->
+        <div style="position:absolute;bottom:88px;right:12px;width:32px;height:32px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;box-shadow:0 4px 12px rgba(217,119,6,.5);">?</div>
+        <!-- Bottom sheet -->
+        <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;padding:14px;box-shadow:0 -4px 20px rgba(0,0,0,.15);">
+          <div style="width:32px;height:3px;background:#e2e8f0;border-radius:2px;margin:0 auto 10px;"></div>
+          <div style="font-weight:700;font-size:12px;color:#d97706;margin-bottom:8px;">📅 Guida — Calendario</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;margin-bottom:7px;"><b>Navigare le settimane:</b> usa le frecce ‹ › in alto per spostarti di settimana in settimana.</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;margin-bottom:7px;"><b>Aggiungere un evento:</b> tocca il tasto + in alto a destra per creare un allenamento o una partita.</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;"><b>Filtri squadra:</b> il selettore in cima filtra gli eventi per squadra.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bottom Sheet (pannello dal basso)</h3>
+      <p>Il pannello sale dal basso come un foglio. Bottone "?" fisso in basso a destra. Naturale su mobile, non occlude tutta la schermata.</p>
+    </div>
+  </div>
+
+  <!-- Opzione B: Slide dal lato destro -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f8fafc;border-radius:12px;padding:0;font-family:sans-serif;max-width:220px;margin:0 auto;font-size:11px;color:#1e293b;position:relative;overflow:hidden;min-height:300px;">
+        <!-- App screen behind (shifted left) -->
+        <div style="padding:12px;opacity:.35;transform:translateX(-30px);">
+          <div style="background:#d97706;border-radius:8px;padding:8px;color:#fff;font-weight:600;font-size:12px;margin-bottom:8px;">📅 Calendario</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;margin-bottom:6px;border:1px solid #e2e8f0;">Lun 19 — Allenamento U16</div>
+          <div style="background:#fff;border-radius:8px;padding:8px;border:1px solid #e2e8f0;">Mar 20 — Partita vs Treviso</div>
+        </div>
+        <!-- Floating ? in header -->
+        <div style="position:absolute;top:10px;right:10px;width:26px;height:26px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;opacity:.4;">?</div>
+        <!-- Side drawer -->
+        <div style="position:absolute;top:0;right:0;bottom:0;width:160px;background:#fff;padding:12px;box-shadow:-4px 0 20px rgba(0,0,0,.15);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <span style="font-weight:700;font-size:11px;color:#d97706;">Guida</span>
+            <span style="color:#94a3b8;font-size:14px;cursor:pointer;">✕</span>
+          </div>
+          <div style="font-size:9px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:5px;">Calendario</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;margin-bottom:7px;"><b>Naviga settimane:</b> usa le frecce ‹ › in alto.</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;margin-bottom:7px;"><b>Nuovo evento:</b> tocca + in alto a destra.</div>
+          <div style="font-size:9px;color:#475569;line-height:1.5;"><b>Filtri squadra:</b> selettore in cima alla pagina.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Drawer laterale (da destra)</h3>
+      <p>Il pannello scorre da destra. L'app rimane visibile a sinistra. Il "?" può stare nell'header o come bottone fisso. Più simile ai drawer classici dei gestionali desktop.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Clicca il design che preferisci per la guida, oppure scrivi in chat.</p>

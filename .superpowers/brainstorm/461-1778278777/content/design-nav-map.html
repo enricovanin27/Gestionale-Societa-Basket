@@ -1,0 +1,272 @@
+<h2>Design — Mappa Route & Navigazione per Ruolo</h2>
+<p class="subtitle">Struttura completa con namespace. Le caselle gialle sono funzionalità nuove da costruire. Conferma o chiedi modifiche prima di procedere.</p>
+
+<style>
+.role-section {
+  margin-bottom: 20px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid;
+}
+.role-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; font-weight: 700; font-size: 13px;
+}
+.role-body { padding: 12px 16px; background: white; }
+.route-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px;
+}
+.route-row:last-child { border-bottom: none; }
+.route-path {
+  font-family: monospace; font-size: 11px;
+  background: #f3f4f6; border-radius: 6px; padding: 2px 8px;
+  color: #374151; min-width: 190px;
+}
+.route-desc { flex: 1; color: #374151; }
+.new-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; background: #fef9c3; color: #854d0e;
+  border: 1px solid #fde68a; white-space: nowrap; flex-shrink: 0;
+}
+.exists-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; background: #f0fdf4; color: #166534;
+  border: 1px solid #bbf7d0; white-space: nowrap; flex-shrink: 0;
+}
+.evolve-badge {
+  font-size: 9px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; background: #eff6ff; color: #1e40af;
+  border: 1px solid #bfdbfe; white-space: nowrap; flex-shrink: 0;
+}
+.nav-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6; }
+.nav-pill {
+  font-size: 10px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; background: white; border: 1.5px solid;
+}
+.migration-order {
+  display: inline-block; width: 20px; height: 20px; border-radius: 50%;
+  background: #1f2937; color: white; font-size: 10px; font-weight: 800;
+  text-align: center; line-height: 20px; flex-shrink: 0;
+}
+
+/* Legend */
+.legend { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #374151; }
+</style>
+
+<div class="legend">
+  <div class="legend-item"><span class="exists-badge">Esiste</span> già presente nel codice</div>
+  <div class="legend-item"><span class="evolve-badge">Evolve</span> refactor/estensione di componente esistente</div>
+  <div class="legend-item"><span class="new-badge">NUOVO</span> da costruire da zero</div>
+</div>
+
+<!-- GENITORE (migrazione 1) -->
+<div class="role-section" style="border-color:#16a34a;">
+  <div class="role-header" style="background:#f0fdf4; color:#166534;">
+    <span class="migration-order">1</span>
+    <span>👨‍👧 Genitore</span>
+    <span style="font-weight:400; font-size:11px; margin-left:auto;">Prima migrazione — più semplice</span>
+  </div>
+  <div class="role-body">
+    <div class="route-row">
+      <div class="route-path">/parent</div>
+      <div class="route-desc">Agenda famiglia — lista unificata multi-figlio con badge colorato per figlio</div>
+      <span class="evolve-badge">Evolve</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/parent/quote</div>
+      <div class="route-desc">Quote dei figli — read-only, importo, scadenza, istruzioni pagamento</div>
+      <span class="new-badge">NUOVO</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/parent/bacheca</div>
+      <div class="route-desc">Comunicazioni dalla società</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="nav-pills">
+      <span class="nav-pill" style="border-color:#16a34a; color:#166534;">🏠 Home</span>
+      <span class="nav-pill" style="border-color:#16a34a; color:#166534;">💰 Quote</span>
+      <span class="nav-pill" style="border-color:#16a34a; color:#166534;">🔔 Bacheca</span>
+    </div>
+  </div>
+</div>
+
+<!-- GIOCATORE (migrazione 2) -->
+<div class="role-section" style="border-color:#2563eb;">
+  <div class="role-header" style="background:#eff6ff; color:#1e40af;">
+    <span class="migration-order">2</span>
+    <span>🏀 Giocatore</span>
+    <span style="font-weight:400; font-size:11px; margin-left:auto;">Simile al genitore ma focalizzato su se stesso</span>
+  </div>
+  <div class="role-body">
+    <div class="route-row">
+      <div class="route-path">/player</div>
+      <div class="route-desc">Il mio programma — allenamenti + partite della propria squadra, questa settimana</div>
+      <span class="evolve-badge">Evolve</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/player/statistiche</div>
+      <div class="route-desc">Statistiche personali — % presenze, allenamenti totali, partite giocate (derivate dalle presenze registrate dall'allenatore)</div>
+      <span class="new-badge">NUOVO</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/player/bacheca</div>
+      <div class="route-desc">Comunicazioni dalla società</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="nav-pills">
+      <span class="nav-pill" style="border-color:#2563eb; color:#1e40af;">🏠 Home</span>
+      <span class="nav-pill" style="border-color:#2563eb; color:#1e40af;">📊 Statistiche</span>
+      <span class="nav-pill" style="border-color:#2563eb; color:#1e40af;">🔔 Bacheca</span>
+    </div>
+  </div>
+</div>
+
+<!-- SEGRETERIA (migrazione 3) -->
+<div class="role-section" style="border-color:#9333ea;">
+  <div class="role-header" style="background:#fdf4ff; color:#7e22ce;">
+    <span class="migration-order">3</span>
+    <span>📋 Segreteria</span>
+    <span style="font-weight:400; font-size:11px; margin-left:auto;">Già abbastanza isolata, riorganizzazione logica</span>
+  </div>
+  <div class="role-body">
+    <div class="route-row">
+      <div class="route-path">/secretary</div>
+      <div class="route-desc">Dashboard urgenze — cert. scaduti/in scadenza, quote non pagate, lista priorità alta</div>
+      <span class="evolve-badge">Evolve</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/secretary/giocatori</div>
+      <div class="route-desc">Lista giocatori — filtro per squadra, cert. medico, modifica inline</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/secretary/quote</div>
+      <div class="route-desc">Gestione quote — mark as pagato, filtro per stato</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/secretary/bacheca</div>
+      <div class="route-desc">Comunicazioni — legge e scrive annunci</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="nav-pills">
+      <span class="nav-pill" style="border-color:#9333ea; color:#7e22ce;">🏠 Dashboard</span>
+      <span class="nav-pill" style="border-color:#9333ea; color:#7e22ce;">👥 Giocatori</span>
+      <span class="nav-pill" style="border-color:#9333ea; color:#7e22ce;">💰 Quote</span>
+      <span class="nav-pill" style="border-color:#9333ea; color:#7e22ce;">🔔 Bacheca</span>
+    </div>
+  </div>
+</div>
+
+<!-- ALLENATORE (migrazione 4) -->
+<div class="role-section" style="border-color:#d97706;">
+  <div class="role-header" style="background:#fff7ed; color:#92400e;">
+    <span class="migration-order">4</span>
+    <span>🏋️ Allenatore</span>
+    <span style="font-weight:400; font-size:11px; margin-left:auto;">Presenze è la nuova funzionalità più rilevante</span>
+  </div>
+  <div class="role-body">
+    <div class="route-row">
+      <div class="route-path">/coach</div>
+      <div class="route-desc">Home — prossima gara, allenamenti settimana corrente e prossima, selezione squadra se più di una</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/coach/calendario</div>
+      <div class="route-desc">Calendario partite + allenamenti filtrato per le proprie squadre</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/coach/presenze</div>
+      <div class="route-desc">Roll call presenze — seleziona allenamento, tap presente/assente per ogni giocatore, salva</div>
+      <span class="new-badge">NUOVO</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/coach/statistiche</div>
+      <div class="route-desc">Statistiche squadra — % presenze per giocatore, confronto settimane</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/coach/bacheca</div>
+      <div class="route-desc">Comunicazioni dalla società</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="nav-pills">
+      <span class="nav-pill" style="border-color:#d97706; color:#92400e;">🏠 Home</span>
+      <span class="nav-pill" style="border-color:#d97706; color:#92400e;">📅 Calendario</span>
+      <span class="nav-pill" style="border-color:#d97706; color:#92400e;">✅ Presenze</span>
+      <span class="nav-pill" style="border-color:#d97706; color:#92400e;">📊 Statistiche</span>
+      <span class="nav-pill" style="border-color:#d97706; color:#92400e;">🔔 Bacheca</span>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN (migrazione 5) -->
+<div class="role-section" style="border-color:#92400e;">
+  <div class="role-header" style="background:#fff7ed; color:#92400e;">
+    <span class="migration-order">5</span>
+    <span>🏛 Admin / Dirigente</span>
+    <span style="font-weight:400; font-size:11px; margin-left:auto;">Il più complesso — migrazione per ultima</span>
+  </div>
+  <div class="role-body">
+    <div class="route-row">
+      <div class="route-path">/admin</div>
+      <div class="route-desc">Dashboard — KPI (squadre, cert scaduti, partite mese, quote aperte), alert urgenti, azioni rapide</div>
+      <span class="evolve-badge">Evolve</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/admin/partite</div>
+      <div class="route-desc">Tutte le partite — vista completa, partite provvisorie da confermare, conflitti allenamenti</div>
+      <span class="evolve-badge">Evolve</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/admin/allenamenti</div>
+      <div class="route-desc">Orario allenamenti — tutte le squadre, vista settimana</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/admin/persone</div>
+      <div class="route-desc">Gestione giocatori — lista con cert. medico, filtro squadra (visione admin della SegreteriePage)</div>
+      <span class="new-badge">NUOVO</span>
+    </div>
+    <div class="route-row">
+      <div class="route-path">/admin/setup</div>
+      <div class="route-desc">Configurazione società — squadre, allenatori, giocatori, palestre, utenti</div>
+      <span class="exists-badge">Esiste</span>
+    </div>
+    <div class="nav-pills">
+      <span class="nav-pill" style="border-color:#92400e; color:#92400e;">🏠 Dashboard</span>
+      <span class="nav-pill" style="border-color:#92400e; color:#92400e;">🏀 Partite</span>
+      <span class="nav-pill" style="border-color:#92400e; color:#92400e;">🏋️ Allenamenti</span>
+      <span class="nav-pill" style="border-color:#92400e; color:#92400e;">👥 Persone</span>
+      <span class="nav-pill" style="border-color:#92400e; color:#92400e;">⚙️ Setup</span>
+    </div>
+  </div>
+</div>
+
+<!-- Riepilogo nuovo -->
+<div style="background:#f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-top: 4px;">
+  <p style="font-weight: 700; font-size: 13px; color: #1e293b; margin: 0 0 10px;">📦 Riepilogo: cosa va costruito</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+    <div style="font-size: 11px; color: #374151; background: white; border-radius: 8px; padding: 8px; border: 1px solid #e5e7eb;">
+      <strong>Nuove pagine (4)</strong><br>
+      • /parent/quote — Quote genitore read-only<br>
+      • /player/statistiche — Statistiche personali giocatore<br>
+      • /coach/presenze — Roll call presenze allenatore<br>
+      • /admin/persone — Gestione giocatori per admin
+    </div>
+    <div style="font-size: 11px; color: #374151; background: white; border-radius: 8px; padding: 8px; border: 1px solid #e5e7eb;">
+      <strong>Evoluzioni (5)</strong><br>
+      • HomeGenitore → agenda famiglia multi-figlio<br>
+      • HomeAdmin → KPI cards + alert urgenti<br>
+      • SegreteriePage → dashboard urgenze separata<br>
+      • Routing → namespace /admin /coach /parent /player /secretary<br>
+      • BottomNav → config dichiarativa per ruolo
+    </div>
+  </div>
+  <div style="margin-top: 8px; font-size: 11px; color: #374151; background: white; border-radius: 8px; padding: 8px; border: 1px solid #e5e7eb;">
+    <strong>Invariato (riuso diretto)</strong>: BachecaPage, AllenamentiPage, SetupPage, StatistichePage, ImportaCalendarioPage, CalendarioPage, PlatformPage (super_admin), LoginPage
+  </div>
+</div>

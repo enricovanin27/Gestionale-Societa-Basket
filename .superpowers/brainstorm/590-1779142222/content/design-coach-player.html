@@ -1,0 +1,99 @@
+<h2>Vista Allenatore + Box RPE Giocatore</h2>
+<p class="subtitle">Le due viste secondarie del modulo preparazione atletica</p>
+
+<style>
+  .amber-btn { background:#f59e0b;color:white;border:none;border-radius:10px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600 }
+  .ghost-btn { background:#fef3c7;color:#92400e;border:1.5px solid #fde68a;border-radius:10px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:600 }
+  td { padding:0.3rem 0.4rem;font-size:0.78rem;border-bottom:1px solid #f3f4f6 }
+  th { padding:0.3rem 0.4rem;font-size:0.75rem;background:#fffbeb;color:#78350f }
+</style>
+
+<div class="split">
+
+  <!-- COACH: tab Atletica in /coach -->
+  <div class="mockup">
+    <div class="mockup-header" style="background:#f59e0b;color:white">
+      Tab "Atletica" — area Allenatore (sola lettura)
+    </div>
+    <div class="mockup-body" style="font-size:0.82rem">
+
+      <!-- Tab bar interna -->
+      <div style="display:flex;gap:0.3rem;margin-bottom:0.75rem;border-bottom:2px solid #fde68a;padding-bottom:0.4rem">
+        <span style="color:#92400e;font-weight:700;border-bottom:2px solid #f59e0b;padding-bottom:0.2rem;margin-bottom:-0.45rem">Infortuni</span>
+        <span style="color:#9ca3af;margin-left:0.75rem">Test</span>
+        <span style="color:#9ca3af;margin-left:0.75rem">Carichi</span>
+        <span style="color:#9ca3af;margin-left:0.75rem">Spazi</span>
+      </div>
+
+      <!-- Infortuni tab attiva -->
+      <div style="background:#fff1f2;border:1.5px solid #fda4af;border-radius:10px;padding:0.6rem;margin-bottom:0.4rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600">Rossi Marco</div>
+            <div style="color:#6b7280;font-size:0.75rem">Distorsione ginocchio · Grave</div>
+            <div style="color:#6b7280;font-size:0.75rem">Rientro previsto: 28/05</div>
+          </div>
+          <span style="background:#fecdd3;color:#be123c;padding:0.2rem 0.6rem;border-radius:999px;font-size:0.72rem;font-weight:600">Attivo</span>
+        </div>
+      </div>
+      <div style="background:#fff1f2;border:1.5px solid #fda4af;border-radius:10px;padding:0.6rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600">Bianchi Luca</div>
+            <div style="color:#6b7280;font-size:0.75rem">Distorsione caviglia · Lieve</div>
+            <div style="color:#6b7280;font-size:0.75rem">Rientro previsto: 22/05</div>
+          </div>
+          <span style="background:#fecdd3;color:#be123c;padding:0.2rem 0.6rem;border-radius:999px;font-size:0.72rem;font-weight:600">Attivo</span>
+        </div>
+      </div>
+
+      <div style="margin-top:0.75rem;padding:0.5rem;background:#f9fafb;border-radius:8px;font-size:0.75rem;color:#6b7280;text-align:center">
+        🔒 Sola lettura — modifiche solo dal preparatore atletico
+      </div>
+    </div>
+  </div>
+
+  <!-- GIOCATORE: box RPE in HomeGiocatore -->
+  <div class="mockup">
+    <div class="mockup-header" style="background:#f59e0b;color:white">
+      Box RPE — HomeGiocatore (dopo l'allenamento)
+    </div>
+    <div class="mockup-body" style="font-size:0.82rem">
+
+      <!-- Card RPE -->
+      <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:1rem;margin-bottom:0.75rem">
+        <div style="font-weight:700;color:#92400e;font-size:0.9rem;margin-bottom:0.25rem">Come ti sei sentito oggi?</div>
+        <div style="color:#6b7280;font-size:0.75rem;margin-bottom:0.75rem">Allenamento U18 — Mercoledì 19 Maggio</div>
+
+        <!-- Slider visivo -->
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.4rem;font-size:0.7rem;color:#9ca3af">
+          <span>Facilissimo</span>
+          <span>Massimo</span>
+        </div>
+        <div style="display:flex;gap:0.3rem;justify-content:center;margin-bottom:0.75rem">
+          <div style="width:28px;height:28px;border-radius:50%;background:#dcfce7;border:2px solid #86efac;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#15803d">1</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#dcfce7;border:2px solid #86efac;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#15803d">2</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#dcfce7;border:2px solid #86efac;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#15803d">3</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fef9c3;border:2px solid #fde047;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#854d0e">4</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fef9c3;border:2px solid #fde047;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#854d0e">5</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fef9c3;border:2px solid #fde047;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#854d0e">6</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fef9c3;border:2px solid #fde047;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#854d0e">7</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fee2e2;border:2px solid #fca5a5;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#be123c">8</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:#dc2626;border:3px solid #991b1b;display:flex;align-items:center;justify-content:center;font-size:0.82rem;font-weight:700;color:white;box-shadow:0 0 0 3px #fca5a5">9</div>
+          <div style="width:28px;height:28px;border-radius:50%;background:#fee2e2;border:2px solid #fca5a5;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;color:#be123c">10</div>
+        </div>
+
+        <div style="text-align:center;font-size:0.75rem;color:#6b7280;margin-bottom:0.75rem">Selezionato: <b style="color:#dc2626">9 — Molto intenso</b></div>
+
+        <button class="amber-btn" style="width:100%;padding:0.6rem">Salva RPE</button>
+      </div>
+
+      <div style="font-size:0.72rem;color:#9ca3af;text-align:center">
+        Compilabile solo dopo un allenamento. I dati vanno al preparatore atletico.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">L'allenatore vede le 4 sotto-tab in sola lettura. Il giocatore vede il box RPE solo nei giorni in cui ha avuto un allenamento — seleziona il valore (1–10 con colore semaforo) e salva in un tap. Rispondimi nel terminale.</p>

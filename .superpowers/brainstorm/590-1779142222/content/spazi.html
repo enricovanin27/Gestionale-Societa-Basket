@@ -1,0 +1,42 @@
+<h2>Come gestire sala pesi e palestre?</h2>
+<p class="subtitle">La sala pesi è una risorsa condivisa tra squadre — come vuoi gestirla?</p>
+
+<div class="options">
+  <div class="option" data-choice="calendario_semplice" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Calendario fisso settimanale</h3>
+      <p>Il preparatore definisce un orario fisso (es. "U18 — sala pesi lunedì 17:00–18:00"). Ogni squadra ha la sua finestra. Nessuna prenotazione dinamica, semplice da gestire.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Semplicissimo</li><li>Nessun conflitto</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Poco flessibile</li><li>Non gestisce extra/variazioni</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="prenotazione" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Sistema di prenotazione</h3>
+      <p>Ogni allenatore o preparatore prenota la sala pesi per data+ora. Il sistema mostra disponibilità e blocca i conflitti, come già funziona per le palestre di allenamento.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Flessibile</li><li>Conflitti rilevati in automatico</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Più complesso</li><li>Richiede gestione attiva</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="ibrido_spazi" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Ibrido: fisso + eccezioni</h3>
+      <p>Orario fisso settimanale come base, ma il preparatore può aggiungere sessioni extra o spostare quelle esistenti per una singola settimana — identico al sistema già usato per gli allenamenti (orario_fisso + orario_settimana).</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pro</h4><ul><li>Coerente col sistema esistente</li><li>Flessibile quando serve</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Leggermente più complesso del fisso puro</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Seleziona un'opzione, poi rispondi nel terminale.</p>

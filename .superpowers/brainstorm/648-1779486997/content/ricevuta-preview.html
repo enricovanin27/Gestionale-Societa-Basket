@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Ricevuta Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', serif; background: #f3f4f6; padding: 24px; }
+
+  .toolbar {
+    max-width: 760px; margin: 0 auto 16px;
+    display: flex; gap: 10px; align-items: center;
+    background: #1e293b; color: white; padding: 10px 16px; border-radius: 8px;
+    font-family: sans-serif; font-size: 13px;
+  }
+  .toolbar strong { flex: 1; }
+  .btn-print {
+    background: #7c3aed; color: white; border: none; padding: 7px 16px;
+    border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn-email {
+    background: transparent; color: #94a3b8; border: 1px solid #475569;
+    padding: 7px 14px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+
+  .receipt {
+    max-width: 760px; margin: 0 auto;
+    background: white; padding: 48px 56px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  }
+
+  /* Logo area */
+  .header-logo {
+    font-family: 'Georgia', serif;
+    font-size: 36px;
+    font-style: italic;
+    font-weight: bold;
+    color: #111;
+    margin-bottom: 28px;
+  }
+  .header-logo span { color: #7c3aed; }
+
+  h1 { font-size: 18px; font-weight: bold; margin-bottom: 16px; }
+
+  .dichiara { font-size: 15px; font-weight: bold; margin-bottom: 16px; }
+  .dichiara em { font-style: normal; font-weight: normal; }
+
+  /* Dati table */
+  .dati-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+  .dati-table td { border: 1px solid #ccc; padding: 5px 10px; }
+  .dati-table td:first-child { width: 100px; font-weight: normal; color: #444; background: #fafafa; }
+  .dati-table td.label { width: 90px; background: #fafafa; color: #444; }
+
+  .per-quanto { font-size: 13px; margin-bottom: 12px; }
+
+  /* Payment table */
+  .pay-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+  .pay-table th { border: 1px solid #ccc; padding: 7px 10px; background: #f8f8f8; font-weight: bold; text-align: left; }
+  .pay-table td { border: 1px solid #ccc; padding: 7px 10px; }
+  .pay-table td.amount { text-align: right; }
+  .pay-table tr.total td { background: #fafafa; font-weight: bold; }
+
+  /* Note */
+  .note-row { display: flex; gap: 0; margin-bottom: 24px; border: 1px solid #ccc; }
+  .note-label { padding: 8px 10px; font-size: 13px; background: #fafafa; border-right: 1px solid #ccc; min-width: 60px; }
+  .note-body { padding: 8px 10px; font-size: 13px; flex: 1; min-height: 50px; }
+
+  /* Legal */
+  .legal { font-size: 10px; color: #555; margin-bottom: 40px; }
+  .legal p { margin-bottom: 4px; }
+
+  /* Closing */
+  .closing { text-align: right; font-size: 13px; margin-bottom: 32px; }
+
+  /* Footer */
+  .footer { border-top: 1px solid #ccc; padding-top: 14px; text-align: center; font-size: 11px; color: #555; }
+  .footer strong { font-size: 13px; color: #111; display: block; margin-bottom: 3px; }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .toolbar { display: none; }
+    .receipt { box-shadow: none; padding: 20mm 20mm; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong>📄 Ricevuta N. 2025-0007 — Rossi Marco</strong>
+  <button class="btn-email">✉ Invia per email</button>
+  <button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+</div>
+
+<div class="receipt">
+
+  <!-- LOGO -->
+  <div class="header-logo">🏀 <span>Basket</span> Oderzo</div>
+
+  <h1>Ricevuta / Quietanza di pagamento N. 2025-0007</h1>
+
+  <p class="dichiara"><strong>Basket Oderzo ASD</strong> <em>dichiara di aver ricevuto</em></p>
+
+  <!-- DATI PAGANTE / ATLETA -->
+  <table class="dati-table">
+    <tr>
+      <td>Da</td>
+      <td>Rossi Giovanni</td>
+      <td class="label">codice fiscale</td>
+      <td>RSSGNN75A01G379K</td>
+    </tr>
+    <tr>
+      <td>per</td>
+      <td colspan="3">Rossi Marco</td>
+    </tr>
+    <tr>
+      <td>nato a</td>
+      <td>Oderzo</td>
+      <td class="label">il</td>
+      <td>12/03/2010</td>
+    </tr>
+    <tr>
+      <td>codice fiscale</td>
+      <td colspan="3">RSSMRC10C12G379F</td>
+    </tr>
+    <tr>
+      <td>indirizzo</td>
+      <td>Via Roma 1</td>
+      <td class="label">CAP</td>
+      <td>31046</td>
+    </tr>
+    <tr>
+      <td>provincia</td>
+      <td colspan="3">TV</td>
+    </tr>
+  </table>
+
+  <p class="per-quanto">per quanto sotto dettagliato</p>
+
+  <!-- TABELLA PAGAMENTO -->
+  <table class="pay-table">
+    <thead>
+      <tr>
+        <th>Descrizione</th>
+        <th>Metodo di pagamento</th>
+        <th>Data di pagamento</th>
+        <th>Importo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Quota mensile Maggio 2025</td>
+        <td>Contanti</td>
+        <td>15/05/2025</td>
+        <td class="amount">60,00 €</td>
+      </tr>
+      <tr class="total">
+        <td colspan="3" style="text-align:right;">Totale</td>
+        <td class="amount">60,00 €</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- NOTE -->
+  <div class="note-row">
+    <div class="note-label">Note</div>
+    <div class="note-body"></div>
+  </div>
+
+  <!-- LEGALE -->
+  <div class="legal">
+    <p>1. Operazione esente da IVA ai sensi dell'art. 10 del DPR n. 633 26/10/1972 o dell'art. 36-bis DL n.75 del 22/06/2023</p>
+    <p>2. Esente da marca da bollo ai sensi art. 1, comma 646, L. 145/2018 che ha modificato l'art. 27 bis della tab di cui all'allegato B annesso al D.P.R. 642/1972</p>
+  </div>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    Oderzo, 15/05/2025
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <strong>Basket Oderzo ASD</strong>
+    Via Mazzini 10, 31046 - Oderzo (TV) &nbsp;|&nbsp; C.F.: 92345678901<br>
+    Tel: +39 0422 123456 &nbsp;·&nbsp; email: segreteria@basketoderzo.it
+  </div>
+
+</div>
+</body>
+</html>

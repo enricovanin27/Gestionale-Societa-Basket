@@ -1,0 +1,78 @@
+<h2>Come mostrare le guide in-app?</h2>
+<p class="subtitle">Tre approcci diversi — ognuno con un'esperienza utente differente</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="position:relative;background:#f8f8f8;border-radius:8px;height:160px;overflow:hidden">
+        <div class="mock-nav" style="font-size:11px;padding:6px 12px">🏀 EVO &nbsp;|&nbsp; Home &nbsp;|&nbsp; Giocatori &nbsp;|&nbsp; Quote</div>
+        <div style="padding:12px;font-size:11px;color:#666">
+          <div style="background:#fff;border-radius:6px;padding:8px;margin-bottom:6px;border:1px solid #eee">📅 Prossimo allenamento: Martedì 18:30</div>
+          <div style="background:#fff;border-radius:6px;padding:8px;border:1px solid #eee">💰 3 rate in scadenza questa settimana</div>
+        </div>
+        <div style="position:absolute;bottom:12px;right:12px;width:36px;height:36px;background:#f97316;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:16px;box-shadow:0 2px 8px rgba(249,115,22,0.4)">?</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Bottone "?" fisso</h3>
+      <p>Un bottone arancione fisso in basso a destra. Cliccando apre un pannello laterale con tutte le guide del ruolo corrente. Sempre disponibile, non invasivo.</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pro</h4><ul><li>Sempre raggiungibile</li><li>Non disturba l'uso normale</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>L'utente deve cercarlo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="position:relative;background:#f8f8f8;border-radius:8px;height:160px;overflow:hidden">
+        <div class="mock-nav" style="font-size:11px;padding:6px 12px;opacity:0.3">🏀 EVO &nbsp;|&nbsp; Home &nbsp;|&nbsp; Giocatori</div>
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center">
+          <div style="background:white;border-radius:10px;padding:14px;width:75%;text-align:center">
+            <div style="font-size:20px;margin-bottom:4px">👋</div>
+            <div style="font-size:12px;font-weight:bold;margin-bottom:4px">Benvenuto su EVO!</div>
+            <div style="font-size:10px;color:#666;margin-bottom:8px">Passo 1 di 4 — Aggiungi i tuoi giocatori</div>
+            <div style="background:#f97316;color:white;padding:4px 10px;border-radius:6px;font-size:10px;display:inline-block">Inizia il tour →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Tour al primo accesso</h3>
+      <p>Al primo login appare un tour guidato passo-passo che accompagna l'utente nelle 3-4 azioni principali. Poi scompare e non si ripete.</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pro</h4><ul><li>Onboarding immediato</li><li>Guida quando serve davvero</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Si vede solo una volta</li><li>Più complesso da implementare</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f8f8f8;border-radius:8px;height:160px;overflow:hidden">
+        <div class="mock-nav" style="font-size:11px;padding:6px 12px">🏀 EVO &nbsp;|&nbsp; Home &nbsp;|&nbsp; Giocatori &nbsp;|&nbsp; Quote</div>
+        <div style="padding:10px;font-size:11px">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
+            <span style="font-weight:bold">Giocatori</span>
+            <span style="background:#f97316;color:white;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center">?</span>
+          </div>
+          <div style="background:white;border:1px solid #f97316;border-radius:6px;padding:8px;font-size:10px;color:#333;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+            💡 <b>Giocatori</b>: aggiungi qui i tesserati della tua squadra. Per ogni giocatore puoi inserire dati anagrafici, certificato medico e contatto genitore.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Icone "?" contestuali</h3>
+      <p>Piccole icone "?" accanto ai titoli delle sezioni. Cliccando appare un tooltip/popover che spiega quella specifica funzione nel contesto in cui l'utente si trova.</p>
+      <div class="pros-cons" style="margin-top:8px">
+        <div class="pros"><h4>Pro</h4><ul><li>Aiuto dove serve</li><li>Non invasivo</li></ul></div>
+        <div class="cons"><h4>Contro</h4><ul><li>Da aggiungere pagina per pagina</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">Clicca la carta che preferisci (puoi selezionarne più di una)</p>

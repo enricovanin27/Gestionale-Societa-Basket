@@ -1,0 +1,190 @@
+<h2>Bacheca — Chi legge e chi scrive</h2>
+<p class="subtitle">La bacheca non è uguale per tutti. Ogni ruolo ha permessi e visibilità diversi. Confermami se questo schema ti convince.</p>
+
+<style>
+.matrix-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0 20px; border-radius: 10px; overflow: hidden; }
+.matrix-table th { background: #1f2937; color: white; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; }
+.matrix-table td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+.matrix-table tr:last-child td { border-bottom: none; }
+.matrix-table tr:nth-child(even) td { background: #fafafa; }
+.can { color: #16a34a; font-weight: 700; }
+.cannot { color: #dc2626; font-weight: 600; }
+.partial { color: #d97706; font-weight: 600; }
+
+.mockup-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+@media (max-width: 600px) { .mockup-pair { grid-template-columns: 1fr; } }
+
+.mock-header { border-radius: 12px; padding: 12px 14px; color: white; margin-bottom: 10px; }
+.mock-header .title { font-weight: 700; font-size: 15px; }
+.mock-header .sub { font-size: 10px; opacity: 0.8; margin-top: 2px; }
+.annuncio-card {
+  background: white; border-radius: 10px; padding: 10px 12px; margin-bottom: 7px;
+  border: 1px solid #e5e7eb; border-left: 4px solid;
+}
+.annuncio-meta { font-size: 9px; color: #9ca3af; margin-top: 4px; display: flex; gap: 8px; align-items: center; }
+.annuncio-title { font-size: 12px; font-weight: 700; color: #1f2937; }
+.annuncio-body { font-size: 11px; color: #374151; margin-top: 3px; }
+.target-chip {
+  font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 20px;
+}
+.write-btn {
+  width: 100%; padding: 9px; background: #d97706; color: white;
+  border-radius: 10px; font-size: 12px; font-weight: 700; border: none;
+  text-align: center; margin-bottom: 10px;
+}
+.section-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 10px 0 5px; }
+.unread-dot { width: 7px; height: 7px; border-radius: 50%; background: #dc2626; display: inline-block; margin-right: 3px; }
+</style>
+
+<!-- Tabella permessi -->
+<table class="matrix-table">
+  <thead>
+    <tr>
+      <th>Ruolo</th>
+      <th>Legge</th>
+      <th>Scrive annunci</th>
+      <th>Destinatari possibili</th>
+      <th>Vede in nav?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>🏛 Admin</strong></td>
+      <td class="can">✓ Tutto</td>
+      <td class="can">✓ Sì</td>
+      <td>Tutte le squadre / tutta la società</td>
+      <td class="can">✓ Sì (era mancante!)</td>
+    </tr>
+    <tr>
+      <td><strong>🏋️ Allenatore</strong></td>
+      <td class="partial">✓ Tutto + propri annunci</td>
+      <td class="can">✓ Sì</td>
+      <td>Solo la/e propria/e squadra/e</td>
+      <td class="can">✓ Sì</td>
+    </tr>
+    <tr>
+      <td><strong>📋 Segreteria</strong></td>
+      <td class="can">✓ Tutto</td>
+      <td class="can">✓ Sì</td>
+      <td>Tutte le squadre / tutta la società</td>
+      <td class="can">✓ Sì</td>
+    </tr>
+    <tr>
+      <td><strong>👨‍👧 Genitore</strong></td>
+      <td class="partial">✓ Solo ciò che lo riguarda</td>
+      <td class="cannot">✗ No</td>
+      <td>—</td>
+      <td class="can">✓ Sì</td>
+    </tr>
+    <tr>
+      <td><strong>🏀 Giocatore</strong></td>
+      <td class="partial">✓ Solo ciò che lo riguarda</td>
+      <td class="cannot">✗ No</td>
+      <td>—</td>
+      <td class="can">✓ Sì</td>
+    </tr>
+  </tbody>
+</table>
+
+<p style="font-size: 12px; color: #374151; margin-bottom: 4px;"><strong>Visibilità annunci:</strong> un annuncio può essere diretto a <em>"tutta la società"</em> (visto da tutti) o a <em>"squadra specifica"</em> (visto solo dalle famiglie di quella squadra). L'allenatore può scrivere solo alla propria squadra.</p>
+
+<!-- Mockup: staff vs genitore -->
+<div class="mockup-pair">
+
+  <!-- Lato Staff (admin/allenatore scrive) -->
+  <div class="mockup">
+    <div class="mockup-header">📝 Bacheca — lato Staff (Admin / Allenatore)</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#92400e,#d97706);">
+        <div class="title">Bacheca</div>
+        <div class="sub">Comunicazioni</div>
+      </div>
+
+      <button class="write-btn">+ Nuovo annuncio</button>
+
+      <div class="section-lbl">Annunci recenti</div>
+
+      <div class="annuncio-card" style="border-color:#d97706;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title">Allenamento straordinario sabato</div>
+          <span class="target-chip" style="background:#fff7ed; color:#92400e; border: 1px solid #fed7aa;">U14</span>
+        </div>
+        <div class="annuncio-body">Sabato 10 Maggio allenamento aggiuntivo dalle 10:00.</div>
+        <div class="annuncio-meta">
+          <span>Marco Allenatore · 2 ore fa</span>
+          <span>👁 12 lettori</span>
+        </div>
+      </div>
+
+      <div class="annuncio-card" style="border-color:#2563eb;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title">Torneo di fine stagione — info</div>
+          <span class="target-chip" style="background:#eff6ff; color:#1e40af; border: 1px solid #bfdbfe;">Tutta la società</span>
+        </div>
+        <div class="annuncio-body">Il torneo si terrà il 7 Giugno. Confermate la presenza entro il 25 Maggio.</div>
+        <div class="annuncio-meta">
+          <span>Admin · ieri</span>
+          <span>👁 48 lettori</span>
+        </div>
+      </div>
+
+      <div class="annuncio-card" style="border-color:#9333ea;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title">Rinnovo cert. medici — scadenza</div>
+          <span class="target-chip" style="background:#fdf4ff; color:#7e22ce; border: 1px solid #e9d5ff;">Tutta la società</span>
+        </div>
+        <div class="annuncio-body">Ricordate di rinnovare il certificato medico prima del 30 Giugno.</div>
+        <div class="annuncio-meta">
+          <span>Segreteria · 3 giorni fa</span>
+          <span>👁 31 lettori</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lato Genitore (read-only) -->
+  <div class="mockup">
+    <div class="mockup-header">👁 Bacheca — lato Genitore (solo lettura)</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#166534,#16a34a);">
+        <div class="title">Bacheca</div>
+        <div class="sub">Nessun pulsante di scrittura</div>
+      </div>
+
+      <div class="section-lbl">Non letti (2)</div>
+
+      <div class="annuncio-card" style="border-color:#d97706; background:#fffbeb;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title"><span class="unread-dot"></span>Allenamento straordinario sabato</div>
+          <span class="target-chip" style="background:#fff7ed; color:#92400e; border: 1px solid #fed7aa;">U14</span>
+        </div>
+        <div class="annuncio-body">Sabato 10 Maggio allenamento aggiuntivo dalle 10:00.</div>
+        <div class="annuncio-meta"><span>Marco Allenatore · 2 ore fa</span></div>
+      </div>
+
+      <div class="annuncio-card" style="border-color:#9333ea; background:#fdf4ff;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title"><span class="unread-dot"></span>Rinnovo cert. medici</div>
+          <span class="target-chip" style="background:#fdf4ff; color:#7e22ce; border: 1px solid #e9d5ff;">Tutta la società</span>
+        </div>
+        <div class="annuncio-body">Ricordate di rinnovare il certificato medico prima del 30 Giugno.</div>
+        <div class="annuncio-meta"><span>Segreteria · 3 giorni fa</span></div>
+      </div>
+
+      <div class="section-lbl">Già letti</div>
+      <div class="annuncio-card" style="border-color:#2563eb; opacity: 0.65;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="annuncio-title">Torneo di fine stagione — info</div>
+          <span class="target-chip" style="background:#eff6ff; color:#1e40af; border: 1px solid #bfdbfe;">Tutta la società</span>
+        </div>
+        <div class="annuncio-body">Il torneo si terrà il 7 Giugno. Confermate la presenza entro il 25 Maggio.</div>
+        <div class="annuncio-meta"><span>Admin · ieri</span></div>
+      </div>
+
+      <div style="margin-top: 8px; background:#f0fdf4; border-radius:10px; padding:8px; font-size:10px; color:#166534; text-align:center;">
+        Vedi solo gli annunci per la tua squadra (U14) e quelli per tutta la società
+      </div>
+    </div>
+  </div>
+
+</div>

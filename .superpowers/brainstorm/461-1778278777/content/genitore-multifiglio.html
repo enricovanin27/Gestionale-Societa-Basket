@@ -1,0 +1,132 @@
+<h2>Genitore con più figli</h2>
+<p class="subtitle">Un genitore può avere 2 figli in squadre diverse (es. U14 e U10). Come gestisce l'app questa situazione?</p>
+
+<style>
+.mock-header { border-radius: 12px; padding: 12px 14px; color: white; margin-bottom: 10px; }
+.mock-header .role-lbl { font-size: 10px; opacity: 0.75; margin-bottom: 2px; }
+.mock-header .title { font-weight: 700; font-size: 15px; }
+.mock-header .sub { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+.event-row {
+  display: flex; align-items: center; gap: 10px;
+  background: white; border-radius: 10px; padding: 8px 10px; margin-bottom: 5px;
+  border: 1px solid #f3f4f6;
+}
+.event-day {
+  min-width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: white; text-align: center; line-height: 1.2;
+}
+.event-name { font-size: 11px; font-weight: 600; color: #1f2937; }
+.event-meta { font-size: 9px; color: #6b7280; }
+.squad-chip {
+  font-size: 9px; font-weight: 700; border-radius: 20px; padding: 2px 7px;
+}
+.section-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 8px 0 4px; }
+.child-tab {
+  flex: 1; padding: 6px 4px; text-align: center; font-size: 11px; font-weight: 700;
+  border-radius: 8px; transition: all 0.15s;
+}
+.child-tab.active { background: white; color: #166534; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.child-tab.inactive { color: #9ca3af; }
+.mock-nav {
+  background: white; border-top: 1px solid #e5e7eb; border-radius: 0 0 12px 12px;
+  padding: 6px 8px 8px; display: flex; justify-content: space-around; margin-top: 8px;
+}
+.nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8px; font-weight: 600; color: #9ca3af; min-width: 36px; }
+.nav-item.active { color: #166534; }
+</style>
+
+<div class="split">
+
+  <!-- A: Switcher in home -->
+  <div class="mockup" data-choice="A" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">A — Switcher figlio nella home</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#166534,#16a34a);">
+        <div class="role-lbl">Ciao, Paola!</div>
+        <div class="title">I miei figli</div>
+        <div class="sub">Seleziona un figlio per vedere il suo programma</div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div style="display:flex; background:#f3f4f6; border-radius:10px; padding:3px; gap:2px; margin-bottom:10px;">
+        <div class="child-tab active">👦 Luca (U14)</div>
+        <div class="child-tab inactive">👧 Sofia (U10)</div>
+      </div>
+
+      <div class="section-lbl">Prossimi impegni — Luca</div>
+      <div class="event-row">
+        <div class="event-day" style="background:#d97706">MAR<br>13</div>
+        <div class="event-name">Allenamento U14</div>
+        <div style="margin-left:auto"><span class="squad-chip" style="background:#fff7ed; color:#92400e;">U14</span></div>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#2563eb">DOM<br>18</div>
+        <div class="event-name">Partita vs Treviso</div>
+        <div style="margin-left:auto"><span class="squad-chip" style="background:#eff6ff; color:#1e40af;">U14</span></div>
+      </div>
+
+      <div class="mock-nav">
+        <div class="nav-item active">🏠<br>Home</div>
+        <div class="nav-item">💰<br>Quote</div>
+        <div class="nav-item">🔔<br>Bacheca</div>
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Come funziona:</strong> la home mostra un tab per ogni figlio. Il genitore passa da uno all'altro con un tap.<br><br>
+      <strong>Pro:</strong> vede chiaramente di quale figlio sta guardando le info.<br>
+      <strong>Contro:</strong> con un solo figlio c'è un tab inutile.
+    </div>
+  </div>
+
+  <!-- B: Agenda unificata con badge squadra -->
+  <div class="mockup" data-choice="B" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">B — Agenda unica con badge per ogni figlio</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#166534,#16a34a);">
+        <div class="role-lbl">Ciao, Paola!</div>
+        <div class="title">Agenda famiglia</div>
+        <div class="sub">Luca (U14) · Sofia (U10)</div>
+      </div>
+
+      <div class="section-lbl">Prossimi 7 giorni</div>
+
+      <div class="event-row">
+        <div class="event-day" style="background:#d97706">MAR<br>13</div>
+        <div style="flex:1;">
+          <div class="event-name">Allenamento</div>
+          <div class="event-meta">18:30 · Palestra A</div>
+        </div>
+        <span class="squad-chip" style="background:#fef9c3; color:#854d0e;">Luca U14</span>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#16a34a">MER<br>14</div>
+        <div style="flex:1;">
+          <div class="event-name">Allenamento</div>
+          <div class="event-meta">17:00 · Palestra C</div>
+        </div>
+        <span class="squad-chip" style="background:#dcfce7; color:#166534;">Sofia U10</span>
+      </div>
+      <div class="event-row">
+        <div class="event-day" style="background:#2563eb">DOM<br>18</div>
+        <div style="flex:1;">
+          <div class="event-name">Partita vs Treviso</div>
+          <div class="event-meta">15:00 · PalaOderzo</div>
+        </div>
+        <span class="squad-chip" style="background:#fef9c3; color:#854d0e;">Luca U14</span>
+      </div>
+
+      <div class="mock-nav">
+        <div class="nav-item active">🏠<br>Home</div>
+        <div class="nav-item">💰<br>Quote</div>
+        <div class="nav-item">🔔<br>Bacheca</div>
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Come funziona:</strong> tutti gli eventi di tutti i figli in un'unica lista cronologica, con un badge colorato che indica di chi è ogni evento.<br><br>
+      <strong>Pro:</strong> una sola schermata per avere il quadro completo della settimana.<br>
+      <strong>Contro:</strong> se ci sono molti eventi può diventare affollata.
+    </div>
+  </div>
+
+</div>

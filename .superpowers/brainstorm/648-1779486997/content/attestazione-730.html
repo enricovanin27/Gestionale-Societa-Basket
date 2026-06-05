@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f3f4f6; padding: 24px; }
+
+  .toolbar {
+    max-width: 720px; margin: 0 auto 16px;
+    display: flex; gap: 10px; align-items: center;
+    background: #1e293b; color: white; padding: 10px 16px; border-radius: 8px;
+    font-size: 13px;
+  }
+  .toolbar strong { flex: 1; }
+  .year-select { background: #334155; color: white; border: 1px solid #475569; border-radius: 6px; padding: 5px 10px; font-size: 13px; }
+  .btn-print { background: #7c3aed; color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  .doc {
+    max-width: 720px; margin: 0 auto;
+    background: white; padding: 48px 56px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    font-family: 'Georgia', serif;
+  }
+
+  .doc-logo { font-size: 30px; font-style: italic; font-weight: bold; color: #111; margin-bottom: 20px; }
+  .doc-logo span { color: #7c3aed; }
+
+  .doc-title { font-size: 16px; font-weight: bold; margin-bottom: 4px; font-family: sans-serif; }
+  .doc-subtitle { font-size: 13px; color: #555; margin-bottom: 24px; font-family: sans-serif; }
+
+  .section-label { font-family: sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af; margin-bottom: 8px; }
+
+  table.info { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 13px; font-family: sans-serif; }
+  table.info td { border: 1px solid #d1d5db; padding: 6px 10px; }
+  table.info td:first-child { background: #f9fafb; color: #555; width: 160px; }
+
+  table.quote { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 13px; font-family: sans-serif; }
+  table.quote th { background: #f3f4f6; border: 1px solid #d1d5db; padding: 7px 10px; text-align: left; font-weight: 700; }
+  table.quote td { border: 1px solid #d1d5db; padding: 6px 10px; }
+  table.quote td.amt { text-align: right; }
+  table.quote tr.total td { font-weight: 700; background: #fafafa; }
+  table.quote tr.total td.total-amt { font-size: 16px; color: #059669; text-align: right; }
+
+  .detraibile { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 24px; font-family: sans-serif; font-size: 13px; }
+  .detraibile strong { display: block; color: #059669; font-size: 15px; margin-bottom: 4px; }
+  .detraibile small { color: #6b7280; font-size: 11px; }
+
+  .dichiarazione { font-size: 12px; color: #444; margin-bottom: 32px; line-height: 1.6; font-family: sans-serif; }
+
+  .closing { font-family: sans-serif; font-size: 13px; text-align: right; margin-bottom: 40px; }
+
+  .footer { border-top: 1px solid #e5e7eb; padding-top: 14px; text-align: center; font-size: 11px; color: #777; font-family: sans-serif; }
+  .footer strong { font-size: 13px; color: #111; display: block; margin-bottom: 3px; }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .toolbar { display: none; }
+    .doc { box-shadow: none; padding: 20mm 20mm; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <strong>📋 Attestazione 730 — Rossi Marco</strong>
+  Anno: <select class="year-select"><option>2025</option><option>2024</option><option>2023</option></select>
+  <button class="btn-print" onclick="window.print()">🖨 Stampa / Salva PDF</button>
+</div>
+
+<div class="doc">
+
+  <div class="doc-logo">🏀 <span>Basket</span> Oderzo</div>
+
+  <div class="doc-title">Attestazione spese sportive — Anno 2025</div>
+  <div class="doc-subtitle">Ai sensi dell'art. 15, comma 1, lett. i-quinquies) del D.P.R. 917/1986 (TUIR)</div>
+
+  <div class="section-label">Società sportiva</div>
+  <table class="info" style="margin-bottom:20px;">
+    <tr><td>Denominazione</td><td>Basket Oderzo ASD</td></tr>
+    <tr><td>Codice fiscale</td><td style="font-family:monospace;">92345678901</td></tr>
+    <tr><td>Indirizzo</td><td>Via Mazzini 10 — 31046 Oderzo (TV)</td></tr>
+  </table>
+
+  <div class="section-label">Atleta</div>
+  <table class="info" style="margin-bottom:20px;">
+    <tr><td>Cognome e nome</td><td><strong>Rossi Marco</strong></td></tr>
+    <tr><td>Data di nascita</td><td>12/03/2010</td></tr>
+    <tr><td>Codice fiscale</td><td style="font-family:monospace;">RSSMRC10C12G379F</td></tr>
+  </table>
+
+  <div class="section-label">Dettaglio pagamenti anno 2025</div>
+  <table class="quote">
+    <thead>
+      <tr><th>Descrizione</th><th>Data</th><th>Metodo</th><th>Importo</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Quota iscrizione 2024/25</td><td>15/09/2024</td><td>Bonifico</td><td class="amt">150,00 €</td></tr>
+      <tr><td>Quota mensile Gennaio</td><td>08/01/2025</td><td>Contanti</td><td class="amt">60,00 €</td></tr>
+      <tr><td>Quota mensile Febbraio</td><td>05/02/2025</td><td>Contanti</td><td class="amt">60,00 €</td></tr>
+      <tr><td>Quota mensile Marzo</td><td>03/03/2025</td><td>POS</td><td class="amt">60,00 €</td></tr>
+      <tr class="total">
+        <td colspan="3" style="text-align:right;">Totale pagato anno 2025</td>
+        <td class="total-amt">330,00 €</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="detraibile">
+    <strong>Importo detraibile: € 210,00</strong>
+    <small>Il limite massimo detraibile per spese sportive di ragazzi 5–18 anni è di € 210,00 (art. 15 TUIR). La detrazione IRPEF è del 19% sull'importo detraibile.</small>
+  </div>
+
+  <div class="dichiarazione">
+    La <strong>Basket Oderzo ASD</strong> certifica che l'atleta sopra indicato ha praticato attività sportiva dilettantistica presso la nostra società nel corso dell'anno 2025, e che le quote indicate sono state regolarmente pagate e registrate.
+  </div>
+
+  <div class="closing">
+    Oderzo, 23/05/2025<br><br>
+    Il responsabile amministrativo<br>
+    <span style="font-style:italic; font-size:15px; font-family:Georgia,serif; color:#7c3aed;">____________________</span>
+  </div>
+
+  <div class="footer">
+    <strong>Basket Oderzo ASD</strong>
+    Via Mazzini 10, 31046 — Oderzo (TV) &nbsp;|&nbsp; C.F.: 92345678901<br>
+    Tel: +39 0422 123456 &nbsp;·&nbsp; email: segreteria@basketoderzo.it
+  </div>
+
+</div>
+
+</body>
+</html>

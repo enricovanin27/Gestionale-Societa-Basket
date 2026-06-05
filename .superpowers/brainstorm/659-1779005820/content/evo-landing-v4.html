@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVO — Landing v4</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1c1917; }
+  .phone-frame { max-width: 420px; margin: 0 auto; background: #fff; min-height: 100vh; }
+
+  /* ── NAVBAR ── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,.95); backdrop-filter: blur(10px);
+    border-bottom: 1px solid #fde68a; padding: 13px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 8px rgba(217,119,6,.1);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 8px; }
+  .nav-logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg,#d97706,#92400e);
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 17px;
+    box-shadow: 0 2px 8px rgba(217,119,6,.35);
+  }
+  .nav-logo-text { font-weight: 900; font-size: 21px; letter-spacing: -1px; color: #92400e; }
+  .nav-logo-text span { color: #d97706; }
+  .btn-ghost {
+    padding: 7px 14px; border: 1.5px solid #d97706; color: #d97706;
+    border-radius: 8px; font-size: 13px; font-weight: 700;
+    background: transparent; cursor: pointer; text-decoration: none;
+  }
+  .btn-solid {
+    padding: 7px 14px; background: linear-gradient(135deg,#d97706,#b45309);
+    color: #fff; border-radius: 8px; font-size: 13px; font-weight: 700;
+    border: none; cursor: pointer; text-decoration: none;
+    box-shadow: 0 2px 8px rgba(217,119,6,.35);
+  }
+  .nav-actions { display: flex; gap: 8px; }
+
+  /* ── GRADIENT AMBER (riutilizzato per hero + sezioni alternate) ── */
+  .bg-amber {
+    background: linear-gradient(160deg, #c2410c 0%, #d97706 50%, #f59e0b 100%);
+    position: relative; overflow: hidden;
+  }
+  /* onda di transizione verso bianco (in basso) */
+  .wave-down::after {
+    content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 28px;
+    background: #fff; clip-path: ellipse(55% 100% at 50% 100%);
+  }
+  /* onda di transizione verso bianco (in alto) */
+  .wave-up::before {
+    content: ''; position: absolute; top: -1px; left: 0; right: 0; height: 28px;
+    background: #fff; clip-path: ellipse(55% 100% at 50% 0%);
+  }
+
+  /* ── HERO ── */
+  .hero { padding: 48px 24px 48px; text-align: center; }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+    color: #fff; padding: 5px 13px; border-radius: 99px;
+    font-size: 11px; font-weight: 700; margin-bottom: 22px;
+    letter-spacing: .5px; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: 36px; font-weight: 900; line-height: 1.08;
+    letter-spacing: -1.5px; margin-bottom: 16px; color: #fff;
+    text-shadow: 0 2px 12px rgba(0,0,0,.2);
+  }
+  .hero h1 .accent { color: #fef3c7; }
+  .hero-sub {
+    font-size: 15px; color: rgba(255,255,255,.85); line-height: 1.6;
+    margin-bottom: 28px; max-width: 320px; margin-left: auto; margin-right: auto;
+  }
+  .hero-ctas { display: flex; flex-direction: column; gap: 10px; margin-bottom: 36px; }
+  .cta-primary {
+    padding: 15px; background: #fff; color: #92400e;
+    border-radius: 12px; font-size: 15px; font-weight: 800;
+    border: none; cursor: pointer; width: 100%;
+    box-shadow: 0 4px 20px rgba(0,0,0,.18);
+  }
+  .cta-secondary {
+    padding: 15px; background: rgba(255,255,255,.15);
+    color: #fff; border: 1.5px solid rgba(255,255,255,.4);
+    border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%;
+  }
+
+  /* app preview */
+  .app-preview {
+    background: #fff; border-radius: 16px; padding: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2); border: 1px solid #fde68a;
+    position: relative; z-index: 1;
+  }
+  .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .preview-title { font-size: 12px; font-weight: 700; color: #d97706; }
+  .preview-week { font-size: 10px; color: #9ca3af; }
+  .preview-row {
+    display: flex; align-items: center; gap: 8px;
+    background: #fffbeb; border-radius: 8px; padding: 8px 10px; margin-bottom: 5px;
+    border: 1px solid #fde68a;
+  }
+  .preview-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .preview-row-label { font-size: 10px; font-weight: 600; color: #1c1917; }
+  .preview-row-sub { font-size: 9px; color: #9ca3af; margin-top: 1px; }
+  .preview-badge { font-size: 9px; padding: 2px 7px; border-radius: 5px; font-weight: 700; }
+
+  /* ── SEZIONI BIANCHE ── */
+  .s-white { background: #fff; padding: 44px 24px; }
+  .lbl-dark { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #d97706; margin-bottom: 8px; }
+  .ttl-dark { font-size: 24px; font-weight: 900; line-height: 1.2; letter-spacing: -.5px; margin-bottom: 8px; color: #1c1917; }
+  .sub-dark { font-size: 14px; color: #78716c; line-height: 1.6; margin-bottom: 24px; }
+
+  /* ── SEZIONI AMBER ── */
+  .s-amber { padding: 44px 24px; }
+  .lbl-light { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #fef3c7; margin-bottom: 8px; }
+  .ttl-light { font-size: 24px; font-weight: 900; line-height: 1.2; letter-spacing: -.5px; margin-bottom: 8px; color: #fff; }
+  .sub-light { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.6; margin-bottom: 24px; }
+
+  /* ── PROBLEMI ── */
+  .problem-card {
+    background: #fffbeb; border-radius: 12px; padding: 16px; margin-bottom: 10px;
+    border: 1px solid #fde68a; border-left: 3px solid #f87171;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .problem-icon { font-size: 22px; flex-shrink: 0; }
+  .problem-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; color: #1c1917; }
+  .problem-desc { font-size: 12px; color: #78716c; line-height: 1.45; }
+
+  /* ── FEATURE GRID ── */
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .feature-card {
+    background: rgba(255,255,255,.15); border-radius: 12px; padding: 14px;
+    border: 1px solid rgba(255,255,255,.25);
+    backdrop-filter: blur(4px);
+  }
+  .feature-card-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: rgba(255,255,255,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 8px;
+  }
+  .feature-card-title { font-size: 12px; font-weight: 700; margin-bottom: 3px; color: #fff; }
+  .feature-card-desc { font-size: 10px; color: rgba(255,255,255,.7); line-height: 1.4; }
+
+  /* ── PERCHÉ EVO ── */
+  .why-item { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+  .why-number {
+    width: 34px; height: 34px; background: #fef3c7; border: 2px solid #fde68a;
+    color: #d97706; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 15px; font-weight: 900; flex-shrink: 0;
+  }
+  .why-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: #1c1917; }
+  .why-desc { font-size: 12px; color: #78716c; line-height: 1.5; }
+
+  /* ── RUOLI ── */
+  .roles-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .role-chip {
+    background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.3);
+    border-radius: 99px; padding: 8px 14px;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+
+  /* ── LOGIN ── */
+  .form-card {
+    background: #fffbeb; border-radius: 16px; padding: 24px;
+    border: 1px solid #fde68a; margin-top: 16px;
+    box-shadow: 0 2px 12px rgba(217,119,6,.1);
+  }
+  .form-label { font-size: 11px; font-weight: 700; color: #92400e; margin-bottom: 5px; display: block; }
+  .form-input {
+    width: 100%; background: #fff; border: 1.5px solid #fde68a;
+    border-radius: 9px; padding: 11px 14px; color: #1c1917;
+    font-size: 14px; margin-bottom: 12px; outline: none;
+  }
+  .form-input::placeholder { color: #d1c4a8; }
+  .form-btn {
+    width: 100%; padding: 14px; background: linear-gradient(135deg,#d97706,#b45309);
+    color: #fff; border-radius: 10px; font-size: 15px; font-weight: 800;
+    border: none; cursor: pointer; margin-top: 4px;
+    box-shadow: 0 4px 14px rgba(217,119,6,.35);
+  }
+  .form-link { text-align: center; margin-top: 12px; font-size: 12px; color: #a8a29e; }
+  .form-link a { color: #d97706; text-decoration: none; font-weight: 600; }
+
+  /* ── REGISTRAZIONE ── */
+  .register-card {
+    background: rgba(255,255,255,.15); border-radius: 20px; padding: 28px;
+    border: 1px solid rgba(255,255,255,.3); margin-top: 16px;
+    position: relative; overflow: hidden;
+    backdrop-filter: blur(4px);
+  }
+  .register-card::before {
+    content: '🏀'; position: absolute; right: -8px; top: -8px;
+    font-size: 90px; opacity: .12; transform: rotate(15deg);
+  }
+  .register-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.3);
+    color: #fff; padding: 4px 11px; border-radius: 99px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; margin-bottom: 14px;
+  }
+  .register-title { font-size: 22px; font-weight: 900; margin-bottom: 6px; color: #fff; letter-spacing: -.5px; }
+  .register-sub { font-size: 13px; color: rgba(255,255,255,.78); margin-bottom: 20px; line-height: 1.55; }
+  .register-btn {
+    width: 100%; padding: 15px; background: #fff; color: #92400e;
+    border-radius: 12px; font-size: 15px; font-weight: 900;
+    border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  }
+  .register-note { text-align: center; margin-top: 12px; font-size: 11px; color: rgba(255,255,255,.55); }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 28px 24px; text-align: center;
+    border-top: 1px solid #fde68a; font-size: 11px; color: #a8a29e; background: #fff;
+  }
+  .footer-logo { font-weight: 900; font-size: 16px; color: #d97706; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <!-- NAVBAR -->
+  <nav class="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon">🏀</div>
+      <div class="nav-logo-text">EV<span>O</span></div>
+    </div>
+    <div class="nav-actions">
+      <a href="#login" class="btn-ghost">Accedi</a>
+      <a href="#register" class="btn-solid">Inizia gratis</a>
+    </div>
+  </nav>
+
+  <!-- 1. HERO — amber gradient ── -->
+  <section class="bg-amber wave-down hero">
+    <div class="hero-badge">🏀 Gestionale per società di basket</div>
+    <h1>Il tuo club.<br>Finalmente <span class="accent">organizzato.</span></h1>
+    <p class="hero-sub">EVO è l'app che semplifica la gestione della tua società: calendari, presenze, giocatori e comunicazioni — tutto in un posto.</p>
+    <div class="hero-ctas">
+      <button class="cta-primary">Registra la tua società →</button>
+      <button class="cta-secondary">Scopri come funziona ↓</button>
+    </div>
+    <div class="app-preview">
+      <div class="preview-header">
+        <span class="preview-title">📅 Settimana corrente</span>
+        <span class="preview-week">19–25 Mag</span>
+      </div>
+      <div class="preview-row">
+        <div class="preview-dot" style="background:#d97706;"></div>
+        <div style="flex:1;"><div class="preview-row-label">Lun — Allenamento U16</div><div class="preview-row-sub">Palestra Oderzo · 18:30</div></div>
+        <span class="preview-badge" style="background:#fef3c7;color:#d97706;">12 ✓</span>
+      </div>
+      <div class="preview-row">
+        <div class="preview-dot" style="background:#3b82f6;"></div>
+        <div style="flex:1;"><div class="preview-row-label">Mar — Partita vs Treviso</div><div class="preview-row-sub">Palasport · 20:00</div></div>
+        <span class="preview-badge" style="background:#eff6ff;color:#3b82f6;">FIP</span>
+      </div>
+      <div class="preview-row">
+        <div class="preview-dot" style="background:#10b981;"></div>
+        <div style="flex:1;"><div class="preview-row-label">Gio — Allenamento U18</div><div class="preview-row-sub">Palestra Oderzo · 19:00</div></div>
+        <span class="preview-badge" style="background:#ecfdf5;color:#10b981;">8 ✓</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. PROBLEMI — bianco ── -->
+  <section class="s-white">
+    <div class="lbl-dark">Il problema</div>
+    <div class="ttl-dark">Gestire un club non dovrebbe essere così complicato.</div>
+    <p class="sub-dark">Ogni settimana perdi ore preziose su task che un'app risolve in secondi.</p>
+    <div class="problem-card"><div class="problem-icon">📋</div><div><div class="problem-title">Calendari su Excel o carta</div><div class="problem-desc">Allenamenti e partite sparsi su fogli aggiornati a mano. Un cambiamento e tutto va rifatto.</div></div></div>
+    <div class="problem-card"><div class="problem-icon">💬</div><div><div class="problem-title">WhatsApp come canale ufficiale</div><div class="problem-desc">Comunicazioni importanti perse nei gruppi. Genitori che non leggono, allenatori fuori dal loop.</div></div></div>
+    <div class="problem-card"><div class="problem-icon">🗂️</div><div><div class="problem-title">Presenze segnate su carta</div><div class="problem-desc">Nessuna visione storica per squadra o giocatore. Impossibile fare analisi.</div></div></div>
+    <div class="problem-card"><div class="problem-icon">📂</div><div><div class="problem-title">Documenti e quote disorganizzati</div><div class="problem-desc">Certificati scaduti, quote non pagate, anagrafica sempre in ritardo.</div></div></div>
+  </section>
+
+  <!-- 3. SOLUZIONI — amber gradient ── -->
+  <section class="bg-amber wave-up wave-down s-amber">
+    <div class="lbl-light">La soluzione</div>
+    <div class="ttl-light">Tutto quello che serve. In un'unica app.</div>
+    <p class="sub-light">EVO raccoglie ogni aspetto della tua società in un'interfaccia semplice e mobile-first.</p>
+    <div class="feature-grid">
+      <div class="feature-card"><div class="feature-card-icon">📅</div><div class="feature-card-title">Calendario integrato</div><div class="feature-card-desc">Gare FIP + allenamenti. Import federale in un click.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">✅</div><div class="feature-card-title">Presenze digitali</div><div class="feature-card-desc">In tempo reale. Statistiche per giocatore e squadra.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">👨‍👩‍👧</div><div class="feature-card-title">Portale famiglie</div><div class="feature-card-desc">Genitori e giocatori vedono solo ciò che li riguarda.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📢</div><div class="feature-card-title">Bacheca ufficiale</div><div class="feature-card-desc">Sostituisce WhatsApp. Avvisi archiviati e sempre visibili.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">🗂️</div><div class="feature-card-title">Segreteria digitale</div><div class="feature-card-desc">Certificati, quote e anagrafica giocatori in ordine.</div></div>
+      <div class="feature-card"><div class="feature-card-icon">📊</div><div class="feature-card-title">Report & statistiche</div><div class="feature-card-desc">Trend presenze e attività squadra sempre aggiornati.</div></div>
+    </div>
+  </section>
+
+  <!-- 4. PERCHÉ EVO — bianco ── -->
+  <section class="s-white">
+    <div class="lbl-dark">Perché sceglierci</div>
+    <div class="ttl-dark">Pensato per chi vive il basket sul campo.</div>
+    <p class="sub-dark">Non uno strumento generico — EVO nasce dall'esperienza diretta delle società italiane.</p>
+    <div class="why-item"><div class="why-number">1</div><div><div class="why-title">Zero formazione necessaria</div><div class="why-desc">Interfaccia pensata per allenatori e dirigenti. Se sai usare uno smartphone, sai usare EVO.</div></div></div>
+    <div class="why-item"><div class="why-number">2</div><div><div class="why-title">Un ruolo per ogni persona</div><div class="why-desc">Admin, allenatore, segreteria, genitore, giocatore: ognuno vede solo ciò che gli serve.</div></div></div>
+    <div class="why-item"><div class="why-number">3</div><div><div class="why-title">Calendario FIP già integrato</div><div class="why-desc">Importa le gare direttamente dalla Federazione. Niente doppio inserimento, niente errori.</div></div></div>
+    <div class="why-item"><div class="why-number">4</div><div><div class="why-title">I tuoi dati sono tuoi</div><div class="why-desc">Ogni società è isolata e protetta. Dati degli atleti accessibili solo ai tuoi account.</div></div></div>
+  </section>
+
+  <!-- 5. RUOLI — amber gradient ── -->
+  <section class="bg-amber wave-up wave-down s-amber">
+    <div class="lbl-light">Multi-ruolo</div>
+    <div class="ttl-light" style="font-size:20px;">Un'app. Cinque prospettive.</div>
+    <p class="sub-light">Ogni membro accede con il proprio profilo personalizzato.</p>
+    <div class="roles-row">
+      <div class="role-chip">👑 Admin</div>
+      <div class="role-chip">🏋️ Allenatore</div>
+      <div class="role-chip">📋 Segreteria</div>
+      <div class="role-chip">👨‍👩‍👧 Genitore</div>
+      <div class="role-chip">🏀 Giocatore</div>
+    </div>
+  </section>
+
+  <!-- 6. LOGIN — bianco ── -->
+  <section class="s-white" id="login">
+    <div class="lbl-dark">Già registrato</div>
+    <div class="ttl-dark" style="font-size:22px;">Accedi al tuo gestionale</div>
+    <div class="form-card">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" placeholder="nome@societa.it" />
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" placeholder="••••••••" />
+      <button class="form-btn">Accedi →</button>
+      <div class="form-link"><a href="#">Password dimenticata?</a></div>
+    </div>
+  </section>
+
+  <!-- 7. REGISTRAZIONE — amber gradient ── -->
+  <section class="bg-amber wave-up s-amber" id="register" style="padding-bottom:56px;">
+    <div class="lbl-light">Nuova società</div>
+    <div class="ttl-light" style="font-size:22px;">Porta EVO nella tua società</div>
+    <div class="register-card">
+      <div class="register-pill">✦ Gratuito per iniziare</div>
+      <div class="register-title">Inizia oggi.</div>
+      <div class="register-sub">Compila il modulo, il nostro team configura la tua società entro 24 ore. Nessuna carta di credito richiesta.</div>
+      <button class="register-btn">Registra la tua società →</button>
+      <div class="register-note">Attivazione entro 24h · Supporto incluso · Dati sicuri</div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-logo">EVO 🏀</div>
+    Il gestionale per il basket italiano.<br>
+    <span style="margin-top:6px;display:block;">© 2026 EVO · Tutti i diritti riservati</span>
+  </footer>
+
+</div>
+</body>
+</html>

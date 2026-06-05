@@ -1,0 +1,128 @@
+<h2>Come gestire l'esperienza per ogni ruolo?</h2>
+<p class="subtitle">Admin, allenatore, genitore, giocatore, segreteria usano l'app in modo molto diverso. Come vuoi strutturare la loro esperienza?</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">A — Stessa shell, contenuti diversi (approccio attuale migliorato)</div>
+    <div class="mockup-body" style="background:#fff7ed; padding: 16px; border-radius: 8px; font-size: 13px;">
+      <!-- Header shared -->
+      <div style="background: linear-gradient(135deg, #92400e, #d97706); border-radius: 10px; padding: 14px; color: white; margin-bottom: 10px;">
+        <div style="font-size: 11px; opacity: 0.8;">Benvenuto, Marco</div>
+        <div style="font-weight: 700; font-size: 16px;">ASD Basket Oderzo</div>
+        <div style="font-size: 11px; opacity: 0.7; margin-top:2px;">Allenatore · U14</div>
+      </div>
+      <!-- Cards role-specific -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+        <div style="background: white; border-radius: 10px; padding: 10px; border-top: 3px solid #d97706;">
+          <div style="font-size: 10px; color: #92400e; font-weight: 700; text-transform: uppercase;">Prossima partita</div>
+          <div style="font-weight: 700; color: #1c1917; margin-top: 3px;">Dom 11 Mag</div>
+          <div style="font-size: 11px; color: #d97706;">vs Treviso Basket</div>
+        </div>
+        <div style="background: white; border-radius: 10px; padding: 10px; border-top: 3px solid #16a34a;">
+          <div style="font-size: 10px; color: #166534; font-weight: 700; text-transform: uppercase;">Allenamento</div>
+          <div style="font-weight: 700; color: #1c1917; margin-top: 3px;">Mar 18:30</div>
+          <div style="font-size: 11px; color: #16a34a;">Palestra A</div>
+        </div>
+      </div>
+      <!-- Bacheca preview -->
+      <div style="background: white; border-radius: 10px; padding: 10px; margin-bottom: 8px; border-left: 3px solid #d97706;">
+        <div style="font-size: 10px; color: #92400e; font-weight: 700; text-transform: uppercase;">Bacheca</div>
+        <div style="font-size: 12px; color: #374151; margin-top: 3px;">Nuova comunicazione dalla segreteria</div>
+      </div>
+      <!-- Bottom nav -->
+      <div style="background: white; border-radius: 10px; padding: 10px; display: flex; justify-content: space-around; border: 1px solid #fed7aa;">
+        <div style="text-align: center; font-size: 9px; color: #d97706; font-weight: 700;">🏠<br>Home</div>
+        <div style="text-align: center; font-size: 9px; color: #9ca3af;">📅<br>Calendario</div>
+        <div style="text-align: center; font-size: 9px; color: #9ca3af;">🏋️<br>Allenamenti</div>
+        <div style="text-align: center; font-size: 9px; color: #9ca3af;">🔔<br>Bacheca</div>
+      </div>
+    </div>
+    <div style="padding: 12px; font-size: 12px; color: #6b7280;">
+      <strong>Pro:</strong> Un solo design da mantenere, tutti i ruoli hanno la stessa "forma" dell'app.<br>
+      <strong>Contro:</strong> Meno ottimizzato — admin e genitore vedono strutture simili anche se le loro necessità sono diverse.
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">B — Dashboard dedicata per ogni ruolo</div>
+    <div class="mockup-body" style="background: #fff7ed; padding: 16px; border-radius: 8px; font-size: 13px;">
+
+      <!-- Admin view -->
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 700; color: #92400e; text-transform: uppercase; margin-bottom: 5px;">Admin vede:</div>
+        <div style="background: white; border-radius: 10px; padding: 10px; border: 1px solid #fed7aa;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center;">
+            <div style="background: #fff7ed; border-radius: 8px; padding: 8px;">
+              <div style="font-size: 18px; font-weight: 700; color: #d97706;">6</div>
+              <div style="font-size: 9px; color: #78716c;">Squadre</div>
+            </div>
+            <div style="background: #fef2f2; border-radius: 8px; padding: 8px;">
+              <div style="font-size: 18px; font-weight: 700; color: #dc2626;">3</div>
+              <div style="font-size: 9px; color: #78716c;">Cert. scaduti</div>
+            </div>
+            <div style="background: #f0fdf4; border-radius: 8px; padding: 8px;">
+              <div style="font-size: 18px; font-weight: 700; color: #16a34a;">12</div>
+              <div style="font-size: 9px; color: #78716c;">Partite mese</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Genitore view -->
+      <div style="margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 700; color: #92400e; text-transform: uppercase; margin-bottom: 5px;">Genitore vede:</div>
+        <div style="background: white; border-radius: 10px; padding: 10px; border: 1px solid #fed7aa;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 32px; height: 32px; background: #d97706; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700;">L</div>
+            <div>
+              <div style="font-weight: 700; font-size: 13px; color: #1c1917;">Luca Rossi</div>
+              <div style="font-size: 10px; color: #78716c;">U14 · Allenamento mar 18:30</div>
+            </div>
+          </div>
+          <div style="background: #fef3c7; border-radius: 8px; padding: 8px; font-size: 11px; color: #92400e;">Prossima partita: Dom 11 Mag vs Treviso</div>
+        </div>
+      </div>
+
+      <!-- Giocatore view -->
+      <div>
+        <div style="font-size: 10px; font-weight: 700; color: #92400e; text-transform: uppercase; margin-bottom: 5px;">Giocatore vede:</div>
+        <div style="background: white; border-radius: 10px; padding: 10px; border: 1px solid #fed7aa;">
+          <div style="font-size: 12px; font-weight: 600; color: #1c1917; margin-bottom: 6px;">Il tuo programma questa settimana</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; gap: 8px; align-items: center; font-size: 11px;">
+              <div style="background: #d97706; color: white; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700;">MAR</div>
+              <span style="color: #374151;">Allenamento 18:30 Palestra A</span>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; font-size: 11px;">
+              <div style="background: #2563eb; color: white; border-radius: 4px; padding: 2px 6px; font-size: 10px; font-weight: 700;">DOM</div>
+              <span style="color: #374151;">Partita vs Treviso 15:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding: 12px; font-size: 12px; color: #6b7280;">
+      <strong>Pro:</strong> Ogni ruolo vede subito le informazioni più rilevanti per lui. Esperienza molto più mirata.<br>
+      <strong>Contro:</strong> Più complesso da implementare — ogni dashboard è un mini-progetto.
+    </div>
+  </div>
+
+</div>
+
+<div class="options" style="margin-top: 16px;">
+  <div class="option" data-choice="A" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Stessa shell, contenuti ottimizzati per ruolo</h3>
+      <p>Manteniamo la struttura attuale ma la rendiamo più bella e i contenuti più mirati.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="B" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Dashboard dedicata per ogni ruolo</h3>
+      <p>Ogni ruolo ha la sua "schermata di benvenuto" pensata per le sue esigenze specifiche.</p>
+    </div>
+  </div>
+</div>

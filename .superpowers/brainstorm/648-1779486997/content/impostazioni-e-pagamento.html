@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f3f4f6; padding: 24px; }
+  h2 { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 6px; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: white; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+  .panel-header { background: #7c3aed; color: white; padding: 10px 16px; font-weight: 700; font-size: 13px; }
+  .panel-body { padding: 16px; font-size: 12px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .field input { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 7px 10px; font-size: 12px; color: #374151; }
+  .field.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .logo-upload { border: 2px dashed #d1d5db; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; color: #9ca3af; margin-bottom: 12px; }
+  .logo-upload:hover { border-color: #7c3aed; color: #7c3aed; }
+  .logo-preview { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 12px; }
+  .logo-preview .fake-logo { font-size: 22px; font-style: italic; font-weight: bold; color: #7c3aed; font-family: Georgia, serif; }
+  .btn-save { width: 100%; background: #7c3aed; color: white; border: none; padding: 9px; border-radius: 7px; font-weight: 700; font-size: 12px; cursor: pointer; margin-top: 4px; }
+
+  /* Modal pagamento */
+  .modal-overlay { background: rgba(0,0,0,0.08); border-radius: 10px; padding: 20px; }
+  .modal { background: white; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+  .modal-header { background: #059669; color: white; padding: 10px 16px; font-weight: 700; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-body { padding: 16px; font-size: 12px; }
+  .quota-info { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .quota-info .name { font-weight: 700; color: #111; font-size: 13px; }
+  .quota-info .desc { color: #6b7280; font-size: 11px; margin-top: 1px; }
+  .quota-info .amount { font-size: 20px; font-weight: 800; color: #059669; }
+  .metodo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .metodo-btn { border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s; }
+  .metodo-btn.selected { border-color: #059669; background: #f0fdf4; }
+  .metodo-btn .icon { font-size: 20px; margin-bottom: 4px; }
+  .metodo-btn .label { font-size: 10px; font-weight: 600; color: #374151; }
+  .metodo-btn.selected .label { color: #059669; }
+  .date-field { margin-bottom: 14px; }
+  .date-field label { display: block; font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+  .date-field input { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 7px 10px; font-size: 12px; }
+  .modal-actions { display: flex; gap: 8px; }
+  .btn-confirm { flex: 1; background: #059669; color: white; border: none; padding: 9px; border-radius: 7px; font-weight: 700; font-size: 12px; cursor: pointer; }
+  .btn-cancel { padding: 9px 14px; border: 1px solid #e5e7eb; border-radius: 7px; font-size: 12px; color: #6b7280; background: white; cursor: pointer; }
+  .note { font-size: 10px; color: #9ca3af; margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h2>Due schermate che rispondono alle tue domande</h2>
+<p class="subtitle">Sinistra: dove imposti logo e nome società &nbsp;·&nbsp; Destra: come si registra il metodo di pagamento</p>
+
+<div class="split">
+
+  <!-- IMPOSTAZIONI SOCIETÀ -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">⚙️ Impostazioni Società</div>
+      <div class="panel-body">
+
+        <div class="logo-preview">
+          <div class="fake-logo">🏀 Basket Oderzo</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Anteprima intestazione ricevuta</div>
+        </div>
+
+        <div class="logo-upload">
+          <div style="font-size:20px; margin-bottom:4px;">📁</div>
+          <div style="font-size:11px; font-weight:600;">Carica logo (PNG/JPG)</div>
+          <div style="font-size:10px; margin-top:2px;">oppure usa il nome testuale sopra</div>
+        </div>
+
+        <div class="field">
+          <label>Nome completo ASD *</label>
+          <input value="Basket Oderzo ASD" />
+        </div>
+        <div class="field">
+          <label>Codice fiscale *</label>
+          <input value="92345678901" style="font-family:monospace;" />
+        </div>
+        <div class="field">
+          <label>Indirizzo</label>
+          <input value="Via Mazzini 10" />
+        </div>
+        <div class="field row">
+          <div>
+            <label>Città</label>
+            <input value="Oderzo" />
+          </div>
+          <div>
+            <label>CAP / Prov</label>
+            <input value="31046 TV" />
+          </div>
+        </div>
+        <div class="field row">
+          <div>
+            <label>Telefono</label>
+            <input value="+39 0422 123456" />
+          </div>
+          <div>
+            <label>Email</label>
+            <input value="segreteria@basket..." />
+          </div>
+        </div>
+        <button class="btn-save">💾 Salva impostazioni</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PAGAMENTO -->
+  <div>
+    <div style="margin-bottom:8px; font-size:11px; color:#6b7280; padding: 0 4px;">
+      Quando la segretaria clicca <strong>"Segna come pagato"</strong> su una quota, appare questo pannello:
+    </div>
+    <div class="modal">
+      <div class="modal-header">
+        ✅ Registra pagamento
+        <span style="opacity:0.7; font-weight:400; font-size:11px;">×</span>
+      </div>
+      <div class="modal-body">
+
+        <div class="quota-info">
+          <div>
+            <div class="name">Rossi Marco</div>
+            <div class="desc">Quota mensile Maggio 2025</div>
+          </div>
+          <div class="amount">€ 60</div>
+        </div>
+
+        <div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Metodo di pagamento</div>
+        <div class="metodo-grid">
+          <div class="metodo-btn selected">
+            <div class="icon">💵</div>
+            <div class="label">Contanti</div>
+          </div>
+          <div class="metodo-btn">
+            <div class="icon">🏦</div>
+            <div class="label">Bonifico</div>
+          </div>
+          <div class="metodo-btn">
+            <div class="icon">💳</div>
+            <div class="label">POS / Carta</div>
+          </div>
+        </div>
+
+        <div class="date-field">
+          <label>Data pagamento *</label>
+          <input type="date" value="2025-05-23" />
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-cancel">Annulla</button>
+          <button class="btn-confirm">✅ Conferma pagamento</button>
+        </div>
+        <div class="note">Dopo la conferma potrai stampare la ricevuta</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

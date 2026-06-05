@@ -1,0 +1,60 @@
+<h2>Design: struttura del modulo preparazione atletica</h2>
+<p class="subtitle">Come si integra nell'app esistente — cosa vede ogni ruolo</p>
+
+<div class="section">
+  <h3>Nuovo ruolo: preparatore_atletico</h3>
+  <p>Aggiunto come valore in <code>profiles.ruolo</code> e <code>ruoli_extra</code> (compatibile col sistema multi-ruolo già esistente). Ha il proprio layout dedicato — identico per struttura a <code>CoachLayout</code> e <code>AdminLayout</code>.</p>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Routing — /prep/* (PrepLayout)</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:2">
+      <div style="color:#f59e0b;font-weight:bold">/prep</div>
+      <div style="padding-left:1.5rem;color:#6b7280">
+        <div>→ <b>Dashboard</b> — panoramica infortuni attivi, prossimi slot sala pesi, carichi squadre</div>
+        <div>→ <b>/test</b> — inserimento e grafici progressione test fisici per squadra/giocatore</div>
+        <div>→ <b>/infortuni</b> — registro infortuni attivi e risolti, form inserimento</div>
+        <div>→ <b>/antropometria</b> — rilevazioni periodiche (altezza, peso, apertura braccia…)</div>
+        <div>→ <b>/schede</b> — libreria schede atletiche, assegnazione a squadre o giocatori</div>
+        <div>→ <b>/spazi</b> — orario sala pesi (fisso + variazioni settimanali)</div>
+        <div>→ <b>/carichi</b> — dashboard RPE aggregato per squadra</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">Allenatore — /coach/atletica (sola lettura)</div>
+      <div class="mockup-body" style="font-size:0.85rem;line-height:1.8">
+        <div>✔ Infortuni attivi della propria squadra</div>
+        <div>✔ Ultimi test fisici dei propri giocatori</div>
+        <div>✔ Carichi RPE della settimana</div>
+        <div>✔ Prossimo slot sala pesi per la squadra</div>
+        <div style="color:#9ca3af;margin-top:0.5rem">✗ Non può modificare nulla</div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">Giocatore — HomeGiocatore (solo RPE)</div>
+      <div class="mockup-body" style="font-size:0.85rem;line-height:1.8">
+        <div>✔ Box "Come ti sei sentito?" dopo l'allenamento</div>
+        <div>✔ Slider 1–10 + salva (30 secondi di utilizzo)</div>
+        <div style="color:#9ca3af;margin-top:0.5rem">✗ Non vede test né infortuni</div>
+        <div style="color:#9ca3af">✗ Non vede schede né antropometria</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Admin — supervisione completa</div>
+    <div class="mockup-body" style="font-size:0.85rem">
+      Vede tutto in sola lettura. Può assegnare il ruolo <code>preparatore_atletico</code> dagli Utenti nel pannello di setup esistente. Nessuna pagina nuova necessaria nell'area admin.
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">Questa struttura ti convince? Rispondimi nel terminale — poi entriamo nel dettaglio delle singole sezioni.</p>

@@ -1,0 +1,127 @@
+<h2>Quote — cosa vede (e può fare) il Genitore?</h2>
+<p class="subtitle">Il tab "Quote" è nuovo. Quanto deve essere interattivo?</p>
+
+<style>
+.mock-header { border-radius: 12px; padding: 12px 14px; color: white; margin-bottom: 10px; }
+.mock-header .title { font-weight: 700; font-size: 15px; }
+.mock-header .sub { font-size: 10px; opacity: 0.8; margin-top: 2px; }
+.quota-card {
+  background: white; border-radius: 12px; padding: 12px; margin-bottom: 8px;
+  border: 1px solid #e5e7eb; border-left: 4px solid;
+}
+.quota-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.quota-name { font-size: 13px; font-weight: 700; color: #1f2937; }
+.quota-amount { font-size: 16px; font-weight: 800; }
+.quota-meta { font-size: 10px; color: #6b7280; }
+.status-badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.section-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 10px 0 4px; }
+.info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px; font-size: 11px; color: #166534; margin-top: 8px; }
+.pay-btn { width: 100%; padding: 8px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; margin-top: 8px; }
+.child-chip { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; margin-left: 6px; }
+</style>
+
+<div class="split">
+
+  <!-- A: Solo lettura con istruzioni pagamento -->
+  <div class="mockup" data-choice="A" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">A — Informativo: vede cosa deve pagare e come</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#166534,#16a34a);">
+        <div class="title">Le mie quote</div>
+        <div class="sub">Pagamenti e scadenze</div>
+      </div>
+
+      <div class="section-lbl">Da pagare</div>
+
+      <div class="quota-card" style="border-color:#f59e0b;">
+        <div class="quota-header">
+          <div>
+            <div class="quota-name">Quota iscrizione 2025/26 <span class="child-chip" style="background:#fef9c3; color:#854d0e;">Luca</span></div>
+            <div class="quota-meta">Scadenza: 15 Maggio 2026</div>
+          </div>
+          <div class="quota-amount" style="color:#f59e0b;">€150</div>
+        </div>
+        <div class="info-box">
+          💳 Paga in segreteria oppure tramite bonifico:<br>
+          <strong>IBAN: IT60 X054 2811 1010 0000 0123 456</strong><br>
+          Causale: Iscrizione Luca Rossi U14
+        </div>
+      </div>
+
+      <div class="quota-card" style="border-color:#dc2626;">
+        <div class="quota-header">
+          <div>
+            <div class="quota-name">Quota mensile Aprile <span class="child-chip" style="background:#dcfce7; color:#166534;">Sofia</span></div>
+            <div class="quota-meta">Scadenza: 30 Aprile 2026 — <span style="color:#dc2626; font-weight:700;">scaduta</span></div>
+          </div>
+          <div class="quota-amount" style="color:#dc2626;">€50</div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Già pagate</div>
+      <div class="quota-card" style="border-color:#16a34a; opacity:0.7;">
+        <div class="quota-header">
+          <div>
+            <div class="quota-name">Quota iscrizione 2024/25 <span class="child-chip" style="background:#fef9c3; color:#854d0e;">Luca</span></div>
+            <div class="quota-meta">Pagata il 10 Set 2024</div>
+          </div>
+          <div class="quota-amount" style="color:#16a34a;">€150</div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Come funziona:</strong> il genitore vede cosa deve pagare con scadenze e istruzioni. Solo la segreteria può segnare "pagato".<br><br>
+      <strong>Pro:</strong> semplice, nessun rischio di errori da parte del genitore.<br>
+      <strong>Contro:</strong> il genitore non può fare nulla da solo, tutto passa dalla segreteria.
+    </div>
+  </div>
+
+  <!-- B: Genitore può segnare "ho pagato" -->
+  <div class="mockup" data-choice="B" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="mockup-header">B — Interattivo: il genitore segna "ho pagato"</div>
+    <div class="mockup-body" style="background:#f9fafb; padding:14px; border-radius:8px;">
+      <div class="mock-header" style="background:linear-gradient(135deg,#166534,#16a34a);">
+        <div class="title">Le mie quote</div>
+        <div class="sub">Pagamenti e scadenze</div>
+      </div>
+
+      <div class="section-lbl">Da pagare</div>
+
+      <div class="quota-card" style="border-color:#f59e0b;">
+        <div class="quota-header">
+          <div>
+            <div class="quota-name">Quota iscrizione 2025/26 <span class="child-chip" style="background:#fef9c3; color:#854d0e;">Luca</span></div>
+            <div class="quota-meta">Scadenza: 15 Maggio 2026</div>
+          </div>
+          <div class="quota-amount" style="color:#f59e0b;">€150</div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button class="pay-btn" style="background:#dcfce7; color:#16a34a; flex:1; margin-top:0;">✓ Ho pagato in segreteria</button>
+          <button class="pay-btn" style="background:#eff6ff; color:#1e40af; flex:1; margin-top:0;">🏦 Ho fatto il bonifico</button>
+        </div>
+        <p style="font-size:9px; color:#9ca3af; margin:4px 0 0; text-align:center;">La segreteria verificherà e confermerà</p>
+      </div>
+
+      <div class="quota-card" style="border-color:#dc2626;">
+        <div class="quota-header">
+          <div>
+            <div class="quota-name">Quota mensile Aprile <span class="child-chip" style="background:#dcfce7; color:#166534;">Sofia</span></div>
+            <div class="quota-meta" style="color:#dc2626; font-weight:600;">Scaduta il 30 Apr 2026</div>
+          </div>
+          <div class="quota-amount" style="color:#dc2626;">€50</div>
+        </div>
+        <button class="pay-btn" style="background:#fee2e2; color:#dc2626;">✓ Ho pagato (in ritardo)</button>
+      </div>
+
+      <div style="background:#fef9c3; border: 1px solid #fde68a; border-radius: 10px; padding: 8px; font-size: 10px; color: #854d0e; margin-top:4px;">
+        ℹ️ Segnando "ho pagato" avvisi la segreteria — il pagamento verrà confermato da loro.
+      </div>
+    </div>
+    <div style="padding:10px; font-size:11px; color:#6b7280;">
+      <strong>Come funziona:</strong> il genitore può segnalare che ha pagato; la segreteria riceve la notifica e conferma.<br><br>
+      <strong>Pro:</strong> riduce il lavoro della segreteria (già sa chi dice di aver pagato), il genitore si sente attivo.<br>
+      <strong>Contro:</strong> richiede un flusso di conferma in più in segreteria.
+    </div>
+  </div>
+
+</div>

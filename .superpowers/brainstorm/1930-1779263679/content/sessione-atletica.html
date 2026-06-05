@@ -1,0 +1,118 @@
+<h2>Aggiungere una sessione atletica</h2>
+<p class="subtitle">Come appare il form quando il preparatore aggiunge un turno. Scegli quale approccio ti sembra più pratico.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;font-size:12px;max-width:280px;margin:0 auto;">
+        <div style="background:#f9fafb;border-bottom:1px solid #e5e7eb;padding:10px 14px;font-weight:700;font-size:13px;">+ Nuova sessione</div>
+        <div style="padding:12px;space-y:10px;">
+
+          <!-- Tipo -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">TIPO SESSIONE</div>
+            <div style="display:flex;gap:6px;">
+              <div style="flex:1;background:#fef3c7;border:2px solid #d97706;border-radius:8px;padding:6px;text-align:center;font-size:10px;font-weight:700;color:#92400e;">📅 Legata ad allenamento</div>
+              <div style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:6px;text-align:center;font-size:10px;color:#6b7280;">🆓 Sessione libera</div>
+            </div>
+          </div>
+
+          <!-- Allenamento collegato -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">ALLENAMENTO *</div>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">Lun 19/05 · Under 17 · 18:00–20:00</div>
+          </div>
+
+          <!-- Quando -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">QUANDO</div>
+            <div style="display:flex;gap:4px;">
+              <div style="flex:1;background:#f3f4f6;border-radius:6px;padding:5px;text-align:center;font-size:10px;color:#6b7280;">Prima</div>
+              <div style="flex:1;background:#fef3c7;border:2px solid #d97706;border-radius:6px;padding:5px;text-align:center;font-size:10px;font-weight:700;color:#92400e;">Durante</div>
+              <div style="flex:1;background:#f3f4f6;border-radius:6px;padding:5px;text-align:center;font-size:10px;color:#6b7280;">Dopo</div>
+            </div>
+          </div>
+
+          <!-- Durata -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">DURATA (minuti)</div>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">30</div>
+          </div>
+
+          <!-- Dove -->
+          <div style="margin-bottom:10px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">DOVE</div>
+            <div style="display:flex;gap:6px;">
+              <div style="flex:1;background:#fee2e2;border:2px solid #f87171;border-radius:8px;padding:6px;text-align:center;font-size:10px;font-weight:700;color:#991b1b;">⚠ Su campo</div>
+              <div style="flex:1;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:6px;text-align:center;font-size:10px;color:#6b7280;">Fuori campo</div>
+            </div>
+          </div>
+
+          <!-- Warning -->
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px;font-size:10px;color:#991b1b;margin-bottom:10px;">
+            ⚠ "Su campo" durante l'allenamento occupa spazio palestra. Visibile agli admin nel calendario.
+          </div>
+
+          <div style="background:#d97706;color:white;border-radius:8px;padding:8px;text-align:center;font-weight:600;font-size:11px;">Salva sessione</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Opzione A — Form guidato</h3>
+      <p>Prima scegli se è legata a un allenamento o libera, poi il form si adatta. Legata → scegli allenamento + prima/durante/dopo + durata + dove. Libera → data/ora/squadra/dove.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;font-size:12px;max-width:280px;margin:0 auto;">
+        <div style="background:#f9fafb;border-bottom:1px solid #e5e7eb;padding:10px 14px;font-weight:700;font-size:13px;">+ Nuova sessione</div>
+        <div style="padding:12px;">
+
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">SQUADRA *</div>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">Under 17 ▾</div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">DATA *</div>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">19/05/2026</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">ORA INIZIO *</div>
+              <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">17:30</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">DURATA (min)</div>
+              <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#374151;">30</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">ALLENAMENTO COLLEGATO (opz.)</div>
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px;color:#9ca3af;">Seleziona allenamento... ▾</div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:600;color:#6b7280;margin-bottom:4px;">POSIZIONE</div>
+            <div style="display:flex;gap:4px;">
+              <div style="flex:1;background:#f3f4f6;border-radius:6px;padding:5px;text-align:center;font-size:10px;color:#6b7280;">Su campo</div>
+              <div style="flex:1;background:#d1fae5;border:2px solid #34d399;border-radius:6px;padding:5px;text-align:center;font-size:10px;font-weight:700;color:#065f46;">Fuori campo</div>
+            </div>
+          </div>
+
+          <div style="background:#d97706;color:white;border-radius:8px;padding:8px;text-align:center;font-weight:600;font-size:11px;margin-top:4px;">Salva sessione</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Opzione B — Form libero</h3>
+      <p>Sempre data + ora + durata. Il collegamento all'allenamento è opzionale. Più flessibile, ma richiede di inserire orario anche per sessioni legate a training esistenti.</p>
+    </div>
+  </div>
+
+</div>
+<p class="subtitle" style="margin-top:16px;">Clicca l'opzione preferita e rispondimi nel terminale.</p>
