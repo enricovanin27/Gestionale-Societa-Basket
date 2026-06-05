@@ -14,7 +14,7 @@ export function useEntrate(societaId, from, to) {
     enabled: !!societaId && !!from && !!to,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('quote')
         .select(`
           id, tipo, descrizione, importo, data_pagamento, metodo_pagamento, numero_ricevuta,
@@ -26,6 +26,7 @@ export function useEntrate(societaId, from, to) {
         .lte('data_pagamento', to)
         .order('data_pagamento')
         .order('numero_ricevuta', { ascending: true, nullsFirst: false })
+      if (error) throw error
       return data ?? []
     },
   })
