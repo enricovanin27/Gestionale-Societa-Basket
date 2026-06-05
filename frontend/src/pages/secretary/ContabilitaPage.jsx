@@ -35,7 +35,6 @@ const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ou
 
 const FORM_EMPTY = {
   importo: '',
-  data: format(new Date(), 'yyyy-MM-dd'),
   categoria: '',
   descrizione: '',
 }
@@ -186,7 +185,10 @@ export default function ContabilitaPage() {
 
   // ── Stato form spesa ──────────────────────────────────────────────────────
   const [showForm, setShowForm] = useState(false)
-  const [form,     setForm]     = useState(FORM_EMPTY)
+  const [form,     setForm]     = useState(() => ({
+    ...FORM_EMPTY,
+    data: format(new Date(), 'yyyy-MM-dd'),
+  }))
   const [saving,   setSaving]   = useState(false)
 
   async function handleSave(e) {
@@ -205,7 +207,7 @@ export default function ContabilitaPage() {
       qc.invalidateQueries({ queryKey: ['spese', societaId] })
       qc.invalidateQueries({ queryKey: ['spese-categorie', societaId] })
       setShowForm(false)
-      setForm(FORM_EMPTY)
+      setForm({ ...FORM_EMPTY, data: format(new Date(), 'yyyy-MM-dd') })
     } finally {
       setSaving(false)
     }
@@ -213,9 +215,14 @@ export default function ContabilitaPage() {
 
   async function handleDelete(id) {
     if (!window.confirm('Eliminare questa spesa?')) return
-    const { error } = await supabase.from('spese').delete().eq('id', id)
-    if (error) throw error
-    qc.invalidateQueries({ queryKey: ['spese', societaId] })
+    try {
+      const { error } = await supabase.from('spese').delete().eq('id', id)
+      if (error) throw error
+      qc.invalidateQueries({ queryKey: ['spese', societaId] })
+    } catch (err) {
+      console.error('Errore eliminazione spesa:', err)
+      alert('Errore durante l\'eliminazione. Riprova.')
+    }
   }
 
   // ── Controlli periodo (riusati in tutti i tab) ────────────────────────────
@@ -467,7 +474,7 @@ export default function ContabilitaPage() {
       <div className="bg-white rounded-t-2xl w-full max-w-lg p-6 pb-safe max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-gray-900">Nuova spesa</h2>
-          <button onClick={() => { setShowForm(false); setForm(FORM_EMPTY) }}>
+          <button onClick={() => { setShowForm(false); setForm({ ...FORM_EMPTY, data: format(new Date(), 'yyyy-MM-dd') }) }}>
             <X size={20} />
           </button>
         </div>
