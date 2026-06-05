@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Bell, ClipboardList } from 'lucide-react'
+import { LayoutDashboard, Bell, TrendingUp } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -15,9 +15,9 @@ export default function DirigentLayout() {
   const { data: unread = 0 } = useUnreadAnnunci(societaId)
 
   const sidebarItems = [
-    { to: '/dirigente',          end: true, icon: LayoutDashboard, label: 'Panoramica' },
-    { to: '/dirigente/economico',            icon: ClipboardList,    label: 'Economico' },
-    { to: '/dirigente/bacheca',              icon: Bell,             label: 'Bacheca', badge: unread },
+    { to: '/dirigente',               end: true, icon: LayoutDashboard, label: 'Panoramica' },
+    { to: '/dirigente/contabilita',              icon: TrendingUp,       label: 'Contabilità' },
+    { to: '/dirigente/bacheca',                  icon: Bell,             label: 'Bacheca', badge: unread },
   ]
 
   return (
@@ -31,9 +31,9 @@ export default function DirigentLayout() {
             <LayoutDashboard size={22} strokeWidth={1.8} />
             <span className="text-xs font-medium">Panoramica</span>
           </NavLink>
-          <NavLink to="/dirigente/economico" className={cls}>
-            <ClipboardList size={22} strokeWidth={1.8} />
-            <span className="text-xs font-medium">Economico</span>
+          <NavLink to="/dirigente/contabilita" className={cls}>
+            <TrendingUp size={22} strokeWidth={1.8} />
+            <span className="text-xs font-medium">Contabilità</span>
           </NavLink>
           <NavLink to="/dirigente/bacheca" className={cls}>
             <div className="relative">

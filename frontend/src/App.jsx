@@ -30,6 +30,7 @@ import RicevutaPage         from './pages/secretary/RicevutaPage'
 import Attestazione730Page  from './pages/secretary/Attestazione730Page'
 import CertificatiPage      from './pages/secretary/CertificatiPage'
 import ResocontoPage        from './pages/secretary/ResocontoPage'
+import ContabilitaPage      from './pages/secretary/ContabilitaPage'
 import SegreteriaSetupPage  from './pages/secretary/SegreteriaSetupPage'
 import DirigentLayout      from './layouts/DirigentLayout'
 import HomeDirigente       from './pages/dirigente/HomeDirigente'
@@ -187,12 +188,14 @@ function AppShell() {
           <Route path="certificati"     element={<CertificatiPage />} />
           <Route path="impostazioni"    element={<ImpostazioniSocieta />} />
           <Route path="setup"           element={<SegreteriaSetupPage />} />
+          <Route path="contabilita"     element={<ContabilitaPage />} />
         </Route>
 
         {/* ── Dirigente ──────────────────────────────────────────────────── */}
         <Route path="/dirigente" element={<ProtectedRoute requiredRole="dirigente"><DirigentLayout /></ProtectedRoute>}>
           <Route index                  element={<HomeDirigente />} />
           <Route path="economico"       element={<ResocontoPage />} />
+          <Route path="contabilita"     element={<ContabilitaPage />} />
           <Route path="bacheca"         element={<BachecaPage />} />
         </Route>
 

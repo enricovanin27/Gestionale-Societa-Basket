@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Bell, Receipt, Settings, Shield, UserPlus } from 'lucide-react'
+import { LayoutDashboard, Users, Bell, Receipt, Settings, Shield, UserPlus, TrendingUp } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -18,6 +18,7 @@ export default function SecretaryLayout() {
     { to: '/secretary/giocatori',               icon: Users,           label: 'Giocatori' },
     { to: '/secretary/quote',                   icon: Receipt,         label: 'Quote Squadre' },
     { to: '/secretary/certificati',             icon: Shield,          label: 'Certificati' },
+    { to: '/secretary/contabilita',             icon: TrendingUp,      label: 'Contabilità' },
     { to: '/secretary/bacheca',                 icon: Bell,            label: 'Bacheca', badge: unread },
     { to: '/secretary/impostazioni',            icon: Settings,        label: 'Impostazioni' },
     { to: '/secretary/setup',                   icon: UserPlus,        label: 'Setup' },
@@ -40,9 +41,9 @@ export default function SecretaryLayout() {
           <NavLink to="/secretary/certificati" className={cls}>
             <Shield size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Certificati</span>
           </NavLink>
-          <NavLink to="/secretary/setup" className={cls}>
-            <UserPlus size={22} strokeWidth={1.8} />
-            <span className="text-xs font-medium">Setup</span>
+          <NavLink to="/secretary/contabilita" className={cls}>
+            <TrendingUp size={22} strokeWidth={1.8} />
+            <span className="text-xs font-medium">Contabilità</span>
           </NavLink>
         </div>
       </nav>
