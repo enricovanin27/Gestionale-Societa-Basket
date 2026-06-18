@@ -15,7 +15,7 @@ CREATE TABLE presenze_allenamento (
   societa_id   UUID        NOT NULL REFERENCES societa(id) ON DELETE CASCADE,
   data         DATE        NOT NULL,
   squadra      TEXT        NOT NULL,
-  giocatore_id BIGINT      NOT NULL REFERENCES giocatori(id) ON DELETE CASCADE,
+  giocatore_id UUID        NOT NULL REFERENCES giocatori(id) ON DELETE CASCADE,
   presente     BOOLEAN     NOT NULL DEFAULT false,
   created_at   TIMESTAMPTZ DEFAULT now(),
 
