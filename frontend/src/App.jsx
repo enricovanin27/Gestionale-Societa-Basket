@@ -53,6 +53,7 @@ import MessaggiRicevutiPage from './pages/coach/MessaggiRicevutiPage'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
 import { RoleSwitcherFAB } from './components/RoleSwitcher'
+import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -148,7 +149,7 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-lg mx-auto lg:max-w-none relative">
-      <RoleSwitcherFAB />
+      {import.meta.env.DEV && <RoleSwitcherFAB />}
       <Routes>
         <Route path="/login"      element={<LoginPage />} />
         <Route path="/registrati" element={<RegistrazionePage />} />
@@ -175,7 +176,7 @@ function AppShell() {
           <Route path="comunicazioni"   element={<ComunicazioniPage />} />
           <Route path="calendario"      element={<CalendarioPlayer />} />
           <Route path="bacheca"         element={<BachecaPage />} />
-          <Route path="statistiche"     element={<Navigate to="/player/comunicazioni" replace />} />
+          <Route path="statistiche"     element={<StatisticheGiocatore />} />
         </Route>
 
         {/* â"€â"€ Segreteria â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}

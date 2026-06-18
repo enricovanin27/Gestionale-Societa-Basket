@@ -1,5 +1,5 @@
 ﻿import { Outlet, NavLink } from 'react-router-dom'
-import { Home, MessageCircle, CalendarDays, Bell } from 'lucide-react'
+import { Home, MessageCircle, CalendarDays, Bell, BarChart2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -17,6 +17,7 @@ export default function PlayerLayout() {
     { to: '/player',                end: true, icon: Home,           label: 'Home' },
     { to: '/player/comunicazioni',             icon: MessageCircle,  label: 'Comunicazioni' },
     { to: '/player/calendario',                icon: CalendarDays,   label: 'Calendario' },
+    { to: '/player/statistiche',               icon: BarChart2,      label: 'Presenze' },
     { to: '/player/bacheca',                   icon: Bell,           label: 'Bacheca', badge: unread },
   ]
   return (
@@ -33,6 +34,9 @@ export default function PlayerLayout() {
           </NavLink>
           <NavLink to="/player/calendario" className={cls}>
             <CalendarDays size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Calendario</span>
+          </NavLink>
+          <NavLink to="/player/statistiche" className={cls}>
+            <BarChart2 size={22} strokeWidth={1.8} /><span className="text-xs font-medium">Presenze</span>
           </NavLink>
           <NavLink to="/player/bacheca" className={cls}>
             <div className="relative">

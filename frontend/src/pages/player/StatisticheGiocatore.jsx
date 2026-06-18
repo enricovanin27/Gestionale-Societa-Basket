@@ -30,8 +30,8 @@ export default function StatisticheGiocatore() {
     enabled: !!giocatoreRow?.id,
     queryFn: async () => {
       const { data } = await supabase
-        .from('presenze')
-        .select('presente, allenamento_id')
+        .from('presenze_allenamento')
+        .select('presente')
         .eq('giocatore_id', giocatoreRow.id)
         .eq('societa_id', societaId)
       return data ?? []
