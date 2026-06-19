@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import { PALETTE, GIORNI, GIORNO_FULL as GIORNI_LABEL } from '../lib/constants'
 import { formatTime } from '../lib/utils'
 import { Modal, Field, inp } from '../components/ui'
@@ -84,6 +85,7 @@ const EMPTY_FISSO = { giorno: 'lunedi', squadra: '', ora_inizio: '18:00', ora_fi
 export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenatore = null, squadraFilter, allenatoreFilter = '', palestraFilter = '' }) {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const canEdit = isAdmin || isAllenatore
   const canEditRow = (r) => isAdmin || (isAllenatore && squadreAllenatore && squadreAllenatore.includes(r.squadra))
   const [showForm,   setShowForm]   = useState(false)
@@ -322,7 +324,7 @@ export default function SettimanaTipoTab({ isAdmin, isAllenatore, squadreAllenat
                                 Modifica
                               </button>
                               <button
-                                onClick={() => window.confirm(`Eliminare ${r.squadra}?`) && delMut.mutate(r.id)}
+                                onClick={() => confirm(`Eliminare ${r.squadra}?`, () => delMut.mutate(r.id))}
                                 className="p-1 text-red-400 hover:bg-red-50 rounded"
                               >
                                 <X size={12} />

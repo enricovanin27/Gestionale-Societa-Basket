@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { Modal, Field, inp } from '../components/ui'
 
@@ -136,6 +137,7 @@ function DashboardTab({ societa, profiles }) {
 
 function SocietaTab() {
   const qc = useQueryClient()
+  const { confirm } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editRow,  setEditRow]  = useState(null)
   const [form, setForm] = useState({ nome: '', piano: 'free' })
@@ -315,7 +317,7 @@ function SocietaTab() {
                         Approva
                       </button>
                       <button
-                        onClick={() => window.confirm(`Rifiutare la richiesta di "${s.nome}"?`) && rifiutaMut.mutate(s.id)}
+                        onClick={() => confirm(`Rifiutare la richiesta di "${s.nome}"?`, () => rifiutaMut.mutate(s.id))}
                         className="px-2 py-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg text-xs font-semibold transition-colors">
                         Rifiuta
                       </button>
@@ -327,7 +329,7 @@ function SocietaTab() {
                         <Edit2 size={14} />
                       </button>
                       <button
-                        onClick={() => window.confirm(`Eliminare "${s.nome}"?\nTutti i dati associati (utenti, allenamenti, partite) saranno persi.`) && delMut.mutate(s.id)}
+                        onClick={() => confirm(`Eliminare "${s.nome}"? Tutti i dati associati (utenti, allenamenti, partite) saranno persi.`, () => delMut.mutate(s.id))}
                         className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
                         <Trash2 size={14} />
                       </button>
@@ -424,6 +426,7 @@ function SocietaTab() {
 
 function AmministratoriTab() {
   const qc = useQueryClient()
+  const { confirm } = useToast()
   const [showInvite, setShowInvite] = useState(false)
   const [form, setForm]     = useState({ email: '', nome: '', cognome: '', password: '', societa_id: '' })
   const [inviting, setInviting] = useState(false)
@@ -577,7 +580,7 @@ function AmministratoriTab() {
                 </div>
                 {u.ruolo !== 'super_admin' && (
                   <button
-                    onClick={() => window.confirm(`Eliminare l'account di ${nome}?`) && deleteMut.mutate(u)}
+                    onClick={() => confirm(`Eliminare l'account di ${nome}?`, () => deleteMut.mutate(u))}
                     className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg border border-red-100 shrink-0 transition-colors"
                     title="Elimina admin">
                     <Trash2 size={14} />

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save, Upload } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import PageHeader from '../../components/PageHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import InvitaUtenteForm from '../../components/InvitaUtenteForm'
@@ -14,6 +15,7 @@ const EMPTY = {
 
 export default function ImpostazioniSocieta() {
   const { societaId } = useAuth()
+  const { toast } = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState(EMPTY)
   const [uploading, setUploading] = useState(false)
@@ -73,7 +75,7 @@ export default function ImpostazioniSocieta() {
       const { data: { publicUrl } } = supabase.storage.from('societa-loghi').getPublicUrl(path)
       setForm(f => ({ ...f, logo_url: publicUrl }))
     } catch (err) {
-      alert('Errore upload: ' + err.message)
+      toast.error('Errore upload: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''

@@ -6,6 +6,7 @@ import { it } from 'date-fns/locale'
 import { ChevronLeft, Send, Plus, Check, Trash2, Upload, FileText, X, Printer } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import GiocatoreForm from './GiocatoreForm'
 import PagamentoModal from './PagamentoModal'
@@ -56,6 +57,7 @@ export default function GiocatoreDetail() {
   const navigate = useNavigate()
   const location = useLocation()
   const { societaId, displayName } = useAuth()
+  const { toast, confirm } = useToast()
   const qc = useQueryClient()
 
   const [activeTab, setActiveTab]   = useState(location.state?.tab ?? 'anagrafica')
@@ -225,7 +227,7 @@ export default function GiocatoreDetail() {
       qc.invalidateQueries({ queryKey: ['giocatore-detail', id] })
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
     } catch (err) {
-      alert('Errore: ' + err.message)
+      toast.error('Errore: ' + err.message)
     } finally {
       setSavingAnagrafica(false)
     }
@@ -247,7 +249,7 @@ export default function GiocatoreDetail() {
       if (dbErr) throw dbErr
       qc.invalidateQueries({ queryKey: ['giocatore-detail', id] })
     } catch (err) {
-      alert('Errore upload: ' + err.message)
+      toast.error('Errore upload: ' + err.message)
     } finally {
       setUploading(false)
       e.target.value = ''
@@ -496,7 +498,7 @@ export default function GiocatoreDetail() {
                           </button>
                         )}
                       </div>
-                      <button onClick={() => { if (window.confirm('Eliminare questa quota?')) deleteQuotaMut.mutate([q.id]) }}
+                      <button onClick={() => confirm('Eliminare questa quota?', () => deleteQuotaMut.mutate([q.id]))}
                         className="w-7 h-7 rounded-lg bg-gray-50 text-gray-300 hover:text-red-400 flex items-center justify-center">
                         <Trash2 size={13} />
                       </button>

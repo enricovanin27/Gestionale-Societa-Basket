@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import PageHeader from '../components/PageHeader'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -137,6 +138,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
   const qc = useQueryClient()
   const fileRef = useRef(null)
   const { isAdmin, isAllenatore, user, societaId } = useAuth()
+  const { toast } = useToast()
 
   const [file,           setFile]           = useState(null)
   const [squadraScelta,  setSquadraScelta]  = useState('')
@@ -289,7 +291,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
   async function importaSingola(idx) {
     const p = partite[idx]
     if (!p.squadra || !p.data) {
-      alert('Completa squadra e data prima di importare.')
+      toast.info('Completa squadra e data prima di importare.')
       return
     }
     setImportingIdx(idx)
@@ -300,7 +302,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['calendarioAll'] })
     } catch (e) {
-      alert('Errore importazione: ' + e.message)
+      toast.error('Errore importazione: ' + e.message)
     } finally {
       setImportingIdx(null)
     }
@@ -317,7 +319,7 @@ export default function ImportaCalendarioPage({ embedded = false }) {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['calendarioAll'] })
     } catch (e) {
-      alert('Errore importazione: ' + e.message)
+      toast.error('Errore importazione: ' + e.message)
     } finally {
       setImportingAll(false)
     }

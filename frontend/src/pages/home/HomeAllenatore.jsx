@@ -6,6 +6,7 @@ import { X, Plus, AlertTriangle, Mail, Shield, ChevronDown, ChevronUp, Check } f
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
 import { formatTime, formatDate } from '../../lib/utils'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -374,6 +375,7 @@ function AllenatoreAddModal({ weekStart, mySquadre, onClose }) {
 
 export default function HomeAllenatore() {
   const { user, displayName, logout, societaNome, societaId } = useAuth()
+  const { toast, confirm } = useToast()
   const qc        = useQueryClient()
   const today     = new Date()
   const todayStr  = format(today, 'yyyy-MM-dd')
@@ -498,7 +500,7 @@ export default function HomeAllenatore() {
       .map(g => g.email_genitore)
       .filter(Boolean)
     if (!emails.length) {
-      alert('Nessun indirizzo email genitore disponibile per questa squadra.')
+      toast.info('Nessun indirizzo email genitore disponibile per questa squadra.')
       return
     }
     window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(`[${squadra}] Comunicazione`)}`
@@ -827,12 +829,11 @@ export default function HomeAllenatore() {
           event={editingEvent}
           onClose={() => setEditingEvent(null)}
           onSave={(formData) => saveMut.mutateAsync({ event: editingEvent, formData })}
-          onCancel={() => {
-            if (window.confirm(`Annullare l'allenamento di ${editingEvent.squadra}?`)) {
-              cancelMut.mutate(editingEvent)
-              setEditingEvent(null)
-            }
-          }}
+          onCancel={() => confirm(
+            `Annullare l'allenamento di ${editingEvent.squadra}?`,
+            () => { cancelMut.mutate(editingEvent); setEditingEvent(null) },
+            { confirmLabel: 'Annulla allenamento', danger: true }
+          )}
           saving={saveMut.isPending}
         />
       )}

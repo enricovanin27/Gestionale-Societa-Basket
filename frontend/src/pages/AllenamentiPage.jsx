@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import { useWeekEvents } from '../hooks/useWeekEvents'
 import { formatTime } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
@@ -774,6 +775,7 @@ function PresenzeAllenamentoModal({ event, onClose }) {
 function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null, onlySquadre = null }) {
   const qc      = useQueryClient()
   const { societaId } = useAuth()
+  const { toast, confirm } = useToast()
   const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const inScope = (ev) => !onlySquadre || onlySquadre.includes(ev.squadra)
   const weekEnd  = endOfWeek(weekStart, { weekStartsOn: 1 })
@@ -1010,10 +1012,10 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                           presenze={getPresenzeCount(ev.data, ev.squadra)}
                           presAl={getPresenzeAlCount(ev.data, ev.squadra)}
                           onEdit={canEdit && canEditEvent(ev) ? () => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) } : undefined}
-                          onCancel={canEdit && canEditEvent(ev) && !ev.annullato ? () => {
-                            if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
-                              cancelMut.mutate(ev)
-                          } : undefined}
+                          onCancel={canEdit && canEditEvent(ev) && !ev.annullato ? () =>
+                            confirm(`Annullare l'allenamento di ${ev.squadra}?`, () => cancelMut.mutate(ev),
+                              { confirmLabel: 'Annulla allenamento' })
+                          : undefined}
                           onPresenze={canEdit && canEditEvent(ev) ? () => setPresenzeAlEvent(ev) : undefined}
                         />
                       ))
@@ -1074,7 +1076,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
                   if (d.type === 'extra')     testo += `➕ ${d.event.squadra} (${dl}): allenamento extra\n`
                 }
                 await bachecaMut.mutateAsync(testo)
-                alert('✅ Variazioni pubblicate in bacheca!')
+                toast.success('Variazioni pubblicate in bacheca!')
               }}
               className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform shadow-sm disabled:opacity-60"
             >
@@ -1088,10 +1090,10 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
               onClick={() => {
                 if (navigator.clipboard) {
                   navigator.clipboard.writeText(waText)
-                    .then(() => alert('✅ Testo copiato!\nIncollalo su WhatsApp.'))
-                    .catch(() => alert(waText))
+                    .then(() => toast.success('Testo copiato! Incollalo su WhatsApp.'))
+                    .catch(() => toast.info(waText))
                 } else {
-                  alert(waText)
+                  toast.info(waText)
                 }
               }}
               className="w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-xl font-medium text-sm active:scale-95 transition-transform shadow-sm"
@@ -1147,6 +1149,7 @@ function SettimanaView({ weekStart, allSquadre, canEdit, showWhatsApp, showDiff,
 function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', palestraFilter = '', squadreAllenatore = null, onlySquadre = null }) {
   const qc        = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const canEditEvent = (ev) => !squadreAllenatore || squadreAllenatore.includes(ev.squadra)
   const inScope = (ev) => !onlySquadre || onlySquadre.includes(ev.squadra)
   const weekStart = useMemo(() => startOfWeek(new Date(), { weekStartsOn: 1 }), [])
@@ -1310,10 +1313,11 @@ function OggiTab({ allSquadre, canEdit, squadraFilter, allenatoreFilter = '', pa
               presenze={getPresenzeOggiCount(ev.squadra)}
               presAl={getPresenzeAlOggiCount(ev.squadra)}
               onEdit={() => { setEditingEvent(ev); setEditingDayEvents(dayAllEvents) }}
-              onCancel={() => {
-                if (window.confirm(`Annullare l'allenamento di ${ev.squadra}?`))
-                  cancelMut.mutate(ev)
-              }}
+              onCancel={() => confirm(
+                `Annullare l'allenamento di ${ev.squadra}?`,
+                () => cancelMut.mutate(ev),
+                { confirmLabel: 'Annulla allenamento' }
+              )}
               onPresenze={canEdit && canEditEvent(ev) ? () => setPresenzeAlEvent(ev) : undefined}
             />
           ))}

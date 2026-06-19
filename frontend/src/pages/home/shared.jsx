@@ -4,6 +4,7 @@ import { CheckCircle2, Clock, MapPin, AlertCircle, X } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import { formatDate, formatTime, isDateToday } from '../../lib/utils'
 import { saveAllenamento, inviaNotificaModifica } from '../../hooks/useAllenamenti'
 import { Button } from '@/components/ui/button'
@@ -538,6 +539,7 @@ export function AllenatoreEditModal({ event, onClose, onSave, onCancel, saving }
 
 export function QuickEditAllenamentoModal({ training, onClose, onSaved }) {
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const qc = useQueryClient()
   const [form, setForm] = useState({
     ora_inizio: String(training.ora_inizio ?? '').slice(0, 5),
@@ -626,7 +628,7 @@ export function QuickEditAllenamentoModal({ training, onClose, onSaved }) {
           {deleteMut.isError && <p className="text-xs text-destructive">{deleteMut.error?.message}</p>}
           <div className="flex gap-2">
             <button
-              onClick={() => window.confirm('Eliminare questo allenamento?') && deleteMut.mutate()}
+              onClick={() => confirm('Eliminare questo allenamento?', () => deleteMut.mutate())}
               disabled={deleteMut.isPending || saveMut.isPending}
               className="flex-1 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-medium text-sm disabled:opacity-60 active:scale-95 transition-transform"
             >

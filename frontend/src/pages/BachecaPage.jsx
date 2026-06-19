@@ -5,6 +5,7 @@ import { it } from 'date-fns/locale'
 import { Plus, X, Pin, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import PageHeader from '../components/PageHeader'
 
 const LAST_READ_KEY = (sid) => `bacheca_last_read_${sid}`
@@ -193,6 +194,7 @@ function AnnuncioCard({ ann, canDelete, onDelete }) {
 export default function BachecaPage() {
   const { user, profile, societaId, isAdmin, isAllenatore, isSegreteria, activeRole, displayName, squadreAllenatore } = useAuth()
   const qc = useQueryClient()
+  const { confirm } = useToast()
   const canWrite = (isAdmin || isAllenatore || isSegreteria) && activeRole !== 'giocatore' && activeRole !== 'genitore'
   const [showForm, setShowForm] = useState(false)
   const [squadraFilter, setSquadraFilter] = useState('')
@@ -320,9 +322,7 @@ export default function BachecaPage() {
               key={ann.id}
               ann={ann}
               canDelete={canDeleteAnnuncio(ann)}
-              onDelete={(id) => {
-                if (window.confirm('Eliminare questo annuncio?')) deleteMut.mutate(id)
-              }}
+              onDelete={(id) => confirm('Eliminare questo annuncio?', () => deleteMut.mutate(id))}
             />
           ))
         )}

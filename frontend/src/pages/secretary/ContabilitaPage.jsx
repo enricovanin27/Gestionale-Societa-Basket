@@ -10,6 +10,7 @@ import {
 import { supabase }       from '../../lib/supabase'
 import { useAuth }        from '../../hooks/useAuth'
 import { useEntrate }     from '../../hooks/useEntrate'
+import { useToast }       from '../../components/ui/ToastProvider'
 import { TabBar, TabBtn } from '../../components/ui/TabBar'
 import PageHeader         from '../../components/PageHeader'
 import LoadingSpinner     from '../../components/LoadingSpinner'
@@ -86,6 +87,7 @@ function currentAnnoSportivo() {
 export default function ContabilitaPage() {
   const { societaId, isSegreteria, isAdmin, isSuperAdmin } = useAuth()
   const qc = useQueryClient()
+  const { toast, confirm } = useToast()
   const canWrite = isSegreteria || isAdmin || isSuperAdmin
 
   // ── Stato tab e periodo ───────────────────────────────────────────────────
@@ -213,16 +215,17 @@ export default function ContabilitaPage() {
     }
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm('Eliminare questa spesa?')) return
-    try {
-      const { error } = await supabase.from('spese').delete().eq('id', id)
-      if (error) throw error
-      qc.invalidateQueries({ queryKey: ['spese', societaId] })
-    } catch (err) {
-      console.error('Errore eliminazione spesa:', err)
-      alert('Errore durante l\'eliminazione. Riprova.')
-    }
+  function handleDelete(id) {
+    confirm('Eliminare questa spesa?', async () => {
+      try {
+        const { error } = await supabase.from('spese').delete().eq('id', id)
+        if (error) throw error
+        qc.invalidateQueries({ queryKey: ['spese', societaId] })
+      } catch (err) {
+        console.error('Errore eliminazione spesa:', err)
+        toast.error('Errore durante l\'eliminazione. Riprova.')
+      }
+    })
   }
 
   // ── Controlli periodo (riusati in tutti i tab) ────────────────────────────

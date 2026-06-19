@@ -54,6 +54,7 @@ import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
 import { RoleSwitcherFAB } from './components/RoleSwitcher'
 import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
+import { ToastProvider } from './components/ui/ToastProvider'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -260,9 +261,11 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <ErrorBoundary>
-              <AppShell />
-            </ErrorBoundary>
+            <ToastProvider>
+              <ErrorBoundary>
+                <AppShell />
+              </ErrorBoundary>
+            </ToastProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

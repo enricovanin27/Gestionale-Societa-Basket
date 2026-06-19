@@ -9,6 +9,7 @@ import {
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import InvitaUtenteForm from '../components/InvitaUtenteForm'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { API_BASE, GIORNI, GIORNI_LABEL, GIORNO_FULL, TIPO_PALESTRA, RUOLI, RUOLI_LABEL, RUOLI_EXTRA_DISPONIBILI } from '../lib/constants'
 import { Modal, Field, TabBtn, inp, ErrorBox } from '../components/ui'
@@ -36,6 +37,7 @@ const EMPTY_PAL = { nome: '', tipo: 'Principale', solo_allenamento: false, orari
 function PalestreTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState(EMPTY_PAL)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -130,7 +132,7 @@ function PalestreTab() {
                     <Edit2 size={14} />
                   </button>
                   <button
-                    onClick={() => window.confirm(`Eliminare "${p.nome}"?`) && delMut.mutate(p.id)}
+                    onClick={() => confirm(`Eliminare "${p.nome}"?`, () => delMut.mutate(p.id))}
                     className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 size={14} />
@@ -243,6 +245,7 @@ const EMPTY_ALL = { nome: '', cognome: '', email: '', squadre_capo: [], squadre_
 function AllenatoriTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [showForm,      setShowForm]      = useState(false)
   const [editingRow,    setEditingRow]    = useState(null)
   const [form,          setForm]          = useState(EMPTY_ALL)
@@ -441,7 +444,7 @@ function AllenatoriTab() {
                       <Edit2 size={14} />
                     </button>
                     <button
-                      onClick={() => window.confirm(`Eliminare ${nomeCompleto}?`) && delMut.mutate(al.id)}
+                      onClick={() => confirm(`Eliminare ${nomeCompleto}?`, () => delMut.mutate(al.id))}
                       className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 size={14} />
@@ -808,6 +811,7 @@ const RUOLO_COLORS = {
 function UtentiTab() {
   const qc = useQueryClient()
   const { user: me, societaId, isSuperAdmin } = useAuth()
+  const { confirm } = useToast()
   const [deleteErr, setDeleteErr]     = useState(null)
   const [showInvite, setShowInvite]   = useState(false)
 
@@ -1117,7 +1121,7 @@ function UtentiTab() {
                         {isDisabled ? <UserCheck size={14} /> : <UserX size={14} />}
                       </button>
                       <button
-                        onClick={() => { if (window.confirm(`Eliminare ${nomeCompleto}?`)) deleteMut.mutate(u) }}
+                        onClick={() => confirm(`Eliminare ${nomeCompleto}?`, () => deleteMut.mutate(u))}
                         className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg border border-red-100 transition-colors"
                         title="Elimina utente"
                       >
@@ -1307,6 +1311,7 @@ const EMPTY_SQ = { categoria: '' }
 function SquadreTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [showForm,   setShowForm]   = useState(false)
   const [editingRow, setEditingRow] = useState(null)
   const [form, setForm]             = useState(EMPTY_SQ)
@@ -1378,7 +1383,7 @@ function SquadreTab() {
                       <Edit2 size={14} />
                     </button>
                     <button
-                      onClick={() => window.confirm(`Eliminare "${s.categoria}"?`) && delMut.mutate(s.id)}
+                      onClick={() => confirm(`Eliminare "${s.categoria}"?`, () => delMut.mutate(s.id))}
                       className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"
                     >
                       <Trash2 size={14} />
@@ -1421,6 +1426,7 @@ function SquadreTab() {
 function DoppioSection({ squadreList: squadreListProp }) {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState({ squadra_a: '', squadra_b: '', note: '' })
 
@@ -1494,7 +1500,7 @@ function DoppioSection({ squadreList: squadreListProp }) {
               <span className="text-sm font-semibold text-orange-700">{p.squadra_b}</span>
               {p.note && <span className="text-xs text-gray-400 flex-1 truncate">{p.note}</span>}
               <button
-                onClick={() => window.confirm(`Rimuovere la coppia ${p.squadra_a} ↔ ${p.squadra_b}?`) && delMut.mutate(p.id)}
+                onClick={() => confirm(`Rimuovere la coppia ${p.squadra_a} ↔ ${p.squadra_b}?`, () => delMut.mutate(p.id))}
                 className="ml-auto p-1 text-red-400 hover:bg-red-50 rounded-lg shrink-0"
               >
                 <Trash2 size={14} />
@@ -1572,6 +1578,7 @@ const DEFAULT_SQ_VINCOLO = { min_all: 2, max_all: 3, durata_slot: 6, fascia_pref
 function SchedulingTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [generating, setGenerating] = useState(false)
   const [result, setResult]         = useState(null)   // { assegnazioni, avvisi }
   const [genError, setGenError]     = useState(null)
@@ -1822,10 +1829,11 @@ function SchedulingTab() {
                 <Check size={13} /> Confermato
               </span>
             ) : (
-              <button onClick={() => {
-                if (window.confirm('Confermare come settimana tipo?\nSostituirà tutto l\'orario fisso attuale.'))
-                  confirmMut.mutate(editSlots)
-              }} disabled={confirmMut.isPending}
+              <button onClick={() => confirm(
+                'Confermare come settimana tipo? Sostituirà tutto l\'orario fisso attuale.',
+                () => confirmMut.mutate(editSlots),
+                { confirmLabel: 'Conferma', danger: false }
+              )} disabled={confirmMut.isPending}
                 className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium disabled:opacity-60">
                 <Check size={12} /> {confirmMut.isPending ? 'Salvataggio...' : '✅ Conferma settimana tipo'}
               </button>
@@ -2332,6 +2340,7 @@ const EMPTY_QUOTA = { tipo: 'mensile', descrizione: '', importo: '', data_scaden
 function QuoteTab() {
   const qc = useQueryClient()
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const [squadraFilter, setSquadraFilter] = useState('')
   const [quoteModal, setQuoteModal]       = useState(null) // giocatore row
 
@@ -2560,7 +2569,7 @@ function QuoteGiocatoreModal({ giocatore, societaId, onClose }) {
                   onClick={() => pagatoMut.mutate({ id: q.id, pagato: !q.pagato })}
                   className={`px-2 py-1 rounded-lg text-xs font-medium border transition-colors ${q.pagato ? 'text-gray-500 border-gray-200' : 'text-green-600 border-green-200 bg-green-50'}`}
                 >{q.pagato ? 'Annulla' : '✅ Paga'}</button>
-                <button onClick={() => window.confirm('Eliminare questa quota?') && delMut.mutate(q.id)}
+                <button onClick={() => confirm('Eliminare questa quota?', () => delMut.mutate(q.id))}
                   className="p-1 text-red-400 hover:bg-red-50 rounded-lg border border-red-100">
                   <Trash2 size={13} />
                 </button>

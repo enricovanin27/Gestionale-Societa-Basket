@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, ChevronLeft, Users, Phone, Mail } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import { certStatus } from '../../utils/certStatus'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -11,6 +12,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 export default function GiocatoriPage() {
   const { societaId, displayName, logout, societaNome } = useAuth()
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [selectedSquadra, setSelectedSquadra] = useState(null)
   // Tutte le squadre dalla tabella squadre (gestite dall'admin)
   const { data: squadre = [], isLoading: loadingSquadre } = useQuery({
@@ -138,7 +140,7 @@ export default function GiocatoriPage() {
       .map(g => g.email_genitore)
       .filter(Boolean)
     if (emails.length === 0) {
-      alert('Nessun indirizzo email genitore disponibile per questa squadra.')
+      toast.info('Nessun indirizzo email genitore disponibile per questa squadra.')
       return
     }
     const bcc = emails.join(',')

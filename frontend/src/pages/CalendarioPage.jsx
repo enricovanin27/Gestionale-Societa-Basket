@@ -12,6 +12,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { generateICS, downloadICS, partitaToEvent, allenamentoToEvent } from '../lib/ical'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import ImportaCalendarioPage from './ImportaCalendarioPage'
 import { formatDate, formatTime, getWeekDays, isDateToday } from '../lib/utils'
 import { PALETTE } from '../lib/constants'
@@ -774,6 +775,7 @@ function VistaSettimanaleCompleta({ weekDays, data, allSquadre, squadraFilter, e
 
 function TrainingEditModal({ training, onClose, onSaved }) {
   const { societaId } = useAuth()
+  const { confirm } = useToast()
   const qc = useQueryClient()
 
   const deleteMut = useMutation({
@@ -915,10 +917,10 @@ function TrainingEditModal({ training, onClose, onSaved }) {
             variant="destructive"
             className="w-full"
             size="lg"
-            onClick={() => {
-              if (window.confirm(`Eliminare l'allenamento di ${training.squadra} del ${formatDate(training.data, 'EEE d MMM')}?`))
-                deleteMut.mutate()
-            }}
+            onClick={() => confirm(
+              `Eliminare l'allenamento di ${training.squadra} del ${formatDate(training.data, 'EEE d MMM')}?`,
+              () => deleteMut.mutate()
+            )}
             disabled={saveMut.isPending || deleteMut.isPending}
           >
             <Trash2 size={15} />
@@ -947,6 +949,7 @@ const LEGEND = [
 
 export default function CalendarioPage() {
   const { user, isAdmin, isAllenatore, isPreparatore, societaId, profile } = useAuth()
+  const { confirm } = useToast()
   const location = useLocation()
   const actingAsAllenatore = location.pathname.startsWith('/coach') && isAllenatore
   const actingAsPrep = location.pathname.startsWith('/prep') && isPreparatore
@@ -1205,9 +1208,7 @@ export default function CalendarioPage() {
   }
 
   const handleDelete = (event) => {
-    if (window.confirm(`Eliminare la partita di ${event.squadra}?`)) {
-      deleteMutation.mutate(event)
-    }
+    confirm(`Eliminare la partita di ${event.squadra}?`, () => deleteMutation.mutate(event))
   }
 
   const handleEdit = (event) => {

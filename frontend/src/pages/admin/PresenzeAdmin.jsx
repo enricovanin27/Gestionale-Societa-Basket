@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, ChevronLeft, Printer } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import { usePrintWindow } from '../../hooks/usePrintWindow'
 import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -106,6 +107,7 @@ function GiocatoreStorico({ giocatore, fromDate, toDate, onBack }) {
 // ─── Dettaglio squadra con % per giocatore ────────────────────────────────────
 function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelectGiocatore }) {
   const { societaId, societaNome } = useAuth()
+  const { toast } = useToast()
   const printWindow     = usePrintWindow()
   const [isPrinting, setIsPrinting] = useState(false)
   const col = getTeamColor(squadra, allSquadre)
@@ -170,7 +172,7 @@ function SquadraDetail({ squadra, allSquadre, fromDate, toDate, onBack, onSelect
       const presenze = raw ?? []
       const dates = [...new Set(presenze.map(p => p.data))].sort()
       if (!dates.length) {
-        alert('Nessuna presenza registrata nel periodo selezionato.')
+        toast.info('Nessuna presenza registrata nel periodo selezionato.')
         return
       }
 

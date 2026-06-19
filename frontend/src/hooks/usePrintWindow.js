@@ -1,10 +1,13 @@
+import { useToast } from '../components/ui/ToastProvider'
+
 export function usePrintWindow() {
+  const { toast } = useToast()
   // NOTA SICUREZZA: htmlBody deve provenire esclusivamente da codice interno (mai da input utente grezzo).
   // I valori titolo e intestazioneSocieta provengono dal DB della società (dati interni trusted).
   return function printWindow(titolo, htmlBody, intestazioneSocieta = '') {
     const win = window.open('', '_blank')
     if (!win) {
-      alert('Pop-up bloccato dal browser. Consenti i pop-up per questa pagina per stampare.')
+      toast.info('Pop-up bloccato dal browser. Consenti i pop-up per questa pagina per stampare.')
       return
     }
     const html = '<!DOCTYPE html>\n' +

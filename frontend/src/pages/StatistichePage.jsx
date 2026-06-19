@@ -5,6 +5,7 @@ import { it } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle, Printer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../components/ui/ToastProvider'
 import { usePrintWindow } from '../hooks/usePrintWindow'
 import PageHeader from '../components/PageHeader'
 
@@ -17,6 +18,7 @@ const TIPO_COLORS = {
 
 export default function StatistichePage({ embedded = false }) {
   const { societaId, isAdmin, squadreAllenatore, societaNome } = useAuth()
+  const { toast } = useToast()
   const [refDate, setRefDate] = useState(new Date())
   const printWindow = usePrintWindow()
 
@@ -113,7 +115,7 @@ export default function StatistichePage({ embedded = false }) {
     )].sort()
 
     if (!dates.length) {
-      alert('Nessuna presenza registrata per questa squadra nel mese selezionato.')
+      toast.info('Nessuna presenza registrata per questa squadra nel mese selezionato.')
       return
     }
 

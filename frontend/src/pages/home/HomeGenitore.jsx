@@ -5,6 +5,7 @@ import { Upload, FileText, CheckCircle2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 import { useWeekEvents } from '../../hooks/useWeekEvents'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
@@ -21,6 +22,7 @@ function certStatusGenitore(scadenza) {
 export default function HomeGenitore() {
   const { user, profile, societaId, displayName, logout, societaNome } = useAuth()
   const qc = useQueryClient()
+  const { toast } = useToast()
   const [selectedSquadra, setSelectedSquadra] = useState('')
   const [uploadingId, setUploadingId] = useState(null)
   const [uploadDone,  setUploadDone]  = useState({})
@@ -154,7 +156,7 @@ export default function HomeGenitore() {
       setUploadDone(d => ({ ...d, [giocatoreId]: true }))
       setTimeout(() => setUploadDone(d => ({ ...d, [giocatoreId]: false })), 4000)
     } catch (err) {
-      alert('Errore caricamento: ' + err.message)
+      toast.error('Errore caricamento: ' + err.message)
     } finally {
       setUploadingId(null)
     }
