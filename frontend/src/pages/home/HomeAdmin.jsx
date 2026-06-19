@@ -11,6 +11,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import AppHeader from '../../components/AppHeader'
 import { EventRow, timesOverlap, QuickEditAllenamentoModal } from './shared'
 import { formatTime } from '../../lib/utils'
+import SetupChecklist from '../../components/SetupChecklist'
 
 export default function HomeAdmin() {
   const { displayName, logout, societaNome, societaId } = useAuth()
@@ -300,6 +301,8 @@ export default function HomeAdmin() {
         logout={logout}
         societaNome={societaNome}
       />
+
+      <SetupChecklist />
 
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>

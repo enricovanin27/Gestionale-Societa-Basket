@@ -10,6 +10,7 @@ import AppHeader from '../../components/AppHeader'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer } from 'lucide-react'
+import SetupChecklist from '../../components/SetupChecklist'
 
 export default function SegreteriaDashboard() {
   const today = new Date()
@@ -171,6 +172,8 @@ export default function SegreteriaDashboard() {
         subtitle="Urgenze di oggi"
         displayName={displayName} logout={logout} societaNome={societaNome}
       />
+
+      <SetupChecklist />
 
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>
