@@ -183,7 +183,7 @@ export default function ImpostazioniSocieta() {
           <p className="text-xs text-gray-400 mb-3">
             Invita e gestisci gli accessi di tutti gli utenti dell'app. Riceveranno un'email con il link per impostare la propria password.
           </p>
-          <InvitaUtenteForm ruoliConsentiti={['segreteria', 'allenatore', 'preparatore_atletico', 'dirigente', 'genitore', 'giocatore']} />
+          <InvitaUtenteForm ruoliConsentiti={['segreteria', 'allenatore', 'dirigente', 'genitore', 'giocatore']} />
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Building2, Users, Dumbbell, ChevronRight, GitFork,
-  CalendarDays, Activity, Briefcase,
+  CalendarDays, Briefcase,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -584,7 +584,6 @@ export default function AdminSetupPage() {
         {/* Staff */}
         <SectionGroup title="👤 Staff">
           <SetupCard icon={Dumbbell}   title="Nuovo Allenatore"   desc="Invita tramite email"             onClick={() => setOpenModal('allenatore')}  border />
-          <SetupCard icon={Activity}   title="Nuovo Preparatore"  desc="Invita preparatore atletico"      onClick={() => setOpenModal('preparatore')} border />
           <SetupCard icon={Briefcase}  title="Invita Segreteria"  desc="Accesso gestione giocatori"       onClick={() => setOpenModal('segreteria')} />
         </SectionGroup>
 
@@ -600,19 +599,13 @@ export default function AdminSetupPage() {
       </div>
 
       {/* Modal staff */}
-      {['allenatore', 'preparatore', 'segreteria'].includes(openModal) && (
+      {['allenatore', 'segreteria'].includes(openModal) && (
         <Modal
-          title={
-            openModal === 'allenatore'  ? 'Nuovo Allenatore'  :
-            openModal === 'preparatore' ? 'Nuovo Preparatore' : 'Invita Segreteria'
-          }
+          title={openModal === 'allenatore' ? 'Nuovo Allenatore' : 'Invita Segreteria'}
           onClose={close}
         >
           <InvitaUtenteForm
-            ruoliConsentiti={
-              openModal === 'allenatore'  ? ['allenatore']           :
-              openModal === 'preparatore' ? ['preparatore_atletico'] : ['segreteria']
-            }
+            ruoliConsentiti={openModal === 'allenatore' ? ['allenatore'] : ['segreteria']}
             onSuccess={close}
           />
         </Modal>

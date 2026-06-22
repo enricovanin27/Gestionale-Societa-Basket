@@ -229,14 +229,8 @@ function AppShell() {
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 
-        {/* -- Preparatore Atletico -------------------------------- */}
-        <Route path="/prep" element={<ProtectedRoute requiredRole="preparatore_atletico"><PrepLayout /></ProtectedRoute>}>
-          <Route index              element={<HomePrepPage />} />
-          <Route path="agenda"      element={<AgendaPrep />} />
-          <Route path="calendario"  element={<CalendarioPage />} />
-          <Route path="schede"      element={<SchedeAtletichePage />} />
-          <Route path="messaggi"    element={<MessaggiRicevutiPage />} />
-        </Route>
+        {/* -- Preparatore Atletico: in standby — redireziona a home ---- */}
+        <Route path="/prep/*" element={<Navigate to="/" replace />} />
 
         {/* ── Legacy redirects ─────────────────────────────────── */}
         <Route path="/bacheca"    element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />
