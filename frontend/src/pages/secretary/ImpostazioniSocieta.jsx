@@ -11,6 +11,7 @@ import InvitaUtenteForm from '../../components/InvitaUtenteForm'
 const EMPTY = {
   nome_completo: '', codice_fiscale: '', indirizzo: '',
   citta: '', cap: '', provincia: '', telefono: '', email: '', logo_url: '',
+  quote_template: null,
 }
 
 export default function ImpostazioniSocieta() {
@@ -27,7 +28,7 @@ export default function ImpostazioniSocieta() {
     queryFn: async () => {
       const { data } = await supabase
         .from('societa')
-        .select('nome, nome_completo, codice_fiscale, indirizzo, citta, cap, provincia, telefono, email, logo_url')
+        .select('nome, nome_completo, codice_fiscale, indirizzo, citta, cap, provincia, telefono, email, logo_url, quote_template')
         .eq('id', societaId).single()
       return data
     },
@@ -45,6 +46,7 @@ export default function ImpostazioniSocieta() {
         telefono:       societa.telefono ?? '',
         email:          societa.email ?? '',
         logo_url:       societa.logo_url ?? '',
+        quote_template: societa.quote_template ?? null,
       })
     }
   }, [societa])
@@ -80,6 +82,28 @@ export default function ImpostazioniSocieta() {
       setUploading(false)
       e.target.value = ''
     }
+  }
+
+  // ── Template quote helpers ──────────────────────────────────────────
+  const tRate = form.quote_template?.rate ?? []
+  const nRate = tRate.length
+
+  function setNRate(n) {
+    if (n === 0) {
+      setForm(f => ({ ...f, quote_template: null }))
+      return
+    }
+    const rateAttuali = form.quote_template?.rate ?? []
+    const nuove = Array.from({ length: n }, (_, i) =>
+      rateAttuali[i] ?? { numero: i + 1, importo: '', scadenza: '' }
+    )
+    setForm(f => ({ ...f, quote_template: { rate: nuove } }))
+  }
+
+  function setRataField(i, field, value) {
+    const rate = [...tRate]
+    rate[i] = { ...rate[i], [field]: value }
+    setForm(f => ({ ...f, quote_template: { rate } }))
   }
 
   const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400'
@@ -174,6 +198,71 @@ export default function ImpostazioniSocieta() {
           <Save size={16} />
           {saved ? 'Salvato ✓' : saveMut.isPending ? 'Salvataggio...' : 'Salva impostazioni'}
         </button>
+
+        {/* Template Quote */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
+          {/* ── Template Quote ──────────────────────────────────────── */}
+          <div className="pt-0">
+            <p className="text-sm font-semibold text-gray-700 mb-1">Template Quote Iscrizione</p>
+            <p className="text-xs text-gray-400 mb-4">
+              Se configurato, le rate vengono create automaticamente per ogni nuovo giocatore iscritto.
+            </p>
+
+            {/* Selettore numero rate */}
+            <div className="flex gap-2 mb-4">
+              {[0, 1, 2, 3].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setNRate(n)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                    nRate === n
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-white text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {n === 0 ? 'Nessuno' : n === 1 ? 'Unica' : `${n} rate`}
+                </button>
+              ))}
+            </div>
+
+            {/* Campi per ogni rata */}
+            {tRate.map((r, i) => (
+              <div key={i} className="mb-3 p-3 bg-purple-50 rounded-xl">
+                {nRate > 1 && (
+                  <p className="text-xs font-semibold text-purple-600 mb-2">Rata {i + 1}/{nRate}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Importo (€) *</label>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={r.importo}
+                      onChange={e => setRataField(i, 'importo', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      placeholder="Es. 150"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Scadenza *</label>
+                    <input
+                      type="date"
+                      value={r.scadenza}
+                      onChange={e => setRataField(i, 'scadenza', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {nRate > 0 && (
+              <p className="text-xs text-purple-600 font-medium mt-1">
+                Totale iscrizione: €{tRate.reduce((s, r) => s + (parseFloat(r.importo) || 0), 0).toFixed(2)}
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Gestione Accessi */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mt-4">
