@@ -431,6 +431,33 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     },
   })
 
+  // ── Auto-creazione rate iscrizione da template società ──────────────────────
+  async function creaRateDaTemplate(giocatoreId) {
+    const { data: soc } = await supabase
+      .from('societa')
+      .select('quote_template')
+      .eq('id', societaId)
+      .single()
+
+    const rate = soc?.quote_template?.rate
+    if (!rate?.length) return // nessun template configurato
+
+    const rows = rate.map((r, i) => ({
+      societa_id:    societaId,
+      giocatore_id:  giocatoreId,
+      tipo:          'iscrizione',
+      descrizione:   'Quota iscrizione',
+      importo:       parseFloat(r.importo),
+      data_scadenza: r.scadenza || null,
+      pagato:        false,
+      numero_rata:   rate.length > 1 ? i + 1 : null,
+      rate_totali:   rate.length > 1 ? rate.length : null,
+    }))
+
+    const { error } = await supabase.from('quote').insert(rows)
+    if (error) console.error('Errore auto-creazione rate:', error.message)
+  }
+
   // ── Step 1: INSERT immediato ─────────────────────────────────────────────────
   async function saveStep1(andContinue = false) {
     // Se il giocatore è già stato creato (utente tornato da step 2), non fare un secondo INSERT
@@ -456,6 +483,8 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         .single()
       if (error) throw error
       setGiocatoreId(inserted.id)
+      await creaRateDaTemplate(inserted.id)
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
       qc.invalidateQueries({ queryKey: ['quote-nonpagate-map', societaId] })
       if (!andContinue) { onDone(); return }
