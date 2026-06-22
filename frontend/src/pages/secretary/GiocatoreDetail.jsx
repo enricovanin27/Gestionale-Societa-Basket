@@ -25,6 +25,17 @@ function quotaStatus(q) {
   }
 }
 
+function getRateCollegate(q, tutteQuote) {
+  if (!q.rate_totali || q.rate_totali <= 1) return []
+  return tutteQuote.filter(alt =>
+    alt.id !== q.id &&
+    !alt.pagato &&
+    alt.tipo === q.tipo &&
+    alt.descrizione === q.descrizione &&
+    alt.rate_totali === q.rate_totali
+  )
+}
+
 function certStatus(dataScadenza) {
   if (!dataScadenza) return { label: 'Non registrato', cls: 'bg-gray-100 text-gray-500' }
   const diff = differenceInDays(parseISO(dataScadenza), new Date())
@@ -627,6 +638,7 @@ export default function GiocatoreDetail() {
                 giocatore={giocatore}
                 societaId={societaId}
                 onClose={() => setPagandoQuota(null)}
+                rateCollegate={getRateCollegate(pagandoQuota, quote)}
               />
             )}
 
