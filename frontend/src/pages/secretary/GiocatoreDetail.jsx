@@ -443,6 +443,31 @@ export default function GiocatoreDetail() {
               </button>
             )}
 
+            {/* Banner totale quote */}
+            {(() => {
+              const totaleDovuto = quote.reduce((s, q) => s + (q.importo ?? 0), 0)
+              const totalePagato = quote.filter(q => q.pagato).reduce((s, q) => s + (q.importo ?? 0), 0)
+              const residuo = totaleDovuto - totalePagato
+              return quote.length > 0 && (
+                <div className="mb-3 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 flex gap-4">
+                  <div className="flex-1">
+                    <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-wider">Totale iscrizione</p>
+                    <p className="text-lg font-extrabold text-purple-700">€{totaleDovuto.toFixed(2)}</p>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Pagato</p>
+                    <p className="text-lg font-extrabold text-green-600">€{totalePagato.toFixed(2)}</p>
+                  </div>
+                  {residuo > 0 && (
+                    <div className="flex-1">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Residuo</p>
+                      <p className="text-lg font-extrabold text-gray-700">€{residuo.toFixed(2)}</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
             {/* Lista quote raggruppate */}
             {loadingQ ? <LoadingSpinner /> : quoteGroups.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-8">Nessuna quota registrata</p>
