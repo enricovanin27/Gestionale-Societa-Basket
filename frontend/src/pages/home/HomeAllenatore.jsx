@@ -18,6 +18,7 @@ import {
   AllenatoreEditModal, AllenatoreEventModal, parseList, GIORNO_OFFSET_W, timesOverlap,
 } from './shared'
 import AppelloModal from '../coach/AppelloModal'
+import { NetworkError } from '../../components/ui/Feedback'
 
 // Stato certificato per la vista rosa
 function certStatusRosa(scadenza) {
@@ -570,6 +571,8 @@ export default function HomeAllenatore() {
         logout={logout}
         societaNome={societaNome}
       />
+
+      {weekError && <NetworkError onRetry={() => window.location.reload()} />}
 
       <div className="px-4 pt-4 space-y-4">
 

@@ -1,4 +1,4 @@
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, WifiOff } from 'lucide-react'
 
 export function ErrorBox({ error }) {
   return (
@@ -6,6 +6,30 @@ export function ErrorBox({ error }) {
       <AlertCircle size={32} className="text-red-400 mx-auto mb-2" />
       <p className="text-sm text-gray-600">Errore nel caricamento</p>
       <p className="text-xs text-gray-400 mt-1">{error?.message}</p>
+    </div>
+  )
+}
+
+/**
+ * NetworkError — banner per errori di connessione/rete.
+ * Mostra un pulsante "Riprova" se viene passato onRetry.
+ */
+export function NetworkError({ onRetry }) {
+  return (
+    <div className="mx-4 mt-6 bg-red-50 border border-red-200 rounded-xl p-5 text-center">
+      <WifiOff size={28} className="mx-auto mb-2 text-red-400" />
+      <p className="text-sm font-semibold text-red-700">Impossibile connettersi</p>
+      <p className="text-xs text-red-400 mt-1 leading-relaxed">
+        Controlla la connessione internet e riprova.
+      </p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-3 text-xs font-medium text-red-600 underline hover:text-red-800 transition-colors"
+        >
+          Riprova
+        </button>
+      )}
     </div>
   )
 }

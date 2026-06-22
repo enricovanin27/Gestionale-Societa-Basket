@@ -12,6 +12,7 @@ import AppHeader from '../../components/AppHeader'
 import { EventRow, timesOverlap, QuickEditAllenamentoModal } from './shared'
 import { formatTime } from '../../lib/utils'
 import SetupChecklist from '../../components/SetupChecklist'
+import { NetworkError } from '../../components/ui/Feedback'
 
 export default function HomeAdmin() {
   const { displayName, logout, societaNome, societaId } = useAuth()
@@ -307,10 +308,7 @@ export default function HomeAdmin() {
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>
       ) : isError ? (
-        <div className="mx-4 mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <p className="text-sm font-medium text-red-700">Errore nel caricamento dei dati</p>
-          <p className="text-xs text-red-400 mt-1">Controlla la connessione e riprova</p>
-        </div>
+        <NetworkError onRetry={() => window.location.reload()} />
       ) : (
         <div className="px-4 pt-4 space-y-4">
 

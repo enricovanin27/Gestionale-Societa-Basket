@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { format, addDays, startOfWeek, differenceInDays, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { Upload, FileText, CheckCircle2, Users } from 'lucide-react'
+import { NetworkError } from '../../components/ui/Feedback'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -232,10 +233,7 @@ export default function HomeGenitore() {
       {isLoading ? (
         <div className="pt-6"><LoadingSpinner /></div>
       ) : isError ? (
-        <div className="mx-4 mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <p className="text-sm font-medium text-red-700">Errore nel caricamento</p>
-          <p className="text-xs text-red-400 mt-1">Controlla la connessione e riprova</p>
-        </div>
+        <NetworkError onRetry={() => window.location.reload()} />
       ) : (
         <div className="pt-3 space-y-4 pb-24">
           {hasVariazioni && (

@@ -11,6 +11,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import { Card, CardContent } from '@/components/ui/card'
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Printer } from 'lucide-react'
 import SetupChecklist from '../../components/SetupChecklist'
+import { NetworkError } from '../../components/ui/Feedback'
 
 export default function SegreteriaDashboard() {
   const today = new Date()
@@ -28,7 +29,7 @@ export default function SegreteriaDashboard() {
   const [openQuoteInScad,  setOpenQuoteInScad]  = useState(false)
 
   // ── query ───────────────────────────────────────────────────────────────────
-  const { data: giocatori = [], isLoading: lg } = useQuery({
+  const { data: giocatori = [], isLoading: lg, isError: errG } = useQuery({
     queryKey: ['segreteria-giocatori', societaId],
     enabled: !!societaId,
     queryFn: async () => {
@@ -43,7 +44,7 @@ export default function SegreteriaDashboard() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const { data: quote = [], isLoading: lq } = useQuery({
+  const { data: quote = [], isLoading: lq, isError: errQ } = useQuery({
     queryKey: ['segreteria-quote-aperte', societaId],
     enabled: !!societaId,
     queryFn: async () => {
@@ -71,6 +72,7 @@ export default function SegreteriaDashboard() {
   const quoteInScadenza = useMemo(() => quote.filter(q => q.data_scadenza && q.data_scadenza >= todayStr && q.data_scadenza <= in15days), [quote, todayStr, in15days])
 
   const isLoading = lg || lq
+  const isError   = errG || errQ
   const tuttoOk   = certScaduti.length === 0 && certInScad.length === 0 && quoteScadute.length === 0 && quoteInScadenza.length === 0
 
   // ── print helpers ────────────────────────────────────────────────────────
@@ -177,6 +179,8 @@ export default function SegreteriaDashboard() {
 
       {isLoading ? (
         <div className="pt-8"><LoadingSpinner /></div>
+      ) : isError ? (
+        <NetworkError onRetry={() => window.location.reload()} />
       ) : (
         <div className="px-4 pt-4 space-y-4">
 
