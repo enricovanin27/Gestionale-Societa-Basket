@@ -239,7 +239,7 @@ export default function ImpostazioniSocieta() {
                       type="number" min="0" step="0.01"
                       value={r.importo}
                       onChange={e => setRataField(i, 'importo', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className={inp}
                       placeholder="Es. 150"
                     />
                   </div>
@@ -249,7 +249,7 @@ export default function ImpostazioniSocieta() {
                       type="date"
                       value={r.scadenza}
                       onChange={e => setRataField(i, 'scadenza', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      className={inp}
                     />
                   </div>
                 </div>
