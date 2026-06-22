@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { format, addDays, startOfWeek, differenceInDays, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { Upload, FileText, CheckCircle2 } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, Users } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -173,12 +173,36 @@ export default function HomeGenitore() {
   }
 
   if (!mySquadre.length) {
+    const noFigli = figli.length === 0
     return (
-      <div>
+      <div className="flex flex-col min-h-screen bg-gray-50">
         <AppHeader title="Ciao!" subtitle={format(today, 'EEEE d MMMM yyyy', { locale: it })}
           displayName={displayName} logout={logout} societaNome={societaNome} />
-        <div className="mx-4 mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <p className="text-sm text-amber-700">Nessuna squadra assegnata. Contatta l'amministratore.</p>
+        <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+            <Users size={28} className="text-amber-500" />
+          </div>
+          <h2 className="text-base font-semibold text-gray-800 mb-2">
+            {noFigli ? 'Account non ancora collegato' : 'Nessuna squadra assegnata'}
+          </h2>
+          <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+            {noFigli
+              ? 'Il tuo account non è ancora collegato a nessun giocatore. Contatta la segreteria per completare la configurazione.'
+              : 'Il tuo figlio è registrato, ma non è ancora stato assegnato a una squadra.'
+            }
+          </p>
+          {societaNome && (
+            <div className="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 w-full max-w-sm text-left">
+              <p className="text-xs font-semibold text-amber-700 mb-1">Come risolvere</p>
+              <p className="text-xs text-amber-600 leading-relaxed">
+                Contatta la segreteria di <strong>{societaNome}</strong> e chiedi di
+                {noFigli
+                  ? ' associare il tuo account al giocatore corretto.'
+                  : ' assegnare tuo figlio a una squadra.'
+                }
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )

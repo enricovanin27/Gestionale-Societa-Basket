@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
 import { format, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { X, Check } from 'lucide-react'
+import { X, Check, CheckCheck, Minus } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
+import { useToast } from '../../components/ui/ToastProvider'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 export default function AppelloModal({ event, societaId, onClose }) {
   const qc = useQueryClient()
+  const { confirm } = useToast()
   const [presMap, setPresMap] = useState({})
   const [saved,   setSaved]   = useState(false)
+  const [dirty,   setDirty]   = useState(false)
 
   const { data: giocatori = [], isLoading } = useQuery({
     queryKey: ['appello-giocatori', event.squadra, societaId],
@@ -49,6 +52,24 @@ export default function AppelloModal({ event, societaId, onClose }) {
       setSaved(false)
     }
   }, [existing])
+
+  function handleClose() {
+    if (dirty && !saved) {
+      confirm(
+        'Le presenze non sono state salvate. Chiudi senza salvare?',
+        onClose,
+        { confirmLabel: 'Chiudi comunque', danger: false }
+      )
+    } else {
+      onClose()
+    }
+  }
+
+  function markAll(value) {
+    setPresMap(Object.fromEntries(giocatori.map(g => [g.id, value])))
+    setSaved(false)
+    setDirty(true)
+  }
 
   const saveMut = useMutation({
     mutationFn: async () => {
@@ -94,14 +115,14 @@ export default function AppelloModal({ event, societaId, onClose }) {
               {dataLabel}{event.ora_inizio ? ` · ${event.ora_inizio.slice(0, 5)}` : ''}
             </p>
           </div>
-          <button onClick={onClose}><X size={18} className="opacity-70" /></button>
+          <button onClick={handleClose}><X size={18} className="opacity-70" /></button>
         </div>
 
         {isLoading ? (
           <div className="p-8 flex justify-center"><LoadingSpinner /></div>
         ) : (
           <>
-            {/* Contatori */}
+            {/* Contatori + azioni rapide */}
             <div className="flex items-center gap-4 px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
               <span className="text-sm">
                 <span className="font-bold text-green-600">{presenti}</span>
@@ -111,7 +132,22 @@ export default function AppelloModal({ event, societaId, onClose }) {
                 <span className="font-bold text-red-500">{assenti}</span>
                 <span className="text-gray-500"> assenti</span>
               </span>
-              <span className="text-xs text-gray-400 ml-auto">{giocatori.length} atleti totali</span>
+              <div className="ml-auto flex items-center gap-1.5">
+                <button
+                  onClick={() => markAll(true)}
+                  title="Segna tutti presenti"
+                  className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                >
+                  <CheckCheck size={12} /> Tutti
+                </button>
+                <button
+                  onClick={() => markAll(false)}
+                  title="Azzera tutto"
+                  className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                >
+                  <Minus size={12} /> Azzera
+                </button>
+              </div>
             </div>
 
             {/* Lista giocatori */}
@@ -120,7 +156,7 @@ export default function AppelloModal({ event, societaId, onClose }) {
                 const presente = presMap[g.id] ?? false
                 return (
                   <button key={g.id}
-                    onClick={() => { setSaved(false); setPresMap(m => ({ ...m, [g.id]: !m[g.id] })) }}
+                    onClick={() => { setSaved(false); setDirty(true); setPresMap(m => ({ ...m, [g.id]: !m[g.id] })) }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-colors ${
                       presente ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'
                     }`}>
@@ -147,7 +183,7 @@ export default function AppelloModal({ event, societaId, onClose }) {
 
             {/* Footer */}
             <div className="px-4 py-3 border-t border-gray-100 shrink-0 flex gap-2">
-              <button onClick={onClose}
+              <button onClick={handleClose}
                 className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-500">
                 {saved ? 'Chiudi' : 'Annulla'}
               </button>

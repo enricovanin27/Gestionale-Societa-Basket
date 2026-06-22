@@ -89,10 +89,14 @@ export default function StatistichePage({ embedded = false }) {
     return map
   }, [presenzeAl])
 
+  // Chiave composta squadra::giocatore_id per evitare conteggi incrociati
+  // su giocatori iscritti a più squadre (altrimenti pres > totAl → % > 100%)
   const presenzePerGiocatore = useMemo(() => {
     const counts = {}
     for (const p of presenzeAl) {
-      if (p.presente) counts[p.giocatore_id] = (counts[p.giocatore_id] ?? 0) + 1
+      if (!p.presente) continue
+      const key = `${p.squadra}::${p.giocatore_id}`
+      counts[key] = (counts[key] ?? 0) + 1
     }
     return counts
   }, [presenzeAl])
@@ -259,7 +263,7 @@ export default function StatistichePage({ embedded = false }) {
                   {lista
                     .sort((a, b) => a.cognome.localeCompare(b.cognome))
                     .map((g, idx) => {
-                      const pres  = presenzePerGiocatore[g.id] ?? 0
+                      const pres  = presenzePerGiocatore[`${squadra}::${g.id}`] ?? 0
                       const pct   = Math.round((pres / totAl) * 100)
                       const color = pct >= 75 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-400' : 'bg-red-400'
                       const textColor = pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-500'
