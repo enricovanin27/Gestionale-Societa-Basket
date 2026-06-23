@@ -141,6 +141,14 @@ export default function HomeGiocatore() {
     )
   }, [weekData, todayStr, mySquadre.join(',')])
 
+  const weekAllenamenti = useMemo(() =>
+    (weekData?.events ?? []).filter(e =>
+      e._tipo === 'allenamento' && !e.annullato &&
+      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+    ),
+    [weekData, mySquadre.join(',')]
+  )
+
   const showRpeBox = !!mioGiocatore && allenamentiOggi.length > 0 && !rpeOggi && !rpeSalvato
 
   if (!mySquadre.length) {
@@ -180,6 +188,17 @@ export default function HomeGiocatore() {
         <div className="pt-6"><LoadingSpinner /></div>
       ) : (
         <div className="pt-3 space-y-4 pb-24">
+          {/* ── Nessun allenamento questa settimana ───────────────────────────────── */}
+          {weekAllenamenti.length === 0 && (
+            <div className="mx-4 bg-white border border-gray-200 rounded-xl px-4 py-5 text-center shadow-sm">
+              <p className="text-3xl mb-2">🏟️</p>
+              <p className="text-sm font-semibold text-gray-700">Nessun allenamento questa settimana</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {format(thisWeekStart, 'd MMM', { locale: it })} – {format(addDays(thisWeekStart, 6), 'd MMM', { locale: it })}
+              </p>
+            </div>
+          )}
+
           {showRpeBox && (
             <div className="mx-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
               <div className="font-bold text-amber-900 text-sm mb-0.5">Come ti sei sentito oggi?</div>
