@@ -144,9 +144,9 @@ export default function HomeGiocatore() {
   const weekAllenamenti = useMemo(() =>
     (weekData?.events ?? []).filter(e =>
       e._tipo === 'allenamento' && !e.annullato &&
-      mySquadre.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+      squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
     ),
-    [weekData, mySquadre.join(',')]
+    [weekData, squadreFiltro]
   )
 
   const showRpeBox = !!mioGiocatore && allenamentiOggi.length > 0 && !rpeOggi && !rpeSalvato
