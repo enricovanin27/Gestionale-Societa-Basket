@@ -4,12 +4,14 @@ import CambiaPasswordButton from './CambiaPasswordButton'
 import { useAuth } from '../hooks/useAuth'
 
 const ROLE_LABEL = {
-  admin:       'Admin',
-  super_admin: 'Super Admin',
-  allenatore:  'Allenatore',
-  segreteria:  'Segreteria',
-  genitore:    'Genitore',
-  giocatore:   'Giocatore',
+  admin:                'Resp. Tecnico',
+  super_admin:          'Super Admin',
+  allenatore:           'Allenatore',
+  segreteria:           'Segreteria',
+  genitore:             'Genitore',
+  giocatore:            'Giocatore',
+  dirigente:            'Dirigente',
+  preparatore_atletico: 'Preparatore',
 }
 
 const ROLE_PATH = {
