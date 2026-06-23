@@ -439,6 +439,10 @@ async function saveToSettimana(event, formData, societaId) {
     palestra: formData.palestra, allenatori: formData.allenatori,
     annullato: false,
     condivisione: formData.condivisione ? 'SI' : 'NO',
+    prep_inclusa:    formData._prepData ? true : false,
+    prep_quando:     formData._prepData?.quando     ?? null,
+    prep_durata_min: formData._prepData?.durata_min ?? null,
+    prep_su_campo:   formData._prepData?.su_campo   ?? false,
   }
   if (event._source === 'fisso') {
     const { data: existing } = await supabase
