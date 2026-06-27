@@ -22,6 +22,7 @@ const CORS = {
 function normalizeTelefono(tel: string): string {
   let digits = tel.replace(/\D/g, '') // rimuovi tutto tranne cifre
   if (digits.startsWith('0039')) digits = digits.slice(4)
+  if (digits.startsWith('0')) digits = digits.slice(1)    // rimuovi 0 iniziale (formato domestico)
   if (digits.startsWith('39') && digits.length === 12) return digits
   if (!digits.startsWith('39')) digits = '39' + digits
   return digits
