@@ -5,7 +5,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SR_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const RESEND_API_KEY    = Deno.env.get('RESEND_API_KEY')!
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 const OWNER_EMAIL       = Deno.env.get('OWNER_EMAIL') ?? 'enricovanin27@gmail.com'
 const FROM_EMAIL        = 'EVO <onboarding@resend.dev>'   // cambia con dominio verificato
 
@@ -193,49 +192,8 @@ Deno.serve(async (req: Request) => {
       console.error('[handle-lead] Resend lead email exception:', e)
     }
 
-    // 5. Genera messaggio WhatsApp con Claude Haiku
-    let waMsg = `Ciao ${nome.trim()}! 👋 Sono Enrico di EVO. Ho visto che hai richiesto una demo per ${societa.trim()} — grazie mille per l'interesse! Volevo sapere se hai avuto modo di esplorare l'app e se tutto era chiaro. Hai domande su qualche funzionalità? Se preferisci possiamo anche fare una breve chiamata. Fammi sapere! 🏀`
-
-    try {
-      const prompt = `Sei un assistente commerciale per EVO, un'app gestionale per società di basket italiane. Scrivi un messaggio WhatsApp breve (max 120 parole), cordiale e professionale per contattare un potenziale cliente che ha richiesto una demo.
-
-Lead: ${nome.trim()}, società "${societa.trim()}"
-
-Il messaggio deve:
-- Iniziare con "Ciao ${nome.trim()}! 👋"
-- Presentarti come il team di EVO
-- Dire che hai visto la richiesta di demo
-- Chiedere se ha avuto modo di esplorare l'app
-- Chiedere se ha domande o vuole una chiamata rapida
-- Finire con tono amichevole, non commerciale
-- Non usare emoji eccessive (max 2-3)
-
-Rispondi SOLO con il testo del messaggio, senza prefissi o spiegazioni.`
-
-      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-
-      if (aiRes.ok) {
-        const aiData = await aiRes.json()
-        waMsg = aiData.content?.[0]?.text?.trim() ?? waMsg
-        console.log('[handle-lead] ✅ Messaggio WhatsApp generato da Claude')
-      } else {
-        console.error('[handle-lead] Claude API error:', await aiRes.text())
-      }
-    } catch (e) {
-      console.error('[handle-lead] Claude API exception:', e)
-    }
+    // 5. Messaggio WhatsApp precompilato
+    const waMsg = `Ciao ${nome.trim()}! 👋 Sono Enrico di EVO. Ho visto che hai richiesto una demo per ${societa.trim()} — grazie mille per l'interesse! Hai domande su qualche funzionalità? Se preferisci possiamo fare una breve chiamata. Fammi sapere! 🏀`
 
     // 6. Costruisci link wa.me
     const telNorm = normalizeTelefono(telefono.trim())
