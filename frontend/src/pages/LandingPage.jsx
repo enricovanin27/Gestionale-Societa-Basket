@@ -678,9 +678,13 @@ function SectionContatti() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Errore sconosciuto')
+      setForm({ nome: '', societa: '', email: '', telefono: '' })
       setStatus('success')
     } catch (err) {
-      setErrMsg(err.message ?? 'Errore di rete. Riprova.')
+      const msg = err instanceof TypeError
+        ? 'Errore di connessione. Verifica la tua rete e riprova.'
+        : (err.message ?? 'Errore del server. Riprova tra poco.')
+      setErrMsg(msg)
       setStatus('error')
     }
   }
