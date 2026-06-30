@@ -10,12 +10,11 @@ export const RUOLO_LABELS = {
   segreteria:           'Segreteria',
   genitore:             'Genitore',
   giocatore:            'Giocatore',
-  preparatore_atletico: 'Preparatore atletico',
   dirigente:            'Dirigente',
 }
 
 // Ruoli che supportano ruoli_extra (multi-ruolo)
-const RUOLI_CON_EXTRA = ['allenatore', 'admin', 'segreteria', 'dirigente', 'preparatore_atletico']
+const RUOLI_CON_EXTRA = ['allenatore', 'admin', 'segreteria', 'dirigente']
 
 const EMPTY_FORM = {
   email: '', nome: '', cognome: '', ruolo: '',
