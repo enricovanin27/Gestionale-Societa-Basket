@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
-import { format, subDays, addDays, eachDayOfInterval, parseISO } from 'date-fns'
+import { format, addDays, startOfWeek, addWeeks, eachDayOfInterval, parseISO } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronRight, Check, X, Save } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Check, X, Save } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -25,15 +25,18 @@ function PresenzeTab({ mySquadre, societaId }) {
   const today = new Date()
   const qc    = useQueryClient()
 
-  const [selectedId,     setSelectedId]     = useState(null)
-  const [presMap,        setPresMap]        = useState({})
-  const [saved,          setSaved]          = useState(false)
-  const [creatingRow,    setCreatingRow]    = useState(false)
+  const [weekOffset,       setWeekOffset]       = useState(0)
+  const [selectedId,       setSelectedId]       = useState(null)
+  const [presMap,          setPresMap]          = useState({})
+  const [saved,            setSaved]            = useState(false)
+  const [creatingRow,      setCreatingRow]      = useState(false)
   const [selectedSquadra,  setSelectedSquadra]  = useState(null)
   const [selectedAlHeader, setSelectedAlHeader] = useState(null)
 
-  const rangeStart = format(subDays(today, 7), 'yyyy-MM-dd')
-  const rangeEnd   = format(addDays(today, 7), 'yyyy-MM-dd')
+  const weekStart  = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 })
+  const weekEnd    = addDays(weekStart, 6)
+  const rangeStart = format(weekStart, 'yyyy-MM-dd')
+  const rangeEnd   = format(weekEnd, 'yyyy-MM-dd')
 
   const { data: rawData, isLoading: la } = useQuery({
     queryKey: ['attivita-presenze', societaId, mySquadre, rangeStart, rangeEnd],
@@ -96,6 +99,56 @@ function PresenzeTab({ mySquadre, societaId }) {
       return dc !== 0 ? dc : (a.ora_inizio ?? '').localeCompare(b.ora_inizio ?? '')
     })
   }, [rawData, rangeStart, rangeEnd])
+
+  // Tutti i giocatori delle squadre (per cognomi assenti nel riepilogo card)
+  const { data: tuttiGiocatori = [] } = useQuery({
+    queryKey: ['presenze-tutti-giocatori', societaId, mySquadre.join(',')],
+    enabled: !!societaId && mySquadre.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase.from('giocatori')
+        .select('id, cognome, squadra, squadra2, squadra3')
+        .eq('societa_id', societaId)
+        .eq('attivo', true)
+        .order('cognome')
+      return data ?? []
+    },
+  })
+
+  // Presenze della settimana per mostrare riepilogo nelle card
+  const { data: weekPresenze = [] } = useQuery({
+    queryKey: ['presenze-week-summary', societaId, mySquadre.join(','), rangeStart, rangeEnd],
+    enabled: !!societaId && mySquadre.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from('presenze_allenamento')
+        .select('giocatore_id, squadra, data, presente')
+        .in('squadra', mySquadre)
+        .gte('data', rangeStart)
+        .lte('data', rangeEnd)
+      return data ?? []
+    },
+  })
+
+  // Riepilogo per sessione: "squadra|data" → { presenti, assenti: [cognomi] }
+  const sessionSummary = useMemo(() => {
+    if (!tuttiGiocatori.length) return {}
+    const giocatoriMap = Object.fromEntries(tuttiGiocatori.map(g => [g.id, g]))
+    const bySession = {}
+    for (const p of weekPresenze) {
+      const key = `${p.squadra}|${p.data}`
+      if (!bySession[key]) bySession[key] = { presenti: 0, assentiIds: [] }
+      if (p.presente) bySession[key].presenti++
+      else bySession[key].assentiIds.push(p.giocatore_id)
+    }
+    const result = {}
+    for (const [key, s] of Object.entries(bySession)) {
+      result[key] = {
+        presenti: s.presenti,
+        assenti: s.assentiIds.map(id => giocatoriMap[id]?.cognome).filter(Boolean),
+      }
+    }
+    return result
+  }, [tuttiGiocatori, weekPresenze])
 
   const selectedAl = selectedAlHeader
 
@@ -200,6 +253,7 @@ function PresenzeTab({ mySquadre, societaId }) {
       setSaved(true)
       qc.invalidateQueries({ queryKey: ['presenze-existing', societaId, selectedId] })
       qc.invalidateQueries({ queryKey: ['presenze-giocatore'] })
+      qc.invalidateQueries({ queryKey: ['presenze-week-summary'] })
     },
   })
 
@@ -213,41 +267,72 @@ function PresenzeTab({ mySquadre, societaId }) {
 
   if (la || creatingRow) return <div className="pt-8"><LoadingSpinner /></div>
 
-  if (allenamenti.length === 0) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
-        Nessun allenamento nei prossimi/ultimi 7 giorni.
-      </div>
-    )
-  }
-
+  // Vista lista: selezione allenamento con navigazione settimanale
   if (!selectedId) {
     return (
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Seleziona allenamento</p>
-        {allenamenti.map(a => (
-          <button
-            key={`${a._source}-${a.id ?? a.data + a.squadra}`}
-            onClick={() => handleSelectAllenamento(a)}
-            className="w-full text-left bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between active:scale-[0.99] shadow-sm"
-          >
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
-                {format(parseISO(a.data), 'EEEE d MMM', { locale: it })} · {a.squadra}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {a.ora_inizio?.slice(0, 5)}–{a.ora_fine?.slice(0, 5)}
-                {a.palestra ? ` · ${a.palestra}` : ''}
-                {a._source === 'fisso' && <span className="ml-1 text-amber-600">(ricorrente)</span>}
-              </p>
-            </div>
-            <ChevronRight size={18} className="text-gray-400" />
+      <div className="space-y-3">
+        {/* Navigazione settimana */}
+        <div className="flex items-center justify-between">
+          <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 rounded-lg bg-gray-100 active:scale-95">
+            <ChevronLeft size={16} />
           </button>
-        ))}
+          <div className="text-center">
+            <div className="text-sm font-semibold text-gray-700">
+              {format(weekStart, 'd MMM', { locale: it })} – {format(weekEnd, 'd MMM yyyy', { locale: it })}
+            </div>
+            {weekOffset === 0 && <div className="text-xs text-amber-600 font-medium">Questa settimana</div>}
+          </div>
+          <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 rounded-lg bg-gray-100 active:scale-95">
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {allenamenti.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
+            Nessun allenamento questa settimana.
+          </div>
+        ) : (
+          <>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Seleziona allenamento</p>
+            {allenamenti.map(a => {
+              const summary = sessionSummary[`${a.squadra}|${a.data}`]
+              return (
+                <button
+                  key={`${a._source}-${a.id ?? a.data + a.squadra}`}
+                  onClick={() => handleSelectAllenamento(a)}
+                  className="w-full text-left bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center justify-between active:scale-[0.99] shadow-sm"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {format(parseISO(a.data), 'EEEE d MMM', { locale: it })} · {a.squadra}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {a.ora_inizio?.slice(0, 5)}–{a.ora_fine?.slice(0, 5)}
+                      {a.palestra ? ` · ${a.palestra}` : ''}
+                      {a._source === 'fisso' && <span className="ml-1 text-amber-600">(ricorrente)</span>}
+                    </p>
+                    {summary && (
+                      <div className="mt-1.5">
+                        <span className="text-xs text-green-600 font-medium">✓ {summary.presenti} presenti</span>
+                        {summary.assenti.length > 0 && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Assenti: {summary.assenti.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <ChevronRight size={18} className="text-gray-400 shrink-0 ml-2" />
+                </button>
+              )
+            })}
+          </>
+        )}
       </div>
     )
   }
 
+  // Vista dettaglio: registra presenze
   return (
     <div>
       <div className="flex items-center gap-3 mb-4">

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle, Printer } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BarChart2, AlertTriangle, Printer, Check, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../components/ui/ToastProvider'
@@ -16,10 +16,98 @@ const TIPO_COLORS = {
   altro:      'bg-gray-100 text-gray-600',
 }
 
+// ─── Griglia presenze ─────────────────────────────────────────────────────────
+
+function GrigliaPresenze({ lista, presenzeAl }) {
+  const dates = useMemo(() => [...new Set(
+    presenzeAl
+      .filter(p => lista.some(g => g.id === p.giocatore_id))
+      .map(p => p.data)
+  )].sort(), [presenzeAl, lista])
+
+  const matrix = useMemo(() => {
+    const m = {}
+    for (const p of presenzeAl) {
+      if (!lista.some(g => g.id === p.giocatore_id)) continue
+      if (!m[p.giocatore_id]) m[p.giocatore_id] = {}
+      m[p.giocatore_id][p.data] = p.presente
+    }
+    return m
+  }, [presenzeAl, lista])
+
+  const sortedLista = useMemo(() =>
+    [...lista].sort((a, b) => a.cognome.localeCompare(b.cognome)),
+    [lista]
+  )
+
+  if (!dates.length) {
+    return (
+      <p className="text-xs text-gray-400 italic px-1">
+        Nessuna presenza registrata in questo mese.
+      </p>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <table className="text-xs border-collapse w-full">
+        <thead>
+          <tr>
+            <th className="text-left px-2 py-1.5 bg-gray-50 border-b border-r border-gray-200 font-semibold text-gray-700 min-w-[110px] sticky left-0 z-10">
+              Giocatore
+            </th>
+            {dates.map(d => (
+              <th key={d} className="px-1 py-1.5 bg-gray-50 border-b border-r border-gray-200 font-medium text-gray-500 min-w-[34px] text-center">
+                {new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}
+              </th>
+            ))}
+            <th className="px-2 py-1.5 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700 text-center min-w-[40px]">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedLista.map((g, idx) => {
+            const row = matrix[g.id] ?? {}
+            const registered = dates.filter(d => row[d] !== undefined)
+            const presenti = registered.filter(d => row[d] === true).length
+            const pct = registered.length > 0 ? Math.round(presenti * 100 / registered.length) : null
+            const pctColor = pct === null ? 'text-gray-400' : pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-500'
+            return (
+              <tr key={g.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                <td className="px-2 py-1.5 border-b border-r border-gray-200 font-medium text-gray-900 sticky left-0 bg-inherit whitespace-nowrap">
+                  {g.cognome} {g.nome}
+                </td>
+                {dates.map(d => {
+                  const val = row[d]
+                  if (val === undefined) return (
+                    <td key={d} className="border-b border-r border-gray-200 text-center text-gray-300 py-1.5">—</td>
+                  )
+                  return (
+                    <td key={d} className={`border-b border-r border-gray-200 text-center py-1.5 ${val ? 'bg-green-50' : 'bg-red-50'}`}>
+                      {val
+                        ? <Check size={12} className="mx-auto text-green-500" />
+                        : <X size={12} className="mx-auto text-red-400" />}
+                    </td>
+                  )
+                })}
+                <td className={`border-b border-gray-200 text-center font-bold py-1.5 ${pctColor}`}>
+                  {pct !== null ? `${pct}%` : '—'}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ─── Main page ─────────────────────────────────────────────────────────────────
+
 export default function StatistichePage({ embedded = false }) {
   const { societaId, isAdmin, squadreAllenatore, societaNome } = useAuth()
   const { toast } = useToast()
   const [refDate, setRefDate] = useState(new Date())
+  const [viewMode, setViewMode] = useState('riepilogo')
   const printWindow = usePrintWindow()
 
   const monthStart = format(startOfMonth(refDate), 'yyyy-MM-dd')
@@ -232,6 +320,21 @@ export default function StatistichePage({ embedded = false }) {
         </section>
       )}
 
+      {/* Toggle Riepilogo / Griglia */}
+      {filteredGiocatori.length > 0 && (
+        <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg w-fit">
+          {[['riepilogo', 'Riepilogo'], ['griglia', 'Griglia presenze']].map(([v, label]) => (
+            <button key={v} onClick={() => setViewMode(v)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                viewMode === v ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {Object.entries(giocatoriPerSquadra)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([squadra, lista]) => {
@@ -258,6 +361,8 @@ export default function StatistichePage({ embedded = false }) {
                 <p className="text-xs text-gray-400 italic px-1">
                   Nessuna presenza registrata in questo mese (apri l'allenamento e registra le presenze).
                 </p>
+              ) : viewMode === 'griglia' ? (
+                <GrigliaPresenze lista={lista} presenzeAl={presenzeAl} />
               ) : (
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                   {lista
