@@ -1,5 +1,5 @@
 ﻿import { Outlet, NavLink } from 'react-router-dom'
-import { Home, MessageCircle, DollarSign, Bell, Calendar } from 'lucide-react'
+import { Home, MessageCircle, DollarSign, Bell, Calendar, BarChart2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useUnreadAnnunci } from '../pages/BachecaPage'
 import GuideDrawer from '../components/GuideDrawer'
@@ -16,6 +16,7 @@ export default function ParentLayout() {
   const sidebarItems = [
     { to: '/parent',                end: true, icon: Home,           label: 'Home' },
     { to: '/parent/calendario',               icon: Calendar,        label: 'Calendario' },
+    { to: '/parent/presenze',                 icon: BarChart2,       label: 'Presenze' },
     { to: '/parent/comunicazioni',            icon: MessageCircle,   label: 'Comunicazioni' },
     { to: '/parent/quote',                    icon: DollarSign,      label: 'Quote' },
     { to: '/parent/bacheca',                  icon: Bell,            label: 'Bacheca', badge: unread },
@@ -32,8 +33,8 @@ export default function ParentLayout() {
           <NavLink to="/parent/calendario" className={cls}>
             <Calendar size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Calendario</span>
           </NavLink>
-          <NavLink to="/parent/comunicazioni" className={cls}>
-            <MessageCircle size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Comunica</span>
+          <NavLink to="/parent/presenze" className={cls}>
+            <BarChart2 size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Presenze</span>
           </NavLink>
           <NavLink to="/parent/quote" className={cls}>
             <DollarSign size={20} strokeWidth={1.8} /><span className="text-[10px] font-medium">Quote</span>

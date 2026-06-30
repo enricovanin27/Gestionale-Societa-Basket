@@ -40,6 +40,7 @@ import ComunicazioniPage from './pages/player/ComunicazioniPage'
 import CalendarioPlayer from './pages/player/CalendarioPlayer'
 import CalendarioGenitore from './pages/parent/CalendarioGenitore'
 import QuoteGenitore from './pages/parent/QuoteGenitore'
+import PresenzeGenitore from './pages/parent/PresenzeGenitore'
 import HomeAllenatore from './pages/home/HomeAllenatore'
 import HomeAdmin from './pages/home/HomeAdmin'
 import AdminPersone from './pages/admin/AdminPersone'
@@ -166,6 +167,7 @@ function AppShell() {
           <Route path="comunicazioni" element={<ComunicazioniPage />} />
           <Route path="bacheca"       element={<BachecaPage />} />
           <Route path="quote"         element={<QuoteGenitore />} />
+          <Route path="presenze"      element={<PresenzeGenitore />} />
         </Route>
 
         {/* â"€â"€ Giocatore â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€ */}
