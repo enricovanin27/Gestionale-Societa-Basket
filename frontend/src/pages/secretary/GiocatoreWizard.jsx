@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../components/ui/ToastProvider'
 
 // ─── Stato iniziale ────────────────────────────────────────────────────────────
 
@@ -397,6 +398,7 @@ function Step4({ data, onChange, onSave, onBack, saving, genitori }) {
 export default function GiocatoreWizard({ onDone, onCancel }) {
   const { societaId } = useAuth()
   const qc = useQueryClient()
+  const { toast } = useToast()
   const [step,        setStep]        = useState(1)
   const [giocatoreId, setGiocatoreId] = useState(null)
   const [step1,       setStep1]       = useState(STEP1_EMPTY)
@@ -431,6 +433,43 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
     },
   })
 
+  // ── Auto-creazione rate iscrizione da template società ──────────────────────
+  // Usa un try/catch interno: non rilancia mai, così saveStep1 non viene bloccato
+  // se la creazione rate fallisce (il giocatore è già stato salvato correttamente).
+  async function creaRateDaTemplate(giocatoreId) {
+    try {
+      const { data: soc } = await supabase
+        .from('societa')
+        .select('quote_template')
+        .eq('id', societaId)
+        .single()
+
+      const rate = soc?.quote_template?.rate
+      if (!rate?.length) return // nessun template configurato
+
+      const rows = rate.map((r, i) => ({
+        societa_id:    societaId,
+        giocatore_id:  giocatoreId,
+        tipo:          'iscrizione',
+        descrizione:   'Quota iscrizione',
+        importo:       parseFloat(r.importo ?? 0),
+        data_scadenza: r.scadenza || null,
+        pagato:        false,
+        numero_rata:   rate.length > 1 ? i + 1 : null,
+        rate_totali:   rate.length > 1 ? rate.length : null,
+      }))
+
+      const { error } = await supabase.from('quote').insert(rows)
+      if (error) {
+        console.error('Errore auto-creazione rate:', error.message)
+        toast('warning', 'Rate non create automaticamente — aggiungile dalla scheda giocatore')
+      }
+    } catch (err) {
+      console.error('Errore auto-creazione rate:', err.message)
+      toast('warning', 'Rate non create automaticamente — aggiungile dalla scheda giocatore')
+    }
+  }
+
   // ── Step 1: INSERT immediato ─────────────────────────────────────────────────
   async function saveStep1(andContinue = false) {
     // Se il giocatore è già stato creato (utente tornato da step 2), non fare un secondo INSERT
@@ -456,6 +495,8 @@ export default function GiocatoreWizard({ onDone, onCancel }) {
         .single()
       if (error) throw error
       setGiocatoreId(inserted.id)
+      await creaRateDaTemplate(inserted.id)
+      qc.invalidateQueries({ queryKey: ['quote-segreteria', societaId] })
       qc.invalidateQueries({ queryKey: ['segreteria-giocatori', societaId] })
       qc.invalidateQueries({ queryKey: ['quote-nonpagate-map', societaId] })
       if (!andContinue) { onDone(); return }

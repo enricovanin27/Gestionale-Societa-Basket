@@ -42,7 +42,7 @@ export const ROLE_LABEL_SHORT = {
 export function RoleSwitcherSidebar() {
   const { allRuoli, activeRole, setActiveRole } = useAuth()
 
-  const visibili = allRuoli.filter(r => r !== 'super_admin')
+  const visibili = allRuoli.filter(r => r !== 'super_admin' && r !== 'preparatore_atletico')
   if (visibili.length <= 1) return null
 
   function handleSwitch(role) {
@@ -79,7 +79,7 @@ export function RoleSwitcherFAB() {
   const { allRuoli, activeRole, setActiveRole } = useAuth()
   const [open, setOpen] = useState(false)
 
-  const visibili = allRuoli.filter(r => r !== 'super_admin')
+  const visibili = allRuoli.filter(r => r !== 'super_admin' && r !== 'preparatore_atletico')
   if (visibili.length <= 1) return null
 
   function handleSwitch(role) {

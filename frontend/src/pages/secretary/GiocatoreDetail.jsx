@@ -25,6 +25,17 @@ function quotaStatus(q) {
   }
 }
 
+function getRateCollegate(q, tutteQuote) {
+  if (!q.rate_totali || q.rate_totali <= 1) return []
+  return tutteQuote.filter(alt =>
+    alt.id !== q.id &&
+    !alt.pagato &&
+    alt.tipo === q.tipo &&
+    alt.descrizione === q.descrizione &&
+    alt.rate_totali === q.rate_totali
+  )
+}
+
 function certStatus(dataScadenza) {
   if (!dataScadenza) return { label: 'Non registrato', cls: 'bg-gray-100 text-gray-500' }
   const diff = differenceInDays(parseISO(dataScadenza), new Date())
@@ -116,6 +127,10 @@ export default function GiocatoreDetail() {
       return data ?? []
     },
   })
+  // Totali quote (calcolati qui per poterli usare nel banner senza IIFE nel JSX)
+  const quoteTotaleDovuto = quote.reduce((s, q) => s + (q.importo ?? 0), 0)
+  const quoteTotalePagato = quote.filter(q => q.pagato).reduce((s, q) => s + (q.importo ?? 0), 0)
+  const quoteResiduo      = quoteTotaleDovuto - quoteTotalePagato
 
   const addNotaMut = useMutation({
     mutationFn: async () => {
@@ -443,6 +458,32 @@ export default function GiocatoreDetail() {
               </button>
             )}
 
+            {/* Banner totale quote */}
+            {quote.length > 0 && (
+              <div className="mb-3 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 flex gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] text-purple-400 font-semibold uppercase tracking-wider">Totale iscrizione</p>
+                  <p className="text-lg font-extrabold text-purple-700">€{quoteTotaleDovuto.toFixed(2)}</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] text-green-500 font-semibold uppercase tracking-wider">Pagato</p>
+                  <p className="text-lg font-extrabold text-green-600">€{quoteTotalePagato.toFixed(2)}</p>
+                </div>
+                {quoteResiduo > 0 && (
+                  <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Residuo</p>
+                    <p className="text-lg font-extrabold text-gray-700">€{quoteResiduo.toFixed(2)}</p>
+                  </div>
+                )}
+                {quoteResiduo < 0 && (
+                  <div className="flex-1">
+                    <p className="text-[10px] text-orange-400 font-semibold uppercase tracking-wider">⚠ Anomalia</p>
+                    <p className="text-sm font-bold text-orange-600">Pagato supera il totale</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Lista quote raggruppate */}
             {loadingQ ? <LoadingSpinner /> : quoteGroups.length === 0 ? (
               <p className="text-center text-sm text-gray-400 py-8">Nessuna quota registrata</p>
@@ -597,6 +638,7 @@ export default function GiocatoreDetail() {
                 giocatore={giocatore}
                 societaId={societaId}
                 onClose={() => setPagandoQuota(null)}
+                rateCollegate={getRateCollegate(pagandoQuota, quote)}
               />
             )}
 

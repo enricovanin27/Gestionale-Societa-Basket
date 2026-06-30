@@ -45,10 +45,7 @@ import HomeAdmin from './pages/home/HomeAdmin'
 import AdminPersone from './pages/admin/AdminPersone'
 import AdminSetupPage from './pages/admin/AdminSetupPage'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
-import PrepLayout from './layouts/PrepLayout'
-import AgendaPrep from './pages/prep/AgendaPrep'
-import HomePrepPage from './pages/prep/HomePrepPage'
-import SchedeAtletichePage from './pages/prep/SchedeAtletichePage'
+// PrepLayout, AgendaPrep, HomePrepPage, SchedeAtletichePage — in standby, non importati
 import MessaggiRicevutiPage from './pages/coach/MessaggiRicevutiPage'
 import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
@@ -229,14 +226,8 @@ function AppShell() {
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 
-        {/* -- Preparatore Atletico -------------------------------- */}
-        <Route path="/prep" element={<ProtectedRoute requiredRole="preparatore_atletico"><PrepLayout /></ProtectedRoute>}>
-          <Route index              element={<HomePrepPage />} />
-          <Route path="agenda"      element={<AgendaPrep />} />
-          <Route path="calendario"  element={<CalendarioPage />} />
-          <Route path="schede"      element={<SchedeAtletichePage />} />
-          <Route path="messaggi"    element={<MessaggiRicevutiPage />} />
-        </Route>
+        {/* -- Preparatore Atletico: in standby — redireziona a home ---- */}
+        <Route path="/prep/*" element={<Navigate to="/" replace />} />
 
         {/* ── Legacy redirects ─────────────────────────────────── */}
         <Route path="/bacheca"    element={<ProtectedRoute><RoleRedirect /></ProtectedRoute>} />

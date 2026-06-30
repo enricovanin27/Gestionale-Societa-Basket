@@ -4,12 +4,14 @@ import CambiaPasswordButton from './CambiaPasswordButton'
 import { useAuth } from '../hooks/useAuth'
 
 const ROLE_LABEL = {
-  admin:       'Admin',
-  super_admin: 'Super Admin',
-  allenatore:  'Allenatore',
-  segreteria:  'Segreteria',
-  genitore:    'Genitore',
-  giocatore:   'Giocatore',
+  admin:                'Resp. Tecnico',
+  super_admin:          'Super Admin',
+  allenatore:           'Allenatore',
+  segreteria:           'Segreteria',
+  genitore:             'Genitore',
+  giocatore:            'Giocatore',
+  dirigente:            'Dirigente',
+  preparatore_atletico: 'Preparatore',
 }
 
 const ROLE_PATH = {
@@ -69,7 +71,7 @@ export default function AppHeader({ title, subtitle, displayName, logout, societ
       {/* Role switcher — visible only with multiple roles */}
       {multiRole && (
         <div className="flex gap-1.5 mt-3 flex-wrap justify-center">
-          {allRuoli.map(r => (
+          {allRuoli.filter(r => r !== 'super_admin' && r !== 'preparatore_atletico').map(r => (
             <button
               key={r}
               onClick={() => handleRoleSwitch(r)}

@@ -137,6 +137,14 @@ export default function HomeGenitore() {
     [weekData, todayStr, squadreFiltro]
   )
 
+  const weekAllenamenti = useMemo(() =>
+    (weekData?.events ?? []).filter(e =>
+      e._tipo === 'allenamento' && !e.annullato &&
+      squadreFiltro.some(s => s.toLowerCase() === (e.squadra ?? '').toLowerCase())
+    ),
+    [weekData, squadreFiltro]
+  )
+
   async function handleCertUpload(giocatoreId, file) {
     setUploadingId(giocatoreId)
     try {
@@ -269,6 +277,17 @@ export default function HomeGenitore() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Nessun allenamento questa settimana ───────────────────────────────── */}
+          {weekAllenamenti.length === 0 && (
+            <div className="mx-4 bg-white border border-gray-200 rounded-xl px-4 py-5 text-center shadow-sm">
+              <p className="text-3xl mb-2">🏟️</p>
+              <p className="text-sm font-semibold text-gray-700">Nessun allenamento questa settimana</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {format(thisWeekStart, 'd MMM', { locale: it })} – {format(addDays(thisWeekStart, 6), 'd MMM', { locale: it })}
+              </p>
             </div>
           )}
 

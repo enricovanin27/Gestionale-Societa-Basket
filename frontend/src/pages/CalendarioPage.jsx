@@ -25,6 +25,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import GrigliaSettimanale from '../components/GrigliaSettimanale'
 import PrepSesioneInlineForm from '../components/PrepSesioneInlineForm'
+import AtleticaCoach from './coach/AtleticaCoach'
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -824,6 +825,7 @@ function TrainingEditModal({ training, onClose, onSaved }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekEvents'] })
       qc.invalidateQueries({ queryKey: ['prep-sessioni-calendar'] })
+      qc.invalidateQueries({ queryKey: ['atletica-sessioni'] })
       inviaNotificaModifica(
         training.squadra, societaId, training.data,
         `${form.ora_inizio}–${form.ora_fine}${form.palestra ? ` @ ${form.palestra}` : ''}`
@@ -1265,9 +1267,12 @@ export default function CalendarioPage() {
         {/* Tab switcher */}
         <div className="px-4 pb-3">
           <div className="flex bg-amber-700/40 rounded-xl p-1 gap-1">
-            {[['settimana', 'Orario Settimanale'], ['partite', 'Partite'], ['importa', 'Importa']].map(([v, label]) => (
+            {(actingAsAllenatore || isAdmin
+              ? [['settimana', 'Settimana'], ['partite', 'Partite'], ['atletica', 'Atletica'], ['importa', 'Importa']]
+              : [['settimana', 'Orario Settimanale'], ['partite', 'Partite'], ['importa', 'Importa']]
+            ).map(([v, label]) => (
               <button key={v} onClick={() => setCalTab(v)}
-                className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-all ${
+                className={`flex-1 text-xs py-1.5 rounded-lg font-medium transition-all ${
                   calTab === v
                     ? 'bg-white text-amber-900 shadow-sm'
                     : 'text-amber-100 hover:text-white'
@@ -1359,6 +1364,9 @@ export default function CalendarioPage() {
 
       {/* ── Import FIP tab ── */}
       {calTab === 'importa' && <ImportaCalendarioPage embedded />}
+
+      {/* ── Atletica tab (allenatore e admin) ── */}
+      {calTab === 'atletica' && (actingAsAllenatore || isAdmin) && <AtleticaCoach headless />}
 
       {/* ── Vista Settimana Completa ── */}
       {calTab === 'settimana' && (
@@ -1457,7 +1465,7 @@ export default function CalendarioPage() {
       )}
 
       {/* ── FAB ── */}
-      {canModify && (
+      {canModify && calTab !== 'atletica' && (
         <button
           onClick={() => { setEditingEvent(null); setShowForm(true) }}
           className="fixed bottom-24 right-4 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all z-20"
@@ -1538,6 +1546,7 @@ export default function CalendarioPage() {
                   })
                   if (!prepErr) {
                     queryClient.invalidateQueries({ queryKey: ['prep-sessioni-calendar'] })
+                    queryClient.invalidateQueries({ queryKey: ['atletica-sessioni'] })
                   }
                 }
               },

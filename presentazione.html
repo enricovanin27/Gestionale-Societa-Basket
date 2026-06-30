@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVO — Gestionale per società di basket</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fafaf9; }
+
+    .gradient-bg  { background: linear-gradient(160deg, #c2410c 0%, #d97706 50%, #f59e0b 100%); }
+    .gradient-btn { background: linear-gradient(135deg, #d97706, #b45309); }
+    .gradient-logo{ background: linear-gradient(135deg, #d97706, #92400e); }
+
+    /* Role tabs */
+    .tab-btn { transition: all .2s ease; cursor: pointer; }
+    .tab-btn.active { background: white !important; color: #92400e !important; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+    .tab-btn:not(.active) { color: rgba(255,255,255,.72); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn .28s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    /* Phone frame */
+    .phone {
+      width: 260px; margin: 0 auto;
+      background: #1c1c1e; border-radius: 36px;
+      padding: 12px 10px 20px;
+      box-shadow: 0 30px 80px rgba(0,0,0,.5), inset 0 0 0 1.5px rgba(255,255,255,.08);
+      position: relative;
+    }
+    .phone::before {
+      content:''; display:block; width:80px; height:5px;
+      background: #3a3a3c; border-radius:3px; margin:0 auto 10px;
+    }
+    .phone-screen {
+      background: #f9fafb; border-radius: 26px; overflow: hidden;
+      min-height: 460px; position: relative;
+    }
+
+    /* Screen tabs inside phone */
+    .screen { display:none; }
+    .screen.active { display:block; animation: fadeIn .2s ease; }
+
+    /* App header inside phone */
+    .app-header {
+      padding: 10px 12px 8px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .app-header-title { font-size: 13px; font-weight: 800; color: #92400e; }
+    .app-header-sub   { font-size: 9px; color: #9ca3af; margin-top:1px; }
+
+    /* Bottom nav inside phone */
+    .app-nav {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: white; border-top: 1px solid #f3f4f6;
+      display: flex; padding: 6px 0 10px;
+    }
+    .app-nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 2px; cursor: pointer;
+      font-size: 7.5px; color: #9ca3af; font-weight: 600;
+    }
+    .app-nav-item.active { color: #d97706; }
+    .app-nav-item span:first-child { font-size: 16px; }
+
+    /* Card inside phone */
+    .app-card {
+      background: white; border: 1px solid #f3f4f6;
+      border-radius: 12px; padding: 9px 11px; margin: 0 10px 7px;
+    }
+    .app-card-title { font-size: 11px; font-weight: 700; color: #1c1c1e; margin-bottom: 2px; }
+    .app-card-sub   { font-size: 9px; color: #9ca3af; }
+    .app-card-badge { font-size: 8.5px; font-weight: 700; border-radius: 5px; padding: 2px 6px; }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink:0; }
+
+    /* Pain point cards */
+    .pain-card { display:flex; gap:12px; align-items:flex-start; background:#fff7f7;
+      border:1px solid #fee2e2; border-left: 4px solid #f87171;
+      border-radius:12px; padding:14px; }
+
+    .section-label { font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px; }
+
+    /* Stat box */
+    .stat-box { background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 10px; text-align:center; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ NAVBAR -->
+<nav class="sticky top-0 z-50 bg-white/96 backdrop-blur border-b-2 border-amber-500 shadow-sm">
+  <div class="max-w-3xl mx-auto flex items-center justify-between px-5 py-3">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-lg shadow gradient-logo">🏀</div>
+      <span class="font-black text-xl tracking-tight text-amber-800">EV<span class="text-amber-600">O</span></span>
+    </div>
+    <div class="flex items-center gap-4 text-sm font-semibold text-stone-500">
+      <a href="#soluzione" class="hover:text-amber-600 transition-colors hidden sm:block">Funzionalità</a>
+      <a href="#ruoli"     class="hover:text-amber-600 transition-colors hidden sm:block">Ruoli</a>
+      <a href="#demo"      class="hover:text-amber-600 transition-colors hidden sm:block">Demo</a>
+      <a href="#contatti"
+        class="gradient-btn px-4 py-2 text-white rounded-lg text-sm font-bold shadow">
+        Contattaci
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════ HERO -->
+<section class="gradient-bg px-6 pt-14 pb-12 text-center border-b-2 border-amber-900">
+  <span class="inline-flex items-center gap-1.5 text-white/90 text-[10.5px] font-bold uppercase tracking-widest
+    bg-white/15 border border-white/30 rounded-full px-3.5 py-1.5 mb-6">
+    🏀 Gestionale per società di basket
+  </span>
+  <h1 class="text-4xl sm:text-5xl font-black leading-[1.06] tracking-tight text-white mb-5"
+    style="text-shadow:0 2px 16px rgba(0,0,0,.22)">
+    Il tuo club.<br />Finalmente <span class="text-amber-100">organizzato.</span>
+  </h1>
+  <p class="text-[15px] text-white/80 leading-relaxed mb-8 max-w-sm mx-auto">
+    EVO semplifica la gestione della tua società: calendari, presenze,
+    giocatori e comunicazioni — tutto in un posto, da qualsiasi dispositivo.
+  </p>
+  <div class="flex flex-col sm:flex-row gap-3 justify-center mb-10">
+    <a href="#demo"
+      class="py-4 px-8 bg-white text-amber-800 rounded-xl text-[15px] font-extrabold shadow-lg active:scale-95 transition-transform">
+      📱 Vedi la demo ↓
+    </a>
+    <a href="#soluzione"
+      class="py-4 px-8 bg-white/15 text-white border-[1.5px] border-white/40 rounded-xl text-[15px] font-semibold active:scale-95 transition-transform">
+      Scopri le funzionalità ↓
+    </a>
+  </div>
+
+  <!-- Mini preview calendario -->
+  <div class="max-w-xs mx-auto bg-white rounded-2xl p-4 shadow-2xl border border-amber-200 text-left">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold text-amber-600">📅 Settimana corrente</span>
+      <span class="text-[10px] text-gray-400">Lun — Dom</span>
+    </div>
+    <div class="space-y-1.5">
+      <div class="flex items-center gap-2 bg-amber-50 rounded-lg p-2.5 border border-amber-100">
+        <div class="dot bg-amber-500"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[10px] font-semibold text-stone-800">Lun — Allenamento U16</div>
+          <div class="text-[9px] text-gray-400">Palestra · 18:30</div>
+        </div>
+        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">12 ✓</span>
+      </div>
+      <div class="flex items-center gap-2 bg-blue-50 rounded-lg p-2.5 border border-blue-100">
+        <div class="dot bg-blue-500"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[10px] font-semibold text-stone-800">Mar — Partita vs Treviso B</div>
+          <div class="text-[9px] text-gray-400">Palasport · 20:00</div>
+        </div>
+        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">FIP</span>
+      </div>
+      <div class="flex items-center gap-2 bg-emerald-50 rounded-lg p-2.5 border border-emerald-100">
+        <div class="dot bg-emerald-500"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[10px] font-semibold text-stone-800">Gio — Allenamento U18</div>
+          <div class="text-[9px] text-gray-400">Palestra · 19:00</div>
+        </div>
+        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">8 ✓</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ IL PROBLEMA -->
+<section class="bg-white px-6 py-12 border-b-2 border-amber-200">
+  <div class="max-w-2xl mx-auto">
+    <p class="section-label text-amber-600">Il problema</p>
+    <h2 class="text-2xl sm:text-3xl font-black leading-tight text-stone-900 mb-2">
+      Gestire un club non dovrebbe essere così complicato.
+    </h2>
+    <p class="text-sm text-stone-500 leading-relaxed mb-7">
+      Ogni settimana perdi ore preziose su task che un'app risolve in secondi.
+    </p>
+    <div class="space-y-3">
+      <div class="pain-card">
+        <span class="text-2xl shrink-0">📋</span>
+        <div>
+          <div class="text-[13px] font-bold text-stone-900 mb-1">Calendari su Excel o carta</div>
+          <div class="text-[12px] text-stone-500 leading-snug">Allenamenti e partite sparsi su fogli aggiornati a mano. Un cambiamento e tutto va rifatto.</div>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="text-2xl shrink-0">💬</span>
+        <div>
+          <div class="text-[13px] font-bold text-stone-900 mb-1">WhatsApp come canale ufficiale</div>
+          <div class="text-[12px] text-stone-500 leading-snug">Comunicazioni importanti perse nei gruppi. Genitori che non leggono, allenatori fuori dal loop.</div>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="text-2xl shrink-0">🗂️</span>
+        <div>
+          <div class="text-[13px] font-bold text-stone-900 mb-1">Presenze segnate su carta</div>
+          <div class="text-[12px] text-stone-500 leading-snug">Nessuna visione storica per squadra o giocatore. Impossibile fare analisi.</div>
+        </div>
+      </div>
+      <div class="pain-card">
+        <span class="text-2xl shrink-0">📂</span>
+        <div>
+          <div class="text-[13px] font-bold text-stone-900 mb-1">Documenti e quote disorganizzati</div>
+          <div class="text-[12px] text-stone-500 leading-snug">Certificati scaduti, quote non pagate, anagrafica sempre in ritardo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ LA SOLUZIONE -->
+<section id="soluzione" class="gradient-bg px-6 py-12 border-b-2 border-amber-900">
+  <div class="max-w-2xl mx-auto">
+    <p class="section-label text-amber-100">La soluzione</p>
+    <h2 class="text-2xl sm:text-3xl font-black leading-tight text-white mb-2">
+      Tutto quello che serve. In un'unica app.
+    </h2>
+    <p class="text-sm text-white/70 leading-relaxed mb-7">
+      EVO raccoglie ogni aspetto della tua società in un'interfaccia semplice, moderna e mobile-first.
+    </p>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">📅</div>
+        <div class="text-[13px] font-bold text-white mb-1">Calendario integrato</div>
+        <div class="text-[11px] text-white/65 leading-snug">Gare FIP + allenamenti. Import dalla Federazione in un click.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">✅</div>
+        <div class="text-[13px] font-bold text-white mb-1">Presenze digitali</div>
+        <div class="text-[11px] text-white/65 leading-snug">Registro appello in tempo reale. Statistiche per giocatore e squadra.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">👨‍👩‍👧</div>
+        <div class="text-[13px] font-bold text-white mb-1">Portale famiglie</div>
+        <div class="text-[11px] text-white/65 leading-snug">Genitori e giocatori vedono solo ciò che li riguarda.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">📢</div>
+        <div class="text-[13px] font-bold text-white mb-1">Bacheca ufficiale</div>
+        <div class="text-[11px] text-white/65 leading-snug">Sostituisce WhatsApp. Avvisi archiviati e sempre visibili.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">🗂️</div>
+        <div class="text-[13px] font-bold text-white mb-1">Segreteria digitale</div>
+        <div class="text-[11px] text-white/65 leading-snug">Certificati medici, quote, anagrafica giocatori in ordine.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">💰</div>
+        <div class="text-[13px] font-bold text-white mb-1">Contabilità</div>
+        <div class="text-[11px] text-white/65 leading-snug">Spese, entrate e bilancio visivo della società sempre aggiornato.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">📊</div>
+        <div class="text-[13px] font-bold text-white mb-1">Report & statistiche</div>
+        <div class="text-[11px] text-white/65 leading-snug">Trend presenze e attività squadra mese per mese.</div>
+      </div>
+      <div class="bg-white/15 rounded-xl p-4 border border-white/25">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-xl mb-3">🔒</div>
+        <div class="text-[13px] font-bold text-white mb-1">Dati sicuri</div>
+        <div class="text-[11px] text-white/65 leading-snug">Ogni società è isolata. I dati degli atleti sono accessibili solo ai tuoi account.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ PERCHÉ EVO -->
+<section class="bg-white px-6 py-12 border-b-2 border-amber-200">
+  <div class="max-w-2xl mx-auto">
+    <p class="section-label text-amber-600">Perché sceglierci</p>
+    <h2 class="text-2xl sm:text-3xl font-black leading-tight text-stone-900 mb-2">
+      Pensato per chi vive il basket sul campo.
+    </h2>
+    <p class="text-sm text-stone-500 leading-relaxed mb-8">
+      Non uno strumento generico — EVO nasce dall'esperienza diretta delle società italiane.
+    </p>
+    <div class="space-y-6">
+      <div class="flex items-start gap-4">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border-2 border-amber-200 text-amber-700 flex items-center justify-center text-sm font-black shrink-0">1</div>
+        <div>
+          <div class="text-sm font-bold text-stone-900 mb-1">Zero formazione necessaria</div>
+          <div class="text-xs text-stone-500 leading-relaxed">Interfaccia pensata per allenatori e dirigenti. Se sai usare uno smartphone, sai usare EVO.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border-2 border-amber-200 text-amber-700 flex items-center justify-center text-sm font-black shrink-0">2</div>
+        <div>
+          <div class="text-sm font-bold text-stone-900 mb-1">Un ruolo per ogni persona</div>
+          <div class="text-xs text-stone-500 leading-relaxed">Responsabile tecnico, allenatore, segreteria, genitore, giocatore: ognuno vede solo ciò che gli serve. Nessuna confusione.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border-2 border-amber-200 text-amber-700 flex items-center justify-center text-sm font-black shrink-0">3</div>
+        <div>
+          <div class="text-sm font-bold text-stone-900 mb-1">Calendario FIP già integrato</div>
+          <div class="text-xs text-stone-500 leading-relaxed">Importa le gare direttamente dalla Federazione. Niente doppio inserimento, niente errori.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-4">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border-2 border-amber-200 text-amber-700 flex items-center justify-center text-sm font-black shrink-0">4</div>
+        <div>
+          <div class="text-sm font-bold text-stone-900 mb-1">I tuoi dati sono tuoi</div>
+          <div class="text-xs text-stone-500 leading-relaxed">Ogni società è isolata e protetta. I dati degli atleti sono accessibili solo agli account della tua organizzazione.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ DEMO INTERATTIVA -->
+<section id="demo" class="gradient-bg px-6 py-12 border-b-2 border-amber-900">
+  <div class="max-w-3xl mx-auto">
+    <p class="section-label text-amber-100">Demo interattiva</p>
+    <h2 class="text-2xl sm:text-3xl font-black text-white mb-2">Un'app. Cinque prospettive.</h2>
+    <p class="text-sm text-white/70 leading-relaxed mb-6">
+      Seleziona un ruolo e scopri cosa vede ogni membro della tua società.
+    </p>
+
+    <!-- Tab ruoli -->
+    <div class="flex flex-wrap gap-2 mb-8">
+      <button onclick="switchRole('admin')"     id="tab-admin"     class="tab-btn active px-3.5 py-2 rounded-full text-[12px] font-bold border border-white/25">👑 Resp. Tecnico</button>
+      <button onclick="switchRole('coach')"     id="tab-coach"     class="tab-btn        px-3.5 py-2 rounded-full text-[12px] font-bold border border-white/25">🏋️ Allenatore</button>
+      <button onclick="switchRole('secretary')" id="tab-secretary" class="tab-btn        px-3.5 py-2 rounded-full text-[12px] font-bold border border-white/25">📋 Segreteria</button>
+      <button onclick="switchRole('parent')"    id="tab-parent"    class="tab-btn        px-3.5 py-2 rounded-full text-[12px] font-bold border border-white/25">👨‍👩‍👧 Genitore</button>
+      <button onclick="switchRole('player')"    id="tab-player"    class="tab-btn        px-3.5 py-2 rounded-full text-[12px] font-bold border border-white/25">🏀 Giocatore</button>
+    </div>
+
+    <!-- Layout: testo + telefono affiancati su desktop -->
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+
+      <!-- Colonna testo -->
+      <div class="flex-1">
+
+        <!-- RESP. TECNICO -->
+        <div id="panel-admin" class="tab-panel active">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-4xl">👑</span>
+            <div>
+              <div class="text-2xl font-black text-white">Responsabile Tecnico</div>
+              <div class="text-sm text-white/55">Controllo totale della società</div>
+            </div>
+          </div>
+          <p class="text-base text-white/85 leading-relaxed mb-5">
+            Visione completa di tutto ciò che accade nella tua società, in tempo reale, da qualsiasi dispositivo.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📅</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Dashboard settimanale</div>
+                <div class="text-xs text-white/70 leading-snug">Panoramica di tutte le partite, allenamenti e avvisi della settimana in un colpo d'occhio.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">👥</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Gestione utenti</div>
+                <div class="text-xs text-white/70 leading-snug">Crea e gestisci account per allenatori, segreteria, genitori e giocatori con un clic.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">💰</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Contabilità completa</div>
+                <div class="text-xs text-white/70 leading-snug">Accesso a spese, entrate e bilancio visivo della società sempre aggiornato.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📊</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Report e statistiche</div>
+                <div class="text-xs text-white/70 leading-snug">Trend presenze per squadra e stagione. Tutto tracciato, niente va perso.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">⚙️</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Impostazioni società</div>
+                <div class="text-xs text-white/70 leading-snug">Palestre, squadre, template rate di pagamento — tutto configurabile in pochi minuti.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALLENATORE -->
+        <div id="panel-coach" class="tab-panel">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-4xl">🏋️</span>
+            <div>
+              <div class="text-2xl font-black text-white">Allenatore</div>
+              <div class="text-sm text-white/55">Il lavoro sul campo, supportato dalla tecnologia</div>
+            </div>
+          </div>
+          <p class="text-base text-white/85 leading-relaxed mb-5">
+            Tutti gli strumenti per gestire la squadra: dal calendario al registro presenze, senza carta e senza perdite di tempo.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📅</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Home settimanale</div>
+                <div class="text-xs text-white/70 leading-snug">Tutti gli allenamenti e le partite della tua squadra organizzati per giorno.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">✅</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Registro presenze digitale</div>
+                <div class="text-xs text-white/70 leading-snug">Un tap per segnare chi c'è e chi manca. Niente fogli, niente penne, niente errori.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">⚠️</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Vista conflitti in tempo reale</div>
+                <div class="text-xs text-white/70 leading-snug">Palestre occupate o giocatori con doppio impegno evidenziati automaticamente.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📢</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Bacheca annunci</div>
+                <div class="text-xs text-white/70 leading-snug">Comunica con le famiglie in modo ufficiale. Addio ai messaggi persi su WhatsApp.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📈</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Statistiche squadra</div>
+                <div class="text-xs text-white/70 leading-snug">Trend presenze mese per mese. Scopri subito chi sta mancando troppo agli allenamenti.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEGRETERIA -->
+        <div id="panel-secretary" class="tab-panel">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-4xl">📋</span>
+            <div>
+              <div class="text-2xl font-black text-white">Segreteria</div>
+              <div class="text-sm text-white/55">Tutta l'amministrazione, in ordine e senza carta</div>
+            </div>
+          </div>
+          <p class="text-base text-white/85 leading-relaxed mb-5">
+            Gestisce l'intera vita amministrativa del club: dai giocatori ai pagamenti, dai certificati alla contabilità.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">🏥</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Anagrafica e certificati medici</div>
+                <div class="text-xs text-white/70 leading-snug">Ogni giocatore con foto, dati e scadenza certificato. Semaforo verde / arancione / rosso automatico.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">💶</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Gestione quote e pagamenti</div>
+                <div class="text-xs text-white/70 leading-snug">Rate automatiche configurabili, tracciamento pagamenti, lista immediata di chi è in arretrato.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📄</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Ricevute e attestazioni 730</div>
+                <div class="text-xs text-white/70 leading-snug">Generate automaticamente in un click. Niente calcoli a mano, niente errori di compilazione.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">💰</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Contabilità della società</div>
+                <div class="text-xs text-white/70 leading-snug">Registra spese e entrate, visualizza il bilancio. Tutto in un unico posto, sempre aggiornato.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">🔔</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Alert scadenze automatici</div>
+                <div class="text-xs text-white/70 leading-snug">Certificati in scadenza entro 30 giorni segnalati subito, senza dover controllare ogni giocatore.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GENITORE -->
+        <div id="panel-parent" class="tab-panel">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-4xl">👨‍👩‍👧</span>
+            <div>
+              <div class="text-2xl font-black text-white">Genitore</div>
+              <div class="text-sm text-white/55">Sempre informato, senza gruppi WhatsApp</div>
+            </div>
+          </div>
+          <p class="text-base text-white/85 leading-relaxed mb-5">
+            App semplice e pulita: sa sempre dove e quando deve essere suo figlio, riceve avvisi ufficiali e controlla le quote.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">🏠</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Home semplificata</div>
+                <div class="text-xs text-white/70 leading-snug">Prossimi allenamenti e partite della squadra del figlio, chiari e immediati, senza distrazioni.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📢</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Bacheca ufficiale</div>
+                <div class="text-xs text-white/70 leading-snug">Gli avvisi della società sono sempre visibili e archiviati. Niente più messaggi persi in chat.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📅</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Calendario della stagione</div>
+                <div class="text-xs text-white/70 leading-snug">Tutte le partite e gli allenamenti aggiornati in tempo reale, sempre sul telefono.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">💶</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Stato pagamenti quote</div>
+                <div class="text-xs text-white/70 leading-snug">Vedi subito cosa è dovuto e cosa è già stato pagato. Niente sorprese a fine mese.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">👨‍👩‍👦‍👦</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Più figli? Nessun problema</div>
+                <div class="text-xs text-white/70 leading-snug">Supporto fino a 3 squadre per famiglia. Ideale se hai più di un figlio iscritto alla società.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GIOCATORE -->
+        <div id="panel-player" class="tab-panel">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="text-4xl">🏀</span>
+            <div>
+              <div class="text-2xl font-black text-white">Giocatore</div>
+              <div class="text-sm text-white/55">I tuoi impegni e i tuoi progressi, sempre con te</div>
+            </div>
+          </div>
+          <p class="text-base text-white/85 leading-relaxed mb-5">
+            Vista personale: allenamenti, partite, statistiche di presenza e comunicazioni dalla società in un'unica app.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">🏠</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Home personale</div>
+                <div class="text-xs text-white/70 leading-snug">Prossimi allenamenti e partite della squadra, sempre in primo piano sul telefono.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📊</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Le mie statistiche di presenza</div>
+                <div class="text-xs text-white/70 leading-snug">Percentuale di presenza per mese e per squadra. Tieni traccia del tuo impegno.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📢</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Comunicazioni dalla società</div>
+                <div class="text-xs text-white/70 leading-snug">Avvisi e comunicazioni del tuo allenatore e della società, tutte in un posto solo.</div>
+              </div>
+            </div>
+            <div class="bg-white/15 border border-white/25 rounded-xl p-4 flex items-start gap-3">
+              <span class="text-2xl shrink-0">📅</span>
+              <div>
+                <div class="text-sm font-bold text-white mb-0.5">Calendario personale</div>
+                <div class="text-xs text-white/70 leading-snug">La stagione completa sempre aggiornata. Sai sempre quando e dove allenarti o giocare.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /colonna testo -->
+
+      <!-- Colonna telefono -->
+      <div class="w-full lg:w-auto flex justify-center lg:justify-end shrink-0">
+        <div class="phone">
+          <div class="phone-screen">
+
+            <!-- ── SCREEN ADMIN ── -->
+            <div id="screen-admin" class="screen active">
+              <div class="app-header">
+                <div>
+                  <div class="app-header-title">🏀 EVO</div>
+                  <div class="app-header-sub">Buongiorno, Resp. Tecnico</div>
+                </div>
+                <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#d97706,#92400e);display:flex;align-items:center;justify-content:center;font-size:13px;">👑</div>
+              </div>
+              <div style="padding:10px 0 60px;">
+                <!-- settimana -->
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Questa settimana</div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2">
+                    <div class="dot bg-blue-500"></div>
+                    <div class="flex-1">
+                      <div class="app-card-title">Partita vs Treviso B</div>
+                      <div class="app-card-sub">Mar 20:00 · Palasport</div>
+                    </div>
+                    <span class="app-card-badge bg-blue-100 text-blue-700">FIP</span>
+                  </div>
+                </div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2">
+                    <div class="dot bg-amber-500"></div>
+                    <div class="flex-1">
+                      <div class="app-card-title">Allenamento U16</div>
+                      <div class="app-card-sub">Mer 18:30 · Palestra</div>
+                    </div>
+                    <span class="app-card-badge bg-amber-100 text-amber-700">12 ✓</span>
+                  </div>
+                </div>
+                <!-- alert -->
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Avvisi</div>
+                <div class="app-card" style="border-left:3px solid #ef4444;">
+                  <div class="app-card-title" style="color:#dc2626;">⚠️ 2 cert. medici scaduti</div>
+                  <div class="app-card-sub">Bianchi M. · Rossi F.</div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #10b981;">
+                  <div class="app-card-title">💰 Bilancio giugno: +€ 840</div>
+                  <div class="app-card-sub">Entrate 2.100 · Uscite 1.260</div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #f59e0b;">
+                  <div class="app-card-title">💶 4 quote scadute</div>
+                  <div class="app-card-sub">Totale: € 320 da incassare</div>
+                </div>
+              </div>
+              <div class="app-nav">
+                <div class="app-nav-item active"><span>🏠</span>Home</div>
+                <div class="app-nav-item"><span>📅</span>Calendario</div>
+                <div class="app-nav-item"><span>👥</span>Utenti</div>
+                <div class="app-nav-item"><span>⚙️</span>Setup</div>
+              </div>
+            </div>
+
+            <!-- ── SCREEN ALLENATORE ── -->
+            <div id="screen-coach" class="screen">
+              <div class="app-header">
+                <div>
+                  <div class="app-header-title">🏀 EVO</div>
+                  <div class="app-header-sub">Ciao, Marco</div>
+                </div>
+                <div style="width:28px;height:28px;border-radius:50%;background:#d97706;display:flex;align-items:center;justify-content:font-size:13px;">🏋️</div>
+              </div>
+              <div style="padding:10px 0 60px;">
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">I tuoi impegni</div>
+                <div class="app-card" style="border-left:3px solid #f59e0b;">
+                  <div class="app-card-title">Oggi — Allenamento U18</div>
+                  <div class="app-card-sub">19:00–20:30 · Palestra Nord</div>
+                  <div style="margin-top:6px;">
+                    <button style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:6px;padding:3px 8px;">✅ Fai l'appello</button>
+                  </div>
+                </div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2">
+                    <div class="dot bg-blue-500"></div>
+                    <div class="flex-1">
+                      <div class="app-card-title">Sab — Partita vs Mestre</div>
+                      <div class="app-card-sub">Palasport · 17:00</div>
+                    </div>
+                    <span class="app-card-badge bg-blue-100 text-blue-700">FIP</span>
+                  </div>
+                </div>
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Statistiche giugno</div>
+                <div class="app-card">
+                  <div class="app-card-title">📊 Presenze U18: 78%</div>
+                  <div class="app-card-sub">14/18 giocatori · media 8 allenamenti</div>
+                  <div style="margin-top:6px;background:#f3f4f6;border-radius:4px;height:5px;overflow:hidden;">
+                    <div style="width:78%;height:100%;background:#d97706;border-radius:4px;"></div>
+                  </div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #8b5cf6;">
+                  <div class="app-card-title">📢 Bacheca — 1 nuovo avviso</div>
+                  <div class="app-card-sub">Torneo estivo — iscrizioni aperte</div>
+                </div>
+              </div>
+              <div class="app-nav">
+                <div class="app-nav-item active"><span>🏠</span>Home</div>
+                <div class="app-nav-item"><span>📅</span>Calendario</div>
+                <div class="app-nav-item"><span>✅</span>Presenze</div>
+                <div class="app-nav-item"><span>📢</span>Bacheca</div>
+              </div>
+            </div>
+
+            <!-- ── SCREEN SEGRETERIA ── -->
+            <div id="screen-secretary" class="screen">
+              <div class="app-header">
+                <div>
+                  <div class="app-header-title">📋 Segreteria</div>
+                  <div class="app-header-sub">Dashboard</div>
+                </div>
+              </div>
+              <div style="padding:10px 0 60px;">
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Da fare oggi</div>
+                <div class="app-card" style="border-left:3px solid #ef4444;">
+                  <div class="app-card-title" style="color:#dc2626;">🏥 3 certificati scaduti</div>
+                  <div class="app-card-sub">Bianchi · Verdi · Neri — Azione richiesta</div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #f59e0b;">
+                  <div class="app-card-title">💶 Quote scadute: 4 giocatori</div>
+                  <div class="app-card-sub">Totale: € 320 da incassare</div>
+                </div>
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Situazione giocatori</div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2" style="margin-bottom:5px;">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#10b981;"></div>
+                    <div class="app-card-sub" style="font-weight:600;color:#374151;">Bianchi Marco, U18</div>
+                    <span class="app-card-badge" style="background:#d1fae5;color:#065f46;margin-left:auto;">✓ OK</span>
+                  </div>
+                  <div class="flex items-center gap-2" style="margin-bottom:5px;">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></div>
+                    <div class="app-card-sub" style="font-weight:600;color:#374151;">Rossi Luca, U16</div>
+                    <span class="app-card-badge" style="background:#fef3c7;color:#92400e;margin-left:auto;">Scade presto</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;"></div>
+                    <div class="app-card-sub" style="font-weight:600;color:#374151;">Verdi Piero, U14</div>
+                    <span class="app-card-badge" style="background:#fee2e2;color:#dc2626;margin-left:auto;">Scaduto</span>
+                  </div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #10b981;">
+                  <div class="app-card-title">📄 Ricevute emesse: 28</div>
+                  <div class="app-card-sub">Stagione 2025–2026</div>
+                </div>
+              </div>
+              <div class="app-nav">
+                <div class="app-nav-item active"><span>🏠</span>Home</div>
+                <div class="app-nav-item"><span>👤</span>Giocatori</div>
+                <div class="app-nav-item"><span>💶</span>Quote</div>
+                <div class="app-nav-item"><span>💰</span>Contab.</div>
+              </div>
+            </div>
+
+            <!-- ── SCREEN GENITORE ── -->
+            <div id="screen-parent" class="screen">
+              <div class="app-header">
+                <div>
+                  <div class="app-header-title">🏀 EVO</div>
+                  <div class="app-header-sub">Famiglia Rossi</div>
+                </div>
+              </div>
+              <div style="padding:10px 0 60px;">
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Marco — U14</div>
+                <div class="app-card" style="border-left:3px solid #f59e0b;">
+                  <div class="app-card-title">Oggi — Allenamento</div>
+                  <div class="app-card-sub">Palestra Sud · 17:30</div>
+                  <span style="display:inline-block;margin-top:5px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:5px;padding:2px 7px;">Oggi 🔔</span>
+                </div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2">
+                    <div class="dot bg-blue-500"></div>
+                    <div class="flex-1">
+                      <div class="app-card-title">Dom — Partita vs Padova</div>
+                      <div class="app-card-sub">Palasport · 15:00</div>
+                    </div>
+                    <span class="app-card-badge bg-blue-100 text-blue-700">Dom</span>
+                  </div>
+                </div>
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Quote</div>
+                <div class="app-card" style="border-left:3px solid #10b981;">
+                  <div class="app-card-title">💶 Quota giugno: pagata ✓</div>
+                  <div class="app-card-sub">€ 60 — pagata il 01/06/2026</div>
+                </div>
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Bacheca</div>
+                <div class="app-card" style="border-left:3px solid #8b5cf6;">
+                  <div class="app-card-title">📢 Torneo estivo — iscriviti!</div>
+                  <div class="app-card-sub">Scadenza iscrizioni: 30/06/2026</div>
+                </div>
+              </div>
+              <div class="app-nav">
+                <div class="app-nav-item active"><span>🏠</span>Home</div>
+                <div class="app-nav-item"><span>📅</span>Calendario</div>
+                <div class="app-nav-item"><span>💶</span>Quote</div>
+                <div class="app-nav-item"><span>📢</span>Bacheca</div>
+              </div>
+            </div>
+
+            <!-- ── SCREEN GIOCATORE ── -->
+            <div id="screen-player" class="screen">
+              <div class="app-header">
+                <div>
+                  <div class="app-header-title">🏀 EVO</div>
+                  <div class="app-header-sub">Ciao, Luca 👋</div>
+                </div>
+              </div>
+              <div style="padding:10px 0 60px;">
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">I tuoi prossimi impegni</div>
+                <div class="app-card" style="border-left:3px solid #f59e0b;">
+                  <div class="app-card-title">Oggi — Allenamento U18</div>
+                  <div class="app-card-sub">19:00 · Palestra Nord</div>
+                  <span style="display:inline-block;margin-top:5px;font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:5px;padding:2px 7px;">Oggi 🔔</span>
+                </div>
+                <div class="app-card">
+                  <div class="flex items-center gap-2">
+                    <div class="dot bg-blue-500"></div>
+                    <div class="flex-1">
+                      <div class="app-card-title">Sab — Partita vs Mestre</div>
+                      <div class="app-card-sub">Palasport · 17:00</div>
+                    </div>
+                    <span class="app-card-badge bg-blue-100 text-blue-700">FIP</span>
+                  </div>
+                </div>
+                <div style="padding:0 10px 6px;font-size:9.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-top:4px;">Le tue presenze — Giugno</div>
+                <div class="app-card">
+                  <div class="flex items-center justify-between mb-1">
+                    <div class="app-card-title">6 / 8 allenamenti</div>
+                    <span style="font-size:11px;font-weight:800;color:#d97706;">75%</span>
+                  </div>
+                  <div style="background:#f3f4f6;border-radius:4px;height:6px;overflow:hidden;">
+                    <div style="width:75%;height:100%;background:linear-gradient(90deg,#d97706,#f59e0b);border-radius:4px;"></div>
+                  </div>
+                </div>
+                <div class="app-card" style="border-left:3px solid #8b5cf6;">
+                  <div class="app-card-title">📢 Comunicazione allenatore</div>
+                  <div class="app-card-sub">Portare le scarpe da gara sabato</div>
+                </div>
+              </div>
+              <div class="app-nav">
+                <div class="app-nav-item active"><span>🏠</span>Home</div>
+                <div class="app-nav-item"><span>📅</span>Calendario</div>
+                <div class="app-nav-item"><span>📊</span>Stats</div>
+                <div class="app-nav-item"><span>📢</span>Bacheca</div>
+              </div>
+            </div>
+
+          </div><!-- /phone-screen -->
+        </div><!-- /phone -->
+      </div><!-- /colonna telefono -->
+
+    </div><!-- /flex layout -->
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ IN NUMERI -->
+<section class="bg-white px-6 py-12 border-b-2 border-amber-200">
+  <div class="max-w-2xl mx-auto text-center">
+    <p class="section-label text-amber-600">In numeri</p>
+    <h2 class="text-2xl sm:text-3xl font-black text-stone-900 mb-8">Tutto quello che serve a una società.</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="stat-box">
+        <div class="text-3xl font-black text-amber-700 mb-1">5</div>
+        <div class="text-xs text-stone-500 font-medium">ruoli utente</div>
+      </div>
+      <div class="stat-box">
+        <div class="text-3xl font-black text-amber-700 mb-1">8+</div>
+        <div class="text-xs text-stone-500 font-medium">moduli integrati</div>
+      </div>
+      <div class="stat-box">
+        <div class="text-3xl font-black text-amber-700 mb-1">100%</div>
+        <div class="text-xs text-stone-500 font-medium">mobile friendly</div>
+      </div>
+      <div class="stat-box">
+        <div class="text-3xl font-black text-amber-700 mb-1">FIP</div>
+        <div class="text-xs text-stone-500 font-medium">integrazione federale</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ CONTATTI -->
+<section id="contatti" class="gradient-bg px-6 py-14 border-b-2 border-amber-900">
+  <div class="max-w-md mx-auto text-center">
+    <p class="section-label text-amber-100">Vuoi saperne di più?</p>
+    <h2 class="text-2xl sm:text-3xl font-black text-white mb-3">
+      Porta EVO nella tua società.
+    </h2>
+    <p class="text-[14px] text-white/75 leading-relaxed mb-8">
+      Contattaci per una demo personalizzata: ti mostriamo l'app sulla tua società
+      in 30 minuti, senza impegno.
+    </p>
+    <div class="bg-white/15 rounded-2xl p-6 border border-white/25 space-y-4">
+      <a href="mailto:enricovanin27@gmail.com"
+        class="flex items-center gap-4 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl px-5 py-4 transition-colors">
+        <span class="text-2xl">✉️</span>
+        <div class="text-left">
+          <div class="text-[11px] text-white/55 font-medium uppercase tracking-wide">Email</div>
+          <div class="text-sm font-bold text-white">enricovanin27@gmail.com</div>
+        </div>
+      </a>
+    </div>
+    <p class="text-[11px] text-white/35 mt-4">Risposta garantita entro 24 ore · Nessun impegno</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ FOOTER -->
+<footer class="bg-white px-6 py-8 text-center border-t-2 border-amber-200">
+  <div class="flex items-center justify-center gap-2 mb-2">
+    <div class="w-7 h-7 rounded-lg flex items-center justify-center text-base shadow gradient-logo">🏀</div>
+    <span class="font-black text-lg text-amber-700">EV<span class="text-amber-500">O</span></span>
+  </div>
+  <p class="text-[12px] text-stone-400 mb-1">Il gestionale per il basket italiano.</p>
+  <p class="text-[11px] text-stone-300">© 2026 EVO · Tutti i diritti riservati</p>
+</footer>
+
+<!-- ══════════════════════════════════════════ JS -->
+<script>
+  const ROLES = ['admin','coach','secretary','parent','player'];
+
+  function switchRole(role) {
+    ROLES.forEach(r => {
+      const active = r === role;
+      document.getElementById('tab-' + r).classList.toggle('active', active);
+      document.getElementById('panel-' + r).classList.toggle('active', active);
+      document.getElementById('screen-' + r).classList.toggle('active', active);
+    });
+  }
+</script>
+
+</body>
+</html>
