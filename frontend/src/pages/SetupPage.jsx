@@ -7,6 +7,7 @@ import {
   Activity, CreditCard, ChevronDown, ChevronUp, HelpCircle, ChevronRight, ChevronLeft, GitFork,
 } from 'lucide-react'
 import { supabase, supabaseAdmin } from '../lib/supabase'
+import { setUserBanned } from '../lib/authAdmin'
 import InvitaUtenteForm from '../components/InvitaUtenteForm'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../components/ui/ToastProvider'
@@ -813,6 +814,7 @@ function UtentiTab() {
   const { user: me, societaId, isSuperAdmin } = useAuth()
   const { confirm } = useToast()
   const [deleteErr, setDeleteErr]     = useState(null)
+  const [disabledErr, setDisabledErr] = useState(null)
   const [showInvite, setShowInvite]   = useState(false)
 
   const { data: utenti = [], isLoading, error } = useQuery({
@@ -881,8 +883,13 @@ function UtentiTab() {
     mutationFn: async ({ id, attivo }) => {
       const { error } = await supabase.from('profiles').update({ attivo }).eq('id', id)
       if (error) throw error
+      await setUserBanned(id, !attivo)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['setup-utenti'] }),
+    onSuccess: () => {
+      setDisabledErr(null)
+      qc.invalidateQueries({ queryKey: ['setup-utenti'] })
+    },
+    onError: (err) => setDisabledErr(err.message),
   })
 
   const deleteMut = useMutation({
@@ -1051,6 +1058,15 @@ function UtentiTab() {
             <p className="text-xs font-medium text-red-700">Errore eliminazione</p>
             <p className="text-xs text-red-600 mt-0.5">{deleteErr}</p>
             <p className="text-xs text-red-400 mt-1">Esegui su Supabase SQL Editor: <code>CREATE POLICY "profiles_delete" ON profiles FOR DELETE TO authenticated USING (get_my_role() IN ('admin','super_admin'));</code></p>
+          </div>
+        </div>
+      )}
+      {disabledErr && (
+        <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+          <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-red-700">Errore disabilitazione accesso</p>
+            <p className="text-xs text-red-600 mt-0.5">{disabledErr}</p>
           </div>
         </div>
       )}
