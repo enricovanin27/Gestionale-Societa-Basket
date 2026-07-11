@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
+  const [accountDisattivato, setAccountDisattivato] = useState(false)
 
   const [activeRole, setActiveRoleState] = useState(() => {
     return localStorage.getItem('oderzo_active_role') ?? null
@@ -28,13 +29,13 @@ export function AuthProvider({ children }) {
         )
         const query = supabase
           .from('profiles')
-          .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, genitore_squadra, genitore_squadra2, genitore_squadra3, societa:societa_id(nome)')
+          .select('id, nome, cognome, ruolo, ruoli_extra, societa_id, email, squadra, squadra2, squadra3, genitore_squadra, genitore_squadra2, genitore_squadra3, attivo, societa:societa_id(nome, stagione_corrente)')
           .eq('id', userId)
           .single()
 
         const { data, error } = await Promise.race([query, timeout])
         if (error) throw error
-        if (data?.ruolo === 'genitore' || data?.ruolo === 'giocatore' || data?.ruolo === 'allenatore') {
+        if (data?.attivo !== false && (data?.ruolo === 'genitore' || data?.ruolo === 'giocatore' || data?.ruolo === 'allenatore')) {
           const squadre = data.ruolo === 'allenatore'
             ? [data.squadra, data.squadra2, data.squadra3].filter(Boolean)
             : [data.squadra].filter(Boolean)
@@ -56,7 +57,15 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null)
       if (session?.user) {
         const p = await fetchProfile(session.user.id)
-        setProfile(p)
+        if (p?.attivo === false) {
+          await supabase.auth.signOut()
+          setAccountDisattivato(true)
+          setProfile(null)
+          setActiveRoleState(null)
+          localStorage.removeItem('oderzo_active_role')
+        } else {
+          setProfile(p)
+        }
       }
       // Se l'utente ha cliccato un link di invito Supabase, mostra la schermata
       // "Imposta password" (riusa NuovaPasswordPage già esistente in App.jsx)
@@ -91,9 +100,17 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null)
       if (session?.user) {
         const p = await fetchProfile(session.user.id)
-        // Se fetchProfile ritorna null (errore transitorio), mantieni il profilo precedente
-        // per evitare la schermata "profilo non configurato" su re-auth/refresh
-        setProfile(prev => (p != null ? p : prev))
+        if (p?.attivo === false) {
+          await supabase.auth.signOut()
+          setAccountDisattivato(true)
+          setProfile(null)
+          setActiveRoleState(null)
+          localStorage.removeItem('oderzo_active_role')
+        } else {
+          // Se fetchProfile ritorna null (errore transitorio), mantieni il profilo precedente
+          // per evitare la schermata "profilo non configurato" su re-auth/refresh
+          setProfile(prev => (p != null ? p : prev))
+        }
       } else {
         setProfile(null)
         setActiveRoleState(null)
@@ -106,6 +123,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function login(email, password) {
+    setAccountDisattivato(false)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
@@ -117,6 +135,10 @@ export function AuthProvider({ children }) {
 
   function clearPasswordRecovery() {
     setIsPasswordRecovery(false)
+  }
+
+  function clearAccountDisattivato() {
+    setAccountDisattivato(false)
   }
 
   const role = profile?.ruolo ?? null
@@ -149,6 +171,7 @@ export function AuthProvider({ children }) {
     setActiveRole,
     societaId,
     societaNome,
+    stagioneCorrente: profile?.societa?.stagione_corrente ?? null,
     displayName,
     squadreAllenatore,
     isSuperAdmin:       role === 'super_admin',
@@ -161,6 +184,8 @@ export function AuthProvider({ children }) {
     isPreparatore:      allRuoli.includes('preparatore_atletico'),
     isPasswordRecovery,
     clearPasswordRecovery,
+    accountDisattivato,
+    clearAccountDisattivato,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
