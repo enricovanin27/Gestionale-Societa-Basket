@@ -52,6 +52,7 @@ import LandingPage       from './pages/LandingPage'
 import RegistrazionePage from './pages/RegistrazionePage'
 import { RoleSwitcherFAB } from './components/RoleSwitcher'
 import StatisticheGiocatore from './pages/player/StatisticheGiocatore'
+import AccountDisattivatoPage from './pages/AccountDisattivatoPage'
 import { ToastProvider } from './components/ui/ToastProvider'
 
 const queryClient = new QueryClient({
@@ -127,7 +128,7 @@ function NuovaPasswordPage({ onDone }) {
 // â"€â"€â"€ Shell principale â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 function AppShell() {
-  const { user, loading, isSuperAdmin, isPasswordRecovery, clearPasswordRecovery } = useAuth()
+  const { user, loading, isSuperAdmin, isPasswordRecovery, clearPasswordRecovery, accountDisattivato, clearAccountDisattivato } = useAuth()
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -135,6 +136,7 @@ function AppShell() {
     </div>
   )
   if (isPasswordRecovery) return <NuovaPasswordPage onDone={clearPasswordRecovery} />
+  if (accountDisattivato) return <AccountDisattivatoPage onDone={clearAccountDisattivato} />
 
   if (user && isSuperAdmin) {
     return (
