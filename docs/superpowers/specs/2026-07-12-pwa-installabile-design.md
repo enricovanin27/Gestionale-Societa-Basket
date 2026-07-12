@@ -20,7 +20,7 @@ L'app (React + Vite) non ha nessuna delle caratteristiche che rendono un sito we
 
 Nuovo SVG sorgente (`frontend/public/icon-source.svg`): quadrato con sfondo amber (gradiente `#f59e0b` → `#d97706`), lettera "E" bianca bold centrata.
 
-Da questo SVG si generano 3 PNG, con uno script Node "usa e getta" (eseguito una tantum via `npx sharp-cli` — o libreria `sharp` invocata tramite `npx -p sharp node <script>`, nessuna dipendenza aggiunta a `package.json`/`package-lock.json`):
+Da questo SVG si generano 3 PNG. **Nota tecnica (verificata durante la pianificazione):** l'ambiente di sviluppo usato non ha accesso di rete al registro npm né strumenti di rasterizzazione già installati (niente ImageMagick/PIL/sharp), quindi non è possibile generare i PNG in automatico via script. Si usa invece una paginetta HTML statica autonoma (`frontend/tools/generate-pwa-icons.html`, non collegata all'app, non in bundle) che disegna l'icona su 3 `<canvas>` e offre 3 pulsanti "Scarica" — la si apre una volta in un qualsiasi browser (anche solo aprendo il file, senza server) e si scaricano i 3 PNG, da spostare poi in `frontend/public/`. Nessuna dipendenza aggiunta, nessun accesso di rete richiesto, riutilizzabile in futuro se il design dell'icona cambia. I 3 file generati:
 - `frontend/public/icon-192.png` (192×192)
 - `frontend/public/icon-512.png` (512×512)
 - `frontend/public/icon-maskable-512.png` (512×512, contenuto centrato con margine di sicurezza ~20% per il ritaglio "maskable" di Android)
