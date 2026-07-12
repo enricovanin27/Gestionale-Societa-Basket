@@ -17,7 +17,8 @@ export async function initPushNotifications(userId, squadre, societaId) {
     : squadre ? [squadre] : []
 
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js')
+    // Registrazione avviata in main.jsx via registerServiceWorker() — qui aspettiamo solo che sia pronta.
+    const reg = await navigator.serviceWorker.ready
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return
 

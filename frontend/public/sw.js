@@ -22,3 +22,10 @@ self.addEventListener('notificationclick', (event) => {
     })
   )
 })
+
+// Nessuna cache: richiesto da alcuni browser per considerare la pagina installabile,
+// ma il comportamento di rete resta invariato (solo pass-through).
+self.addEventListener('fetch', (event) => {
+  if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return
+  event.respondWith(fetch(event.request))
+})
