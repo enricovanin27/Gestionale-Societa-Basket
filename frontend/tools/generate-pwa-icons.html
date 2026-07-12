@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Genera icone PWA — EVO</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f3f4f6; padding:32px; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
+  .item { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:16px; text-align:center; }
+  canvas { display:block; margin:0 auto 12px; border:1px solid #e5e7eb; }
+  button { padding:8px 16px; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-weight:600; cursor:pointer; font-size:14px; }
+  button:hover { background:#d97706; }
+  code { background:#f3f4f6; padding:2px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+  <h1>Genera icone PWA — EVO</h1>
+  <p>Apri questo file direttamente in un browser (doppio click, non serve un server). Clicca i 3 pulsanti "Scarica", poi sposta i 3 file scaricati in <code>frontend/public/</code>.</p>
+  <div class="row">
+    <div class="item">
+      <canvas id="c192" width="192" height="192"></canvas>
+      <p><code>icon-192.png</code></p>
+      <button onclick="download('c192','icon-192.png')">Scarica</button>
+    </div>
+    <div class="item">
+      <canvas id="c512" width="512" height="512"></canvas>
+      <p><code>icon-512.png</code></p>
+      <button onclick="download('c512','icon-512.png')">Scarica</button>
+    </div>
+    <div class="item">
+      <canvas id="cMask" width="512" height="512"></canvas>
+      <p><code>icon-maskable-512.png</code></p>
+      <button onclick="download('cMask','icon-maskable-512.png')">Scarica</button>
+    </div>
+  </div>
+
+<script>
+function drawIcon(canvasId, { size, rounded, safeZoneScale }) {
+  const canvas = document.getElementById(canvasId)
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, size, size)
+
+  const grad = ctx.createLinearGradient(0, 0, size, size)
+  grad.addColorStop(0, '#f59e0b')
+  grad.addColorStop(1, '#d97706')
+
+  if (rounded) {
+    const r = size * 0.18
+    ctx.beginPath()
+    ctx.moveTo(r, 0)
+    ctx.lineTo(size - r, 0)
+    ctx.quadraticCurveTo(size, 0, size, r)
+    ctx.lineTo(size, size - r)
+    ctx.quadraticCurveTo(size, size, size - r, size)
+    ctx.lineTo(r, size)
+    ctx.quadraticCurveTo(0, size, 0, size - r)
+    ctx.lineTo(0, r)
+    ctx.quadraticCurveTo(0, 0, r, 0)
+    ctx.closePath()
+    ctx.fillStyle = grad
+    ctx.fill()
+  } else {
+    // Icona "maskable": sfondo pieno, senza arrotondamento — il masking lo applica il sistema operativo.
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, size, size)
+  }
+
+  // Lettera "E" bianca, centrata. safeZoneScale < 1 per la variante maskable,
+  // per restare dentro la "safe zone" circolare (~80% del canvas) che Android non ritaglia mai.
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `bold ${Math.round(size * 0.5 * safeZoneScale)}px system-ui, Arial, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('E', size / 2, size / 2 + size * 0.03)
+}
+
+function download(canvasId, filename) {
+  const canvas = document.getElementById(canvasId)
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }, 'image/png')
+}
+
+drawIcon('c192', { size: 192, rounded: true, safeZoneScale: 1 })
+drawIcon('c512', { size: 512, rounded: true, safeZoneScale: 1 })
+drawIcon('cMask', { size: 512, rounded: false, safeZoneScale: 0.6 })
+</script>
+</body>
+</html>
