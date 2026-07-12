@@ -46,6 +46,7 @@ import HomeAdmin from './pages/home/HomeAdmin'
 import AdminPersone from './pages/admin/AdminPersone'
 import AdminSetupPage from './pages/admin/AdminSetupPage'
 import PresenzeAdmin from './pages/admin/PresenzeAdmin'
+import NuovaStagionePage from './pages/admin/NuovaStagionePage'
 // PrepLayout, AgendaPrep, HomePrepPage, SchedeAtletichePage — in standby, non importati
 import MessaggiRicevutiPage from './pages/coach/MessaggiRicevutiPage'
 import LandingPage       from './pages/LandingPage'
@@ -227,6 +228,7 @@ function AppShell() {
           <Route path="bacheca"     element={<BachecaPage />} />
           <Route path="setup"       element={<AdminSetupPage />} />
           <Route path="setup/:tab"  element={<SetupPage />} />
+          <Route path="setup/nuova-stagione" element={<NuovaStagionePage />} />
           <Route path="persone"     element={<AdminPersone />} />
         </Route>
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Building2, Users, Dumbbell, ChevronRight, GitFork,
-  CalendarDays, Briefcase,
+  CalendarDays, Briefcase, RefreshCw,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -590,7 +590,8 @@ export default function AdminSetupPage() {
         {/* Strumenti */}
         <SectionGroup title="🛠 Strumenti">
           <SetupCard icon={CalendarDays} title="Configura Settimana Tipo" desc="Template orario settimanale"       onClick={() => navigate('/admin/setup/settimana_tipo')} border />
-          <SetupCard icon={GitFork}      title="Doppio Campionato"         desc="Coppie squadre e giocatori comuni" onClick={() => setOpenModal('doppio')} />
+          <SetupCard icon={GitFork}      title="Doppio Campionato"         desc="Coppie squadre e giocatori comuni" onClick={() => setOpenModal('doppio')} border />
+          <SetupCard icon={RefreshCw}    title="Nuova Stagione"            desc="Turnover roster e cambio stagione" onClick={() => navigate('/admin/setup/nuova-stagione')} />
         </SectionGroup>
 
         {/* Utenti configurati */}
